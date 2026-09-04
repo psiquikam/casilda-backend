@@ -242,10 +242,10 @@ INSERT INTO tipodiscapacidad (id, nombre) VALUES
 (1, 'Física o Motora'),
 (2, 'Sensorial'),
 (3, 'Intelectual'),
-(4, 'Psíquica o Psicosocial'),
+(4, 'Psíquica o Psicosocial');
 
 -- Insertar los Subtipos (relacionados por el ID del tipo)
-INSERT INTO subtipodiscapacidad (id, nombre, idtipodiscapacidad) VALUES
+INSERT INTO subtipodiscapacidad (id, nombre, idtipo) VALUES
 -- Subtipos de Física o Motora (ID 1)
 (1, 'Dificultades motoras (parálisis, amputaciones, distrofias, malformaciones)', 1),
 (2, 'Afectaciones neurológicas que limitan el desplazamiento', 1),
@@ -619,7 +619,7 @@ INSERT INTO public.motivoestadocita (id, nombre) VALUES
     (2,'Cambio de agenda de la dupla o la profesional'),
     (3,'Circunstancias externas'),
     (4,'Solicitud de persona a atender'),
-    (5,'NA')
+    (5,'NA');
 
 -- ============================================================================
 -- 26. TIPO ASIGNACIÓN
@@ -670,7 +670,7 @@ insert INTO tipoviolencia (id, nombre) VALUES
  (7, 'Por prejuicio');
 
  --Tipo de violencia psicológica
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (1, 'Difusión de contenido íntimo', 1),
 (2, 'Constreñimiento ilegal', 1),
 (3, 'Lenguaje misógino, sexista o discursos de odio', 1),
@@ -680,7 +680,7 @@ insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
 (7, 'Injurias por vías de hecho o calumnia', 1);
 
 --Tipo de violencia física 
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (8, 'Violencia intrafamiliar', 2),
 (9, 'Violencia de pareja/expareja', 2),
 (10, 'Violencia interpersonal', 2),
@@ -688,20 +688,20 @@ insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
 (12, 'Feminicidio (Tentativa o comisión)', 2);
 
 --Tipo de violencia sexual 
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (13, 'Acoso sexual', 3),
 (14, 'Acceso carnal', 3),
 (15, 'Actos sexuales', 3),
 (16, 'Violencia sexual correctiva', 3);
 
 --Tipo de violencia Institucional
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (17, 'Omision del deber de denuncia', 4),
 (18, 'Revictimización', 4),
 (19, 'Omisión al deber de debida diligencia', 4);
 
 --Tipo de violencia económica/Patrimonial
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (20, 'Inasistencia alimentaria', 5),
 (21, 'Hurto', 5),
 (22, 'Control económico', 5),
@@ -709,7 +709,7 @@ insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
 
 
 --Tipo de violencia sexual informática
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (24, 'Grooming', 6),
 (25, 'Pornografía', 6),
 (26, 'Sexting', 6),
@@ -717,7 +717,7 @@ insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
 (28, 'Violación de datos personales', 6);
 
 --Tipo de violencia por prejuicio
-insert INTO modalidadviolencia (idmodalidad, nombre, idtipoviolencia) VALUES
+insert INTO modalidadviolencia (id, nombre, idtipoviolencia) VALUES
 (29, 'Discriminación por género u orientación sexual o identidad de género', 7);
 
 --Apreciación de la violencia

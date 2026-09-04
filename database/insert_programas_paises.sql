@@ -7,6 +7,11 @@
 -- ============================================================================
 -- PROGRAMAS ACADÉMICOS
 -- ============================================================================
+/*
+ * Este bloque pertenece a un esquema anterior. La entidad Programa actual no
+ * tiene las columnas codigo ni descripcion; los programas vigentes se cargan
+ * en insert_datos_maestros.sql con idunidadacademica y banderas de nivel.
+ */
 INSERT INTO programa (id, codigo, nombre, descripcion) VALUES
 (1, 'ADM-EMP', 'Administración De Empresas', 'Pregrado'),
 (2, 'ADM-SAL', 'Administración En Salud', 'Pregrado'),
@@ -132,6 +137,7 @@ INSERT INTO programa (id, codigo, nombre, descripcion) VALUES
 (122, 'OTRO', 'Otro-a', 'Otro'),
 (123, 'DESCONOCIDO', 'Desconocido-a', 'Desconocido'),
 (124, 'NA', 'N/A', 'No aplica');
+*/
 
 -- ============================================================================
 -- PAÍSES (ISO 3166-1 alfa-3)
