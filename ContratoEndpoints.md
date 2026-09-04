@@ -1,4 +1,4 @@
-```md
+
 # Contrato para la creación de endpoints
 
 ## 1. Objetivo
@@ -396,4 +396,4 @@ Ejemplos:
 - [ ] Se probaron autenticación y autorización.
 - [ ] Se probaron las validaciones.
 - [ ] Se verificó que el frontend pueda consumir el endpoint sin ambigüedades.
-```
+
