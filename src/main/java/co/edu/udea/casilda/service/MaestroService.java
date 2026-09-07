@@ -439,7 +439,7 @@ public class MaestroService {
     public List<MaestroDTO> obtenerRoles() {
         log.info("Obteniendo roles desde la base de datos");
         return roleRepository.findAll().stream()
-            .map(r -> new MaestroDTO(r.getId().longValue(), null, r.getNombre()))
+            .map(r -> new MaestroDTO(r.getId().longValue(), r.getCodigo(), r.getNombre()))
             .collect(Collectors.toList());
     }
 

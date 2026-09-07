@@ -54,6 +54,43 @@ INSERT INTO usuario (email, password, nombre, idrol, activo) VALUES
 ('usuario.docente@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Carlos Alberto Ramírez López', 5, true),
 ('usuario.admin@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Sofía Martínez Torres', 5, true);
 
+INSERT INTO usuariorol (idusuario, idrol)
+SELECT id, idrol
+FROM usuario
+WHERE email IN (
+    'admin@udea.edu.co',
+    'admin2@udea.edu.co',
+    'coordinador.atencion@udea.edu.co',
+    'coordinador.prevencion@udea.edu.co',
+    'andrea.salazar@udea.edu.co',
+    'carmen.sanchez@udea.edu.co',
+    'diana.sanchez@udea.edu.co',
+    'manuela.morales@udea.edu.co',
+    'laura.valencia@udea.edu.co',
+    'lina.rodas@udea.edu.co',
+    'revisor1@udea.edu.co',
+    'revisor2@udea.edu.co',
+    'usuario.estudiante@udea.edu.co',
+    'usuario.docente@udea.edu.co',
+    'usuario.admin@udea.edu.co'
+)
+ON CONFLICT (idusuario, idrol) DO NOTHING;
+
+-- Ejemplo de usuarios con múltiples roles.
+INSERT INTO usuariorol (idusuario, idrol)
+SELECT u.id, r.id
+FROM usuario u
+JOIN rol r ON r.codigo = 'COORDINADOR'
+WHERE u.email = 'admin@udea.edu.co'
+ON CONFLICT (idusuario, idrol) DO NOTHING;
+
+INSERT INTO usuariorol (idusuario, idrol)
+SELECT u.id, r.id
+FROM usuario u
+JOIN rol r ON r.codigo = 'REVISOR'
+WHERE u.email = 'coordinador.atencion@udea.edu.co'
+ON CONFLICT (idusuario, idrol) DO NOTHING;
+
 -- ============================================================================
 -- NOTAS IMPORTANTES
 -- ============================================================================

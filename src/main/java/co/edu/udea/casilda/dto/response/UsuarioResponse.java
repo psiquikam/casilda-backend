@@ -2,11 +2,15 @@ package co.edu.udea.casilda.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
+import lombok.Setter;
 
-@Data
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -16,6 +20,9 @@ public class UsuarioResponse {
     private String email;
     private Integer idRol;
     private String nombreRol;
+    private Set<Integer> idsRoles;
+    private Set<String> codigosRoles;
+    private Set<String> nombresRoles;
     private Boolean activo;
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;

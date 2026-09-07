@@ -13,6 +13,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -22,7 +27,7 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final JwtService jwtService;
 
-    public AuthLoginResponse login(AuthLoginRequest request) {
+    public AuthLoginResponse login(final AuthLoginRequest request) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
@@ -36,11 +41,26 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         String token = jwtService.generateToken(userDetails);
+        Set<String> roles = usuario.getRoles().stream()
+                .map(rol -> rol.getCodigo() == null || rol.getCodigo().isBlank()
+                        ? rol.getNombre()
+                        : rol.getCodigo())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (roles.isEmpty() && usuario.getRol() != null) {
+            roles.add(usuario.getRol().getCodigo() == null || usuario.getRol().getCodigo().isBlank()
+                    ? usuario.getRol().getNombre()
+                    : usuario.getRol().getCodigo());
+        }
+        List<String> authorities = userDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .toList();
 
         return AuthLoginResponse.builder()
                 .nombre(usuario.getNombre())
                 .email(usuario.getEmail())
-                .rol(usuario.getRol().getNombre())
+                .rol(usuario.getRol() == null ? null : usuario.getRol().getNombre())
+                .roles(roles.stream().toList())
+                .authorities(authorities)
                 .foto(null)
                 .token(token)
                 .build();
