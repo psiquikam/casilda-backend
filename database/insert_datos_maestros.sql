@@ -4,6 +4,9 @@
 -- Generado a partir de EV-I-02-25 D1.xlsm
 -- ============================================================================
 
+-- Ejecutar después de iniciar la aplicación al menos una vez.
+-- Hibernate (ddl-auto=update) crea y actualiza las columnas del esquema.
+
 -- ============================================================================
 -- 1. TIPOS DE CORREO
 -- ============================================================================
