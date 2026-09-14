@@ -38,7 +38,7 @@ public abstract class IntegrationTestBase {
     protected String bearer(final String email) throws Exception {
         return "Bearer " + login(email);
     }
-
+    // Pin the integration database to the PostgreSQL version used by the project.
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:16-alpine")
                     .withDatabaseName("casilda")
