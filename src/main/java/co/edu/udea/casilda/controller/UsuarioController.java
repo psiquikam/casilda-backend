@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,7 +18,6 @@ import java.util.Map;
 
 /**
  * Controlador REST para gestión de usuarios
- * Solo accesible para usuarios con rol ADMIN
  */
 @RestController
 @RequestMapping("/usuarios")
@@ -35,7 +33,6 @@ public class UsuarioController {
      */
     @GetMapping
     @Operation(summary = "Obtener todos los usuarios")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UsuarioResponse>> obtenerTodos() {
         return ResponseEntity.ok(usuarioService.obtenerTodos());
     }
@@ -45,7 +42,6 @@ public class UsuarioController {
      */
     @GetMapping("/paginado")
     @Operation(summary = "Obtener usuarios paginados")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<UsuarioResponse>> obtenerPaginados(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -57,7 +53,6 @@ public class UsuarioController {
      */
     @GetMapping("/{id:\\d+}")
     @Operation(summary = "Obtener usuario por ID")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponse> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(usuarioService.obtenerPorId(id));
     }
@@ -67,7 +62,6 @@ public class UsuarioController {
      */
     @PostMapping
     @Operation(summary = "Crear un nuevo usuario")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponse> crear(@Valid @RequestBody UsuarioUpsertRequest request) {
         UsuarioResponse usuario = usuarioService.crear(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
@@ -78,7 +72,6 @@ public class UsuarioController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar un usuario existente")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponse> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody UsuarioUpsertRequest request) {
@@ -90,7 +83,6 @@ public class UsuarioController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar un usuario")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> eliminar(@PathVariable Long id) {
         usuarioService.eliminar(id);
         return ResponseEntity.ok(Map.of("message", "Usuario eliminado exitosamente"));
@@ -101,7 +93,6 @@ public class UsuarioController {
      */
     @PatchMapping("/{id}/estado")
     @Operation(summary = "Cambiar estado de un usuario")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponse> cambiarEstado(
             @PathVariable Long id,
             @RequestBody Map<String, Boolean> body) {

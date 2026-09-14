@@ -4,6 +4,9 @@
 -- Generado a partir de EV-I-02-25 D1.xlsm
 -- ============================================================================
 
+-- Ejecutar después de iniciar la aplicación al menos una vez.
+-- Hibernate (ddl-auto=update) crea y actualiza las columnas del esquema.
+
 -- ============================================================================
 -- 1. TIPOS DE CORREO
 -- ============================================================================
@@ -589,12 +592,12 @@ INSERT INTO eps (id, nombre) VALUES
 -- ============================================================================
 -- 22. ROLES DE USUARIO
 -- ============================================================================
-INSERT INTO rol (id, nombre) VALUES
-(1, 'Admin'),
-(2, 'Coordinador'),
-(3, 'Profesional'),
-(4, 'Revisor'),
-(5, 'Usuario');
+INSERT INTO rol (id, codigo, nombre) VALUES
+(1, 'ADMIN', 'Admin'),
+(2, 'COORDINADOR', 'Coordinador'),
+(3, 'PROFESIONAL', 'Profesional'),
+(4, 'REVISOR', 'Revisor'),
+(5, 'USUARIO', 'Usuario');
 
 
 -- ============================================================================

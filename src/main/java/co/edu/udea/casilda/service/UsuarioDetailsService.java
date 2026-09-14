@@ -12,7 +12,10 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,13 +25,26 @@ public class UsuarioDetailsService implements UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(final String username) {
         Usuario usuario = usuarioRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
 
-        List<GrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_" + usuario.getRol().getNombre().toUpperCase())
-        );
+        Set<String> roleNames = usuario.getRoles().stream()
+                .filter(rol -> Boolean.TRUE.equals(rol.getActivo()))
+                .map(rol -> rol.getCodigo() == null || rol.getCodigo().isBlank()
+                        ? rol.getNombre()
+                        : rol.getCodigo())
+                .map(String::toUpperCase)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (roleNames.isEmpty() && usuario.getRol() != null) {
+            roleNames.add(usuario.getRol().getCodigo() == null || usuario.getRol().getCodigo().isBlank()
+                    ? usuario.getRol().getNombre().toUpperCase()
+                    : usuario.getRol().getCodigo().toUpperCase());
+        }
+
+        List<GrantedAuthority> authorities = roleNames.stream()
+                .map(roleName -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + roleName))
+                .toList();
 
         return User.builder()
                 .username(usuario.getEmail())

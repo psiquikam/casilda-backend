@@ -277,6 +277,8 @@ CREATE TABLE programacaso (
 CREATE TABLE rol (
     id int NOT NULL,
     nombre character varying COLLATE pg_catalog."default" UNIQUE NOT NULL,
+    codigo character varying(50) COLLATE pg_catalog."default" UNIQUE NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
     constraint rol_pkey PRIMARY KEY (id)
 );
 

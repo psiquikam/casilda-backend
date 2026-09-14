@@ -17,7 +17,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -47,7 +50,7 @@ public class UsuarioService {
      * Obtiene usuarios con paginación
      */
     @Transactional(readOnly = true)
-    public Page<UsuarioResponse> obtenerPaginados(int page, int size) {
+    public Page<UsuarioResponse> obtenerPaginados(final int page, final int size) {
         log.info("Obteniendo usuarios paginados. page={}, size={}", page, size);
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(size, 1);
@@ -59,7 +62,7 @@ public class UsuarioService {
      * Obtiene un usuario por su ID
      */
     @Transactional(readOnly = true)
-    public UsuarioResponse obtenerPorId(Long id) {
+    public UsuarioResponse obtenerPorId(final Long id) {
         log.info("Obteniendo usuario con ID: {}", id);
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
@@ -70,7 +73,7 @@ public class UsuarioService {
      * Crea un nuevo usuario
      */
     @Transactional
-    public UsuarioResponse crear(UsuarioUpsertRequest request) {
+    public UsuarioResponse crear(final UsuarioUpsertRequest request) {
         log.info("Creando nuevo usuario con email: {}", request.getEmail());
         
         // Verificar que el email no exista
@@ -83,16 +86,14 @@ public class UsuarioService {
             throw new IllegalArgumentException("La contraseña es obligatoria al crear un usuario");
         }
 
-        // Obtener el rol
-        Rol rol = roleRepository.findById(request.getIdRol())
-                .orElseThrow(() -> new ResourceNotFoundException("Rol no encontrado con ID: " + request.getIdRol()));
+        Set<Rol> roles = obtenerRoles(request);
 
         // Crear el usuario
         Usuario usuario = new Usuario();
         usuario.setNombre(request.getNombre());
         usuario.setEmail(request.getEmail());
         usuario.setPassword(passwordEncoder.encode(request.getPassword()));
-        usuario.setRol(rol);
+        usuario.setRoles(roles);
         usuario.setActivo(request.getActivo() != null ? request.getActivo() : true);
 
         Usuario usuarioGuardado = usuarioRepository.save(usuario);
@@ -105,7 +106,7 @@ public class UsuarioService {
      * Actualiza un usuario existente
      */
     @Transactional
-    public UsuarioResponse actualizar(Long id, UsuarioUpsertRequest request) {
+    public UsuarioResponse actualizar(final Long id, final UsuarioUpsertRequest request) {
         log.info("Actualizando usuario con ID: {}", id);
         
         Usuario usuario = usuarioRepository.findById(id)
@@ -118,14 +119,12 @@ public class UsuarioService {
             }
         });
 
-        // Obtener el rol
-        Rol rol = roleRepository.findById(request.getIdRol())
-                .orElseThrow(() -> new ResourceNotFoundException("Rol no encontrado con ID: " + request.getIdRol()));
+        Set<Rol> roles = obtenerRoles(request);
 
         // Actualizar campos
         usuario.setNombre(request.getNombre());
         usuario.setEmail(request.getEmail());
-        usuario.setRol(rol);
+        usuario.setRoles(roles);
         
         if (request.getActivo() != null) {
             usuario.setActivo(request.getActivo());
@@ -146,7 +145,7 @@ public class UsuarioService {
      * Elimina un usuario por su ID
      */
     @Transactional
-    public void eliminar(Long id) {
+    public void eliminar(final Long id) {
         log.info("Eliminando usuario con ID: {}", id);
         
         Usuario usuario = usuarioRepository.findById(id)
@@ -160,7 +159,7 @@ public class UsuarioService {
      * Activa o desactiva un usuario
      */
     @Transactional
-    public UsuarioResponse cambiarEstado(Long id, Boolean activo) {
+    public UsuarioResponse cambiarEstado(final Long id, final Boolean activo) {
         log.info("Cambiando estado de usuario con ID: {} a activo: {}", id, activo);
         
         Usuario usuario = usuarioRepository.findById(id)
@@ -176,16 +175,64 @@ public class UsuarioService {
     /**
      * Convierte una entidad Usuario a UsuarioResponse
      */
-    private UsuarioResponse convertirAResponse(Usuario usuario) {
+    private UsuarioResponse convertirAResponse(final Usuario usuario) {
+        Set<Rol> roles = usuario.getRoles();
+        Rol rolPrincipal = usuario.getRol();
+        if ((roles == null || roles.isEmpty()) && rolPrincipal != null) {
+            roles = Set.of(rolPrincipal);
+        }
+
+        Set<Integer> idsRoles = roles == null
+                ? Set.of()
+                : roles.stream().map(Rol::getId).collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> codigosRoles = roles == null
+                ? Set.of()
+                : roles.stream().map(Rol::getCodigo).collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> nombresRoles = roles == null
+                ? Set.of()
+                : roles.stream().map(Rol::getNombre).collect(Collectors.toCollection(LinkedHashSet::new));
+
         return UsuarioResponse.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
                 .email(usuario.getEmail())
-                .idRol(usuario.getRol().getId())
-                .nombreRol(usuario.getRol().getNombre())
+                .idRol(rolPrincipal == null ? null : rolPrincipal.getId())
+                .nombreRol(rolPrincipal == null ? null : rolPrincipal.getNombre())
+                .idsRoles(idsRoles)
+                .codigosRoles(codigosRoles)
+                .nombresRoles(nombresRoles)
                 .activo(usuario.getActivo())
                 .fechaCreacion(usuario.getFechaCreacion())
                 .fechaActualizacion(usuario.getFechaActualizacion())
                 .build();
+    }
+
+    private Set<Rol> obtenerRoles(final UsuarioUpsertRequest request) {
+        Set<Integer> idsRoles = new LinkedHashSet<>();
+        if (request.getIdsRoles() != null) {
+            idsRoles.addAll(request.getIdsRoles());
+        }
+        if (idsRoles.isEmpty() && request.getIdRol() != null) {
+            idsRoles.add(request.getIdRol());
+        }
+        if (idsRoles.isEmpty()) {
+            throw new IllegalArgumentException("Al menos un rol es obligatorio");
+        }
+
+        List<Rol> rolesEncontrados = roleRepository.findAllById(idsRoles);
+        Map<Integer, Rol> rolesPorId = rolesEncontrados.stream()
+                .collect(Collectors.toMap(Rol::getId, rol -> rol));
+        boolean faltaUnRol = idsRoles.stream().anyMatch(idRol -> !rolesPorId.containsKey(idRol));
+        if (faltaUnRol) {
+            Integer idRol = idsRoles.stream()
+                    .filter(id -> !rolesPorId.containsKey(id))
+                    .findFirst()
+                    .orElseThrow();
+            throw new ResourceNotFoundException("Rol no encontrado con ID: " + idRol);
+        }
+
+        return idsRoles.stream()
+                .map(rolesPorId::get)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 }
