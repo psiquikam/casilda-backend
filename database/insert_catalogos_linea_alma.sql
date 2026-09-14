@@ -39,6 +39,6 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO actorremitente (id, nombre) VALUES
     (1, 'Masculinidades'),
-    (2, 'Bienestar Universitario')
+    (2, 'Bienestar Universitario'),
     (3, 'Otros')
 ON CONFLICT (id) DO NOTHING;
