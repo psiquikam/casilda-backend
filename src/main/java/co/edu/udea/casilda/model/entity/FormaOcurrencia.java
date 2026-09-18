@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class FormaOcurrencia {
+public class FormaOcurrencia extends Auditable {
 
     @Id
     private Integer id;

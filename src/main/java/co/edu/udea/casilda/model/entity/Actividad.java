@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Actividad {
+public class Actividad extends Auditable {
 
     @Id
     private Integer id;

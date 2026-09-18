@@ -14,7 +14,7 @@ import java.util.Locale;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Rol {
+public class Rol extends Auditable {
     @Id
     private Integer id;
 

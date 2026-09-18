@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TipoRemision {
+public class TipoRemision extends Auditable {
     @Id
     private Integer id;
 

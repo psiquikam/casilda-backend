@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CanalContacto {
+public class CanalContacto extends Auditable {
 
     @Id
     private Integer id;

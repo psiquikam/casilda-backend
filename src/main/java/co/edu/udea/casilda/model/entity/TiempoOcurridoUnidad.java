@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TiempoOcurridoUnidad {
+public class TiempoOcurridoUnidad extends Auditable {
     @Id
     private Integer id;
 

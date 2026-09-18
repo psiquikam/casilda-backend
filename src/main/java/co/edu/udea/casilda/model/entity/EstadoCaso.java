@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class EstadoCaso {
+public class EstadoCaso extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

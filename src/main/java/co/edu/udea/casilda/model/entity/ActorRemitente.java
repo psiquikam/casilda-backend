@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ActorRemitente {
+public class ActorRemitente extends Auditable {
 
     @Id
     private Integer id;
