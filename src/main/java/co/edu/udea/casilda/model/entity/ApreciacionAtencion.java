@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ApreciacionAtencion {
+public class ApreciacionAtencion extends Auditable {
 
     @EmbeddedId
     private ApreciacionAtencionId id;

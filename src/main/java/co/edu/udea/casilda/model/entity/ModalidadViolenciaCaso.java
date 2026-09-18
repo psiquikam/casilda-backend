@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ModalidadViolenciaCaso {
+public class ModalidadViolenciaCaso extends Auditable {
     
     @Id
     @Column(name = "idcaso", nullable = false)

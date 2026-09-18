@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @IdClass(RemisionAtencionId.class)
-public class RemisionAtencion {
+public class RemisionAtencion extends Auditable {
     @Id
     @Column(name = "idatencion")
     private Long idAtencion;

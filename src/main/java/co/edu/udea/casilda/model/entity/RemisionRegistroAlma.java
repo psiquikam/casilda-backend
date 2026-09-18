@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RemisionRegistroAlma {
+public class RemisionRegistroAlma extends Auditable {
 
     @Id
     @Column(name = "idregistrolinealma", nullable = false)
