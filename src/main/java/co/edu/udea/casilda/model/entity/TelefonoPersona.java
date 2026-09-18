@@ -12,7 +12,7 @@ import lombok.ToString;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TelefonoPersona {
+public class TelefonoPersona extends Auditable {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

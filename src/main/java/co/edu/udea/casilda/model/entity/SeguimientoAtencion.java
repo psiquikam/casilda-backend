@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SeguimientoAtencion {
+public class SeguimientoAtencion extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

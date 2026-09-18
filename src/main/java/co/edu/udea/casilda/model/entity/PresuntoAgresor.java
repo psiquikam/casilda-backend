@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PresuntoAgresor {
+public class PresuntoAgresor extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

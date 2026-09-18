@@ -18,7 +18,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Caso {
+public class Caso extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

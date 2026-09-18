@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ContactoLineaAlma {
+public class ContactoLineaAlma extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

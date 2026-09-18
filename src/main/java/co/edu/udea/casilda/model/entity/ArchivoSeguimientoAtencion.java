@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ArchivoSeguimientoAtencion {
+public class ArchivoSeguimientoAtencion extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MedidaProteccion {
+public class MedidaProteccion extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
