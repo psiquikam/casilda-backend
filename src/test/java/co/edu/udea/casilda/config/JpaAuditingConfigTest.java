@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,6 +14,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class JpaAuditingConfigTest {
 
@@ -66,5 +69,17 @@ class JpaAuditingConfigTest {
         Optional<String> auditor = auditorProvider.getCurrentAuditor();
 
         assertThat(auditor).contains("usuario@udea.edu.co");
+    }
+
+    @Test
+    void returnsEmptyWhenAuthenticatedUserHasNoName() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn(null);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        Optional<String> auditor = auditorProvider.getCurrentAuditor();
+
+        assertThat(auditor).isEmpty();
     }
 }

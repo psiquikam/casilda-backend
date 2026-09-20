@@ -15,7 +15,7 @@ public class JpaAuditingConfig {
 
    @Bean
     public AuditorAware<String> auditorProvider() {
-    return () -> Optional.of(switch (SecurityContextHolder.getContext().getAuthentication()) {
+    return () -> Optional.ofNullable(switch (SecurityContextHolder.getContext().getAuthentication()) {
         case null -> "SYSTEM";
         case AnonymousAuthenticationToken ignored -> "ANONYMOUS";
         case Authentication auth when !auth.isAuthenticated() -> "ANONYMOUS";
