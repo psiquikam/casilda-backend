@@ -21,7 +21,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Endpoint {
+public class Endpoint extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

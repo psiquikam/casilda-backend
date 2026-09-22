@@ -19,7 +19,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Persona {
+public class Persona extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Etnia {
+public class Etnia extends Auditable {
     @Id
     private Integer id;
 

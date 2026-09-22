@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CompromisoProfesional {
+public class CompromisoProfesional extends Auditable {
 
     @Id
     @Column(name = "idatencion", nullable = false)

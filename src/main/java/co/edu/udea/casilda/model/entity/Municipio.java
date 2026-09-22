@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Municipio {
+public class Municipio extends Auditable {
     @Id
     private Integer id;
 

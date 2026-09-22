@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ResultadoTriage {
+public class ResultadoTriage extends Auditable {
 
     @Id
     private Integer id;

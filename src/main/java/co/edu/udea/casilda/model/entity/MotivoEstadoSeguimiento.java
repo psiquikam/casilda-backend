@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MotivoEstadoSeguimiento {
+public class MotivoEstadoSeguimiento extends Auditable {
 
     @Id
     private Integer id;

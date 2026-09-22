@@ -27,7 +27,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegistroLineaAlma {
+public class RegistroLineaAlma extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

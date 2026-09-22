@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ContactoTelefonico {
+public class ContactoTelefonico extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Pais {
+public class Pais extends Auditable {
     @Id
     private Integer id;
 

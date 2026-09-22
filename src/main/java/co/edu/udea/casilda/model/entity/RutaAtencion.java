@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @IdClass(RutaAtencionId.class)
-public class RutaAtencion {
+public class RutaAtencion extends Auditable {
     @Id
     @Column(name = "idatencion")
     private Long idAtencion;

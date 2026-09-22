@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProtocoloAph {
+public class ProtocoloAph extends Auditable {
 
     @Id
     private Integer id;

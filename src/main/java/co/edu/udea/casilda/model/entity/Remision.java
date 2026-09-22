@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Remision {
+public class Remision extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

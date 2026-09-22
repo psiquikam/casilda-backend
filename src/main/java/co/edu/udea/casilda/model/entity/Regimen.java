@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Regimen {
+public class Regimen extends Auditable {
     @Id
     private Integer id;
 

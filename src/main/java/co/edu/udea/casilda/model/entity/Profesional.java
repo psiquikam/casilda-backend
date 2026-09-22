@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Profesional {
+public class Profesional extends Auditable {
 
     @Id
     @Column(name = "idpersona")

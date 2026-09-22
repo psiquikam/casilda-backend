@@ -17,7 +17,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SolicitudAtencion {
+public class SolicitudAtencion extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
