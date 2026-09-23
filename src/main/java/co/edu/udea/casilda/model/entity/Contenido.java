@@ -33,15 +33,20 @@ public class Contenido extends Auditable {
 
     /**
      * Ruta o URL de la imagen de la tarjeta. Solo se almacena la referencia;
-     * el archivo se guarda fuera de la base de datos.
+     * el archivo se guarda fuera de la base de datos. Es opcional: una tarjeta
+     * puede publicarse sin imagen (se pinta solo con título y contenido).
      */
-    @Column(nullable = false, length = 500)
+    @Column(length = 500)
     private String imagen;
 
     @Column(nullable = false, length = 160)
     private String titulo;
 
-    @Column(name = "contenido", nullable = false, length = 500)
+    /**
+     * Cuerpo del contenido. Puede ser tan extenso como un artículo completo,
+     * por lo que no se limita a un varchar corto.
+     */
+    @Column(name = "contenido", nullable = false, columnDefinition = "text")
     private String contenido;
 
     @Column(name = "vigencia_inicio", nullable = false)
