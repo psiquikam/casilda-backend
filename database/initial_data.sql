@@ -6,7 +6,8 @@ INSERT INTO rol (id, codigo, nombre, activo) VALUES
     (2, 'COORDINADOR', 'Coordinador', true),
     (3, 'PROFESIONAL', 'Profesional', true),
     (4, 'REVISOR', 'Revisor', true),
-    (5, 'USUARIO', 'Usuario', true)
+    (5, 'USUARIO', 'Usuario', true),
+    (6, 'GESTOR_CONTENIDO', 'Gestor de contenidos', true)
 ON CONFLICT (id) DO UPDATE
 SET codigo = EXCLUDED.codigo,
     nombre = EXCLUDED.nombre,
@@ -45,7 +46,13 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/maestros/**', 'GET', true, false),
     ('/maestros/**', 'POST', true, false),
     ('/maestros/**', 'PUT', true, false),
-    ('/maestros/**', 'DELETE', true, false)
+    ('/maestros/**', 'DELETE', true, false),
+    ('/contenidos/home', 'GET', true, true),
+    ('/contenidos', 'GET', true, false),
+    ('/contenidos/{id}', 'GET', true, false),
+    ('/contenidos', 'POST', true, false),
+    ('/contenidos/{id}', 'PUT', true, false),
+    ('/contenidos/{id}', 'DELETE', true, false)
 ON CONFLICT (path, http_method) DO UPDATE
 SET activo = EXCLUDED.activo,
     publico = EXCLUDED.publico;
@@ -89,4 +96,12 @@ FROM endpoint e
 JOIN rol r ON r.codigo = 'USUARIO'
 WHERE e.path = '/solicitudes/**'
   AND e.http_method IN ('GET', 'POST')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'GESTOR_CONTENIDO')
+WHERE e.path IN ('/contenidos', '/contenidos/{id}')
+  AND e.http_method IN ('GET', 'POST', 'PUT', 'DELETE')
 ON CONFLICT (idendpoint, idrol) DO NOTHING;

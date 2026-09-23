@@ -5,7 +5,8 @@ INSERT INTO rol (id, codigo, nombre, activo) VALUES
     (2, 'COORDINADOR', 'Coordinador', true),
     (3, 'PROFESIONAL', 'Profesional', true),
     (4, 'REVISOR', 'Revisor', true),
-    (5, 'USUARIO', 'Usuario', true)
+    (5, 'USUARIO', 'Usuario', true),
+    (6, 'GESTOR_CONTENIDO', 'Gestor de contenidos', true)
 ON CONFLICT (id) DO UPDATE SET codigo = EXCLUDED.codigo, nombre = EXCLUDED.nombre, activo = true;
 
 -- Casilda2024!
@@ -15,11 +16,12 @@ VALUES
     (2, 'coordinador@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Coordinador', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 2),
     (3, 'profesional@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 3),
     (4, 'revisor@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Revisor', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 4),
-    (5, 'user@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Usuario', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 5)
+    (5, 'user@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Usuario', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 5),
+    (6, 'gestor@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Gestor de contenidos', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 6)
 ON CONFLICT (id) DO UPDATE SET idrol = EXCLUDED.idrol, activo = true;
 
 INSERT INTO usuariorol (idusuario, idrol) VALUES
-    (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)
+    (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6)
 ON CONFLICT (idusuario, idrol) DO NOTHING;
 
 INSERT INTO pais (id, codigo, nombre) VALUES (1, 'CO', 'Colombia')
@@ -42,9 +44,13 @@ INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
     (23, '/personas/**', 'GET', true, false),
     (24, '/parametros/**', 'GET', true, false), (25, '/parametros/**', 'PUT', true, false),
     (26, '/maestros/**', 'GET', true, false), (27, '/maestros/**', 'POST', true, false),
-    (28, '/maestros/**', 'PUT', true, false), (29, '/maestros/**', 'DELETE', true, false)
+    (28, '/maestros/**', 'PUT', true, false), (29, '/maestros/**', 'DELETE', true, false),
+    (30, '/contenidos/home', 'GET', true, true),
+    (31, '/contenidos', 'GET', true, false), (32, '/contenidos/{id}', 'GET', true, false),
+    (33, '/contenidos', 'POST', true, false), (34, '/contenidos/{id}', 'PUT', true, false),
+    (35, '/contenidos/{id}', 'DELETE', true, false)
 ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method,
-    activo = true, publico = false;
+    activo = true, publico = EXCLUDED.publico;
 
 -- Read-only maestros/personas are available to every role.
 INSERT INTO endpointrole (idendpoint, idrol)
@@ -71,6 +77,12 @@ ON CONFLICT (idendpoint, idrol) DO NOTHING;
 -- User administration and parameter/catalog writes are ADMIN-only.
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, 1 FROM endpoint e WHERE e.id IN (1,2,3,4,5,6,7,24,25,27,28,29)
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+-- Administración de contenidos: ADMIN y GESTOR_CONTENIDO (endpoint /contenidos/home queda público, sin roles).
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','GESTOR_CONTENIDO')
+WHERE e.id IN (31, 32, 33, 34, 35)
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 -- Minimal request graph shared by authorization and update integration tests.
