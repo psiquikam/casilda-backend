@@ -18,10 +18,21 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 2MB
+
 server:
   port: 8080
   servlet:
     context-path: /api/v1
+
+app:
+  contenidos:
+    imagenes:
+      directorio: uploads/contenidos
+      url-base: /contenidos/imagenes
 
 logging:
   level:

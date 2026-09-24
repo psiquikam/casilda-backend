@@ -12,15 +12,14 @@ import java.time.Instant;
 
 /**
  * DTO Request para crear/actualizar un contenido destacado del Home,
- * administrado por el rol gestor de contenidos.
+ * administrado por el rol gestor de contenidos. La imagen no viaja en este
+ * DTO: se recibe como un archivo aparte (`multipart/form-data`) y su ruta se
+ * gestiona automáticamente en el servicio.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ContenidoRequest {
-
-    @Size(max = 500, message = "La imagen debe tener máximo 500 caracteres")
-    private String imagen;
 
     @NotBlank(message = "El título es obligatorio")
     @Size(max = 160, message = "El título debe tener máximo 160 caracteres")

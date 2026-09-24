@@ -13,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.Locale;
 public class ContenidoService {
 
     private final ContenidoRepository contenidoRepository;
+    private final ContenidoImagenStorageService imagenStorageService;
 
     /**
      * Lista los contenidos vigentes al momento de la consulta, para el
@@ -64,23 +67,44 @@ public class ContenidoService {
     }
 
     @Transactional
-    public ContenidoResponse crear(final ContenidoRequest request) {
+    public ContenidoResponse crear(final ContenidoRequest request, final MultipartFile imagen) {
         log.info("Creando contenido: {}", request.getTitulo());
         validarVigencia(request);
 
         Contenido contenido = new Contenido();
         aplicarCampos(contenido, request);
+        if (imagen != null && !imagen.isEmpty()) {
+            contenido.setImagen(imagenStorageService.guardar(imagen));
+        }
         Contenido guardado = contenidoRepository.save(contenido);
         return toResponse(guardado);
     }
 
+    /**
+     * Actualiza un contenido existente. El manejo de la imagen sigue estas
+     * reglas: si se envía un archivo nuevo, reemplaza (y borra físicamente)
+     * la imagen anterior; si se marca {@code eliminarImagen}, se borra sin
+     * reemplazo; si no se envía archivo ni se pide eliminar, la imagen actual
+     * se conserva sin cambios.
+     */
     @Transactional
-    public ContenidoResponse actualizar(final Long id, final ContenidoRequest request) {
+    public ContenidoResponse actualizar(
+            final Long id, final ContenidoRequest request, final MultipartFile imagen, final boolean eliminarImagen) {
         log.info("Actualizando contenido con ID: {}", id);
         validarVigencia(request);
 
         Contenido contenido = buscarActivoPorId(id);
         aplicarCampos(contenido, request);
+
+        if (imagen != null && !imagen.isEmpty()) {
+            String imagenAnterior = contenido.getImagen();
+            contenido.setImagen(imagenStorageService.guardar(imagen));
+            imagenStorageService.eliminar(imagenAnterior);
+        } else if (eliminarImagen && StringUtils.hasText(contenido.getImagen())) {
+            imagenStorageService.eliminar(contenido.getImagen());
+            contenido.setImagen(null);
+        }
+
         Contenido guardado = contenidoRepository.save(contenido);
         return toResponse(guardado);
     }
@@ -110,7 +134,6 @@ public class ContenidoService {
     }
 
     private void aplicarCampos(final Contenido contenido, final ContenidoRequest request) {
-        contenido.setImagen(request.getImagen());
         contenido.setTitulo(request.getTitulo());
         contenido.setContenido(request.getContenido());
         contenido.setVigenciaInicio(request.getVigenciaInicio());

@@ -8,7 +8,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -16,15 +18,16 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,7 +37,6 @@ class ContenidoControllerTest {
 
     private static final String CONTENIDO_VALIDO = """
             {
-              "imagen": "assets/linea_alma.svg",
               "titulo": "Atención por Línea Alma",
               "contenido": "Línea de escucha y apoyo psicológico inmediato.",
               "vigenciaInicio": "2026-01-01T00:00:00Z",
@@ -53,11 +55,16 @@ class ContenidoControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(new ContenidoController(service)).build();
     }
 
+    private MockMultipartFile partesContenido() {
+        return new MockMultipartFile(
+                "contenido", "", MediaType.APPLICATION_JSON_VALUE, CONTENIDO_VALIDO.getBytes());
+    }
+
     @Test
     void obtenerContenidosHomeDevuelveArregloPlanoConCacheControl() throws Exception {
         ContenidoHomeResponse item = ContenidoHomeResponse.builder()
                 .id(1L)
-                .imagen("assets/linea_alma.svg")
+                .imagen("/contenidos/imagenes/abc.svg")
                 .titulo("Atención por Línea Alma")
                 .contenido("Línea de escucha y apoyo psicológico inmediato.")
                 .vigenciaInicio(Instant.parse("2026-01-01T00:00:00Z"))
@@ -109,14 +116,27 @@ class ContenidoControllerTest {
 
     @Test
     void crearContenidoValidoDevuelve201() throws Exception {
-        when(service.crear(any(ContenidoRequest.class)))
+        when(service.crear(any(ContenidoRequest.class), isNull()))
                 .thenReturn(ContenidoResponse.builder().id(9L).titulo("Atención por Línea Alma").build());
 
-        mockMvc.perform(post("/contenidos")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(CONTENIDO_VALIDO))
+        mockMvc.perform(multipart("/contenidos").file(partesContenido()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(9));
+    }
+
+    @Test
+    void crearContenidoConImagenDevuelve201() throws Exception {
+        MockMultipartFile imagen = new MockMultipartFile(
+                "imagen", "linea-alma.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3});
+        when(service.crear(any(ContenidoRequest.class), any()))
+                .thenReturn(ContenidoResponse.builder().id(9L)
+                        .titulo("Atención por Línea Alma")
+                        .imagen("/contenidos/imagenes/generado.png")
+                        .build());
+
+        mockMvc.perform(multipart("/contenidos").file(partesContenido()).file(imagen))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.imagen").value("/contenidos/imagenes/generado.png"));
     }
 
     @Test
@@ -128,23 +148,33 @@ class ContenidoControllerTest {
                   "seccion": "otra"
                 }
                 """;
+        MockMultipartFile parte = new MockMultipartFile(
+                "contenido", "", MediaType.APPLICATION_JSON_VALUE, invalido.getBytes());
 
-        mockMvc.perform(post("/contenidos")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalido))
+        mockMvc.perform(multipart("/contenidos").file(parte))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void actualizarContenidoDevuelve200() throws Exception {
-        when(service.actualizar(eq(1L), any(ContenidoRequest.class)))
+        when(service.actualizar(eq(1L), any(ContenidoRequest.class), isNull(), anyBoolean()))
                 .thenReturn(ContenidoResponse.builder().id(1L).titulo("Actualizado").build());
 
-        mockMvc.perform(put("/contenidos/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(CONTENIDO_VALIDO))
+        mockMvc.perform(multipart(HttpMethod.PUT, "/contenidos/1").file(partesContenido()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.titulo").value("Actualizado"));
+    }
+
+    @Test
+    void actualizarContenidoEliminandoImagenDevuelve200() throws Exception {
+        when(service.actualizar(eq(1L), any(ContenidoRequest.class), isNull(), eq(true)))
+                .thenReturn(ContenidoResponse.builder().id(1L).titulo("Actualizado").imagen(null).build());
+
+        mockMvc.perform(multipart(HttpMethod.PUT, "/contenidos/1")
+                        .file(partesContenido())
+                        .param("eliminarImagen", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imagen").doesNotExist());
     }
 
     @Test

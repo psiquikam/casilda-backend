@@ -11,10 +11,12 @@ import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -106,7 +108,6 @@ class ContenidoServiceIntegrationTest extends IntegrationTestBase {
         autenticarComo("gestor@udea.edu.co");
 
         ContenidoRequest request = new ContenidoRequest();
-        request.setImagen("assets/linea_alma.svg");
         request.setTitulo("Atención por Línea Alma");
         request.setContenido("Línea de escucha y apoyo psicológico inmediato.");
         request.setVigenciaInicio(Instant.parse("2026-01-01T00:00:00Z"));
@@ -115,14 +116,24 @@ class ContenidoServiceIntegrationTest extends IntegrationTestBase {
         request.setSeccion("acciones");
         request.setOrden(2);
 
-        ContenidoResponse creado = contenidoService.crear(request);
+        MultipartFile imagenInicial = new MockMultipartFile(
+                "imagen", "linea-alma.png", "image/png", new byte[]{1, 2, 3, 4});
+
+        ContenidoResponse creado = contenidoService.crear(request, imagenInicial);
         assertThat(creado.getId()).isNotNull();
         assertThat(creado.getSeccion()).isEqualTo("acciones");
         assertThat(creado.getEliminado()).isFalse();
+        assertThat(creado.getImagen()).startsWith("/contenidos/imagenes/").endsWith(".png");
 
         request.setTitulo("Atención por Línea Alma (actualizado)");
-        ContenidoResponse actualizado = contenidoService.actualizar(creado.getId(), request);
+        ContenidoResponse actualizado = contenidoService.actualizar(creado.getId(), request, null, false);
         assertThat(actualizado.getTitulo()).isEqualTo("Atención por Línea Alma (actualizado)");
+        assertThat(actualizado.getImagen())
+                .as("La imagen se conserva cuando no se envía un archivo nuevo ni se pide eliminarla")
+                .isEqualTo(creado.getImagen());
+
+        ContenidoResponse sinImagen = contenidoService.actualizar(creado.getId(), request, null, true);
+        assertThat(sinImagen.getImagen()).isNull();
 
         contenidoService.eliminar(creado.getId());
 
@@ -145,7 +156,7 @@ class ContenidoServiceIntegrationTest extends IntegrationTestBase {
         request.setVigenciaFin(Instant.parse("2026-01-01T00:00:00Z"));
         request.setSeccion("informacion");
 
-        assertThatThrownBy(() -> contenidoService.crear(request))
+        assertThatThrownBy(() -> contenidoService.crear(request, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

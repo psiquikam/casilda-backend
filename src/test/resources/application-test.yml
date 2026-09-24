@@ -14,6 +14,12 @@ server:
   servlet:
     context-path: /api/v1
 
+app:
+  contenidos:
+    imagenes:
+      directorio: target/test-uploads/contenidos
+      url-base: /contenidos/imagenes
+
 logging:
   level:
     org.testcontainers: INFO

@@ -3,12 +3,13 @@ package co.edu.udea.casilda.integration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -17,6 +18,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * restringido a ADMIN y GESTOR_CONTENIDO.
  */
 class ContenidoAuthorizationIntegrationTest extends IntegrationTestBase {
+
+    private static final String CONTENIDO_VALIDO = """
+            {
+              "titulo": "Contenido de prueba",
+              "contenido": "Cuerpo de prueba",
+              "vigenciaInicio": "2026-01-01T00:00:00Z",
+              "seccion": "informacion"
+            }
+            """;
+
+    private MockMultipartFile partesContenido() {
+        return new MockMultipartFile(
+                "contenido", "", APPLICATION_JSON_VALUE, CONTENIDO_VALIDO.getBytes());
+    }
 
     @Test
     void endpointPublicoDelHomeNoRequiereAutenticacion() throws Exception {
@@ -43,10 +58,9 @@ class ContenidoAuthorizationIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get("/contenidos").header("Authorization", bearer(email)))
                 .andExpect(status().isOk());
 
-        int postStatus = mockMvc.perform(post("/contenidos")
-                        .header("Authorization", bearer(email))
-                        .contentType(APPLICATION_JSON)
-                        .content("{}"))
+        int postStatus = mockMvc.perform(multipart("/contenidos")
+                        .file(partesContenido())
+                        .header("Authorization", bearer(email)))
                 .andReturn().getResponse().getStatus();
         assertNotEquals(403, postStatus);
     }
@@ -57,9 +71,9 @@ class ContenidoAuthorizationIntegrationTest extends IntegrationTestBase {
     void rolesSinPermisoNoPuedenAdministrarContenidos(String email) throws Exception {
         mockMvc.perform(get("/contenidos").header("Authorization", bearer(email)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/contenidos")
-                        .header("Authorization", bearer(email))
-                        .contentType(APPLICATION_JSON).content("{}"))
+        mockMvc.perform(multipart("/contenidos")
+                        .file(partesContenido())
+                        .header("Authorization", bearer(email)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(delete("/contenidos/1").header("Authorization", bearer(email)))
                 .andExpect(status().isForbidden());

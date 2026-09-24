@@ -14,8 +14,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -78,34 +80,44 @@ public class ContenidoController {
         return ResponseEntity.ok(service.obtenerPorId(id));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Crear contenido",
-            description = "Crea un nuevo contenido destacado del Home. **Requiere autenticación.**"
+            description = "Crea un nuevo contenido destacado del Home. Recibe `multipart/form-data`: la parte "
+                    + "`contenido` con el JSON de los datos y, opcionalmente, la parte `imagen` con el archivo "
+                    + "(PNG, WEBP o SVG, máximo 400KB). **Requiere autenticación.**"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Contenido creado exitosamente"),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
+            @ApiResponse(responseCode = "400", description = "Datos de entrada o imagen inválidos")
     })
-    public ResponseEntity<ContenidoResponse> crear(@Valid @RequestBody ContenidoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(request));
+    public ResponseEntity<ContenidoResponse> crear(
+            @RequestPart("contenido") @Valid ContenidoRequest request,
+            @RequestPart(value = "imagen", required = false) MultipartFile imagen) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(request, imagen));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Actualizar contenido",
-            description = "Actualiza un contenido destacado existente. **Requiere autenticación.**"
+            description = "Actualiza un contenido destacado existente. Recibe `multipart/form-data`: la parte "
+                    + "`contenido` con el JSON de los datos y, opcionalmente, la parte `imagen` con un archivo nuevo "
+                    + "(reemplaza la actual) o el parámetro `eliminarImagen=true` para quitarla sin reemplazo. Si no "
+                    + "se envía ninguno de los dos, la imagen actual se conserva. **Requiere autenticación.**"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Contenido actualizado exitosamente"),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada o imagen inválidos"),
             @ApiResponse(responseCode = "404", description = "Contenido no encontrado")
     })
     public ResponseEntity<ContenidoResponse> actualizar(
-            @PathVariable Long id, @Valid @RequestBody ContenidoRequest request) {
-        return ResponseEntity.ok(service.actualizar(id, request));
+            @PathVariable Long id,
+            @RequestPart("contenido") @Valid ContenidoRequest request,
+            @RequestPart(value = "imagen", required = false) MultipartFile imagen,
+            @RequestParam(value = "eliminarImagen", defaultValue = "false") boolean eliminarImagen) {
+        return ResponseEntity.ok(service.actualizar(id, request, imagen, eliminarImagen));
     }
 
     @DeleteMapping("/{id}")
