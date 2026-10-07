@@ -122,6 +122,8 @@ Endpoints protegidos, disponibles para los roles `ADMIN` y `GESTOR_CONTENIDO`:
 
 ## Scripts SQL útiles
 
+- `docs/GUIA_CREACION_ROLES.md` (tutorial DB-only para crear roles, permisos y usuarios)
+- `database/crear_rol_con_permisos.sql` (procedimiento almacenado para crear un rol con permisos)
 - `database/initial_data.sql` (configuración inicial de roles, endpoints y permisos)
 - `database/insert_usuarios_prueba.sql` (seed de usuarios)
 - `database/update_passwords_usuarios_prueba.sql` (actualización de hashes BCrypt)

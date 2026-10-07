@@ -3,9 +3,13 @@
 -- El procedimiento falla completo si alguna validación no se cumple.
 -- La ruta debe enviarse sin el contexto /api/v1.
 --
--- Ejemplo:
+-- Ejemplo desde psql: asigna un ID libre y serializa altas concurrentes.
+-- BEGIN;
+-- SELECT pg_advisory_xact_lock(74839201);
+-- SELECT COALESCE(MAX(id), 0) + 1 AS nuevo_id FROM rol
+-- \gset
 -- CALL crear_rol_con_permisos(
---     6,
+--     :'nuevo_id',
 --     'AUDITOR',
 --     'Auditor',
 --     '[
@@ -13,6 +17,7 @@
 --       {"path":"/casos/**","http_method":"GET"}
 --     ]'::jsonb
 -- );
+-- COMMIT;
 
 CREATE OR REPLACE PROCEDURE crear_rol_con_permisos(
     IN p_id integer,
