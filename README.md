@@ -93,6 +93,21 @@ Con el token devuelto, autoriza en Swagger con:
 - `DELETE /usuarios/{id}`
 - `GET /listas`
 
+### Contenidos
+
+Endpoints públicos:
+
+- `GET /contenidos/home` (devuelve los contenidos vigentes del Home como arreglo JSON)
+- `GET /contenidos/imagenes/**` (consulta de imágenes)
+
+Endpoints protegidos, disponibles para los roles `ADMIN` y `GESTOR_CONTENIDO`:
+
+- `GET /contenidos?page=0&size=10` (listado paginado)
+- `GET /contenidos/{id}`
+- `POST /contenidos` (recibe `multipart/form-data`, con la parte `contenido` en JSON y una parte `imagen` opcional)
+- `PUT /contenidos/{id}` (recibe `multipart/form-data`; permite reemplazar o eliminar la imagen)
+- `DELETE /contenidos/{id}` (eliminación lógica)
+
 ### Casos y seguimiento
 
 - `GET /casos`
@@ -107,6 +122,9 @@ Con el token devuelto, autoriza en Swagger con:
 
 ## Scripts SQL útiles
 
+- `docs/GUIA_CREACION_ROLES.md` (tutorial DB-only para crear roles, permisos y usuarios)
+- `database/crear_rol_con_permisos.sql` (procedimiento almacenado para crear un rol con permisos)
+- `database/initial_data.sql` (configuración inicial de roles, endpoints y permisos)
 - `database/insert_usuarios_prueba.sql` (seed de usuarios)
 - `database/update_passwords_usuarios_prueba.sql` (actualización de hashes BCrypt)
 
