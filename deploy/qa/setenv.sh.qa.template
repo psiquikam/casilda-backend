@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# QA: Tomcat 10 en EC2 + Aurora PostgreSQL. Copiar a /opt/tomcat/bin/setenv.sh
+export JAVA_HOME="/usr/lib/jvm/java-21-amazon-corretto"
+export JAVA_OPTS="-Xms256m -Xmx768m -XX:+UseSerialGC -Dfile.encoding=UTF-8"
+
+export SPRING_PROFILES_ACTIVE="qa"
+
+export SPRING_DATASOURCE_URL="jdbc:postgresql://<AURORA_WRITER_ENDPOINT>:5432/casildaqa?sslmode=require"
+export SPRING_DATASOURCE_USERNAME="casildaqa"
+export SPRING_DATASOURCE_PASSWORD="<DB_PASSWORD_QA>"
+
+export SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE="5"
+
+export SPRING_JPA_HIBERNATE_DDL_AUTO="update"
+export SPRING_JPA_SHOW_SQL="false"
+export LOGGING_LEVEL_ORG_HIBERNATE_SQL="WARN"
+export LOGGING_LEVEL_ORG_HIBERNATE_TYPE_DESCRIPTOR_SQL_BASICBINDER="WARN"
+export LOGGING_LEVEL_CO_EDU_UDEA_CASILDA="INFO"
+
+# Imágenes de contenidos en el volumen EBS (escribible por el usuario tomcat)
+export APP_CONTENIDOS_IMAGENES_DIRECTORIO="/opt/casilda/uploads/contenidos"
+
+export SERVER_FORWARD_HEADERS_STRATEGY="framework"
+export APP_CORS_ALLOWED_ORIGINS="<ORIGENES_FRONTEND>"
+
+export JWT_SECRET="<JWT_SECRET_QA>"
+export JWT_EXPIRATION="86400000"
