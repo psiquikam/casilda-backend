@@ -32,7 +32,7 @@ public class Usuario extends Auditable {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 403)
     private String nombre;
 
     @Column(nullable = false, columnDefinition = "boolean default true")
@@ -56,6 +56,16 @@ public class Usuario extends Auditable {
             uniqueConstraints = @UniqueConstraint(columnNames = {"idusuario", "idrol"})
     )
     private Set<Rol> roles = new LinkedHashSet<>();
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "idpersona", unique = true)
+    private Persona persona;
+
+    @Column(name = "habeasdata", nullable = false, columnDefinition = "boolean default false")
+    private Boolean habeasData = false;
+
+    @Column(name = "fechahabeasdata")
+    private LocalDateTime fechaHabeasData;
 
     public Usuario(
             final Long id,

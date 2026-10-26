@@ -1,6 +1,7 @@
 package co.edu.udea.casilda.controller;
 
 import co.edu.udea.casilda.repository.ParametroSistemaRepository;
+import co.edu.udea.casilda.dto.response.RegistroUsuarioResponse;
 import co.edu.udea.casilda.service.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -40,6 +41,29 @@ class AuthControllerTest {
         AuthService service = mock(AuthService.class);
         MockMvc validatingMvc = MockMvcBuilders.standaloneSetup(new AuthController(service)).build();
         validatingMvc.perform(post("/auth/login").contentType("application/json").content(JSON))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void authRegistrationReturnsCreated() throws Exception {
+        AuthService service = mock(AuthService.class);
+        when(service.registrar(any())).thenReturn(RegistroUsuarioResponse.builder()
+                .mensaje("Usuario creado exitosamente.")
+                .usuarioId(1L)
+                .email("persona@example.com")
+                .build());
+
+        mvc(new AuthController(service))
+                .perform(post("/auth/register").contentType("application/json").content(JSON))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void authRegistrationRejectsInvalidRequest() throws Exception {
+        AuthService service = mock(AuthService.class);
+        MockMvc validatingMvc = MockMvcBuilders.standaloneSetup(new AuthController(service)).build();
+        validatingMvc.perform(post("/auth/register").contentType("application/json").content(JSON))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(service);
     }

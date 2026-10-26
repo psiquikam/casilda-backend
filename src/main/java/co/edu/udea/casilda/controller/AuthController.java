@@ -1,7 +1,9 @@
 package co.edu.udea.casilda.controller;
 
 import co.edu.udea.casilda.dto.request.AuthLoginRequest;
+import co.edu.udea.casilda.dto.request.RegistroUsuarioRequest;
 import co.edu.udea.casilda.dto.response.AuthLoginResponse;
+import co.edu.udea.casilda.dto.response.RegistroUsuarioResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import co.edu.udea.casilda.service.AuthService;
@@ -9,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,5 +49,15 @@ public class AuthController {
         )
     public ResponseEntity<AuthLoginResponse> login(@Valid @RequestBody AuthLoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/register")
+    @Operation(
+            summary = "Registrar usuario",
+            description = "Crea una cuenta de usuario. Reutiliza la persona existente sin modificarla o crea una nueva si no existe; vinculoUdeaId solo es obligatorio al crearla. habeasData debe ser true."
+    )
+    public ResponseEntity<RegistroUsuarioResponse> registrar(
+            @Valid @RequestBody RegistroUsuarioRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request));
     }
 }
