@@ -3,7 +3,11 @@ package co.edu.udea.casilda.controller;
 import co.edu.udea.casilda.dto.request.AuthLoginRequest;
 import co.edu.udea.casilda.dto.request.RegistroUsuarioRequest;
 import co.edu.udea.casilda.dto.response.AuthLoginResponse;
+import co.edu.udea.casilda.dto.response.MaestroDTO;
 import co.edu.udea.casilda.dto.response.RegistroUsuarioResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import java.util.List;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import co.edu.udea.casilda.service.AuthService;
@@ -13,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -51,11 +56,26 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
+    @GetMapping("/vinculos-udea")
+    @Operation(
+            summary = "Listar vínculos con la UdeA",
+            description = "Catálogo público de vínculos para el formulario de registro. Los ids se envían como vinculoUdeaId."
+    )
+    public ResponseEntity<List<MaestroDTO>> vinculosUdea() {
+        return ResponseEntity.ok(authService.listarVinculosUdea());
+    }
+
     @PostMapping("/register")
     @Operation(
             summary = "Registrar usuario",
             description = "Crea una cuenta de usuario. Reutiliza la persona existente sin modificarla o crea una nueva si no existe; vinculoUdeaId solo es obligatorio al crearla. habeasData debe ser true."
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Usuario creado exitosamente"),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+            @ApiResponse(responseCode = "404", description = "Tipo de documento, vínculo o rol no encontrado"),
+            @ApiResponse(responseCode = "409", description = "Correo o documento ya registrados")
+    })
     public ResponseEntity<RegistroUsuarioResponse> registrar(
             @Valid @RequestBody RegistroUsuarioRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request));

@@ -4,6 +4,7 @@ import co.edu.udea.casilda.config.JwtService;
 import co.edu.udea.casilda.dto.request.AuthLoginRequest;
 import co.edu.udea.casilda.dto.request.RegistroUsuarioRequest;
 import co.edu.udea.casilda.dto.response.AuthLoginResponse;
+import co.edu.udea.casilda.dto.response.MaestroDTO;
 import co.edu.udea.casilda.dto.response.RegistroUsuarioResponse;
 import co.edu.udea.casilda.exception.DuplicateResourceException;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
@@ -58,6 +59,14 @@ public class AuthService {
     private final CorreoPersonaRepository correoPersonaRepository;
     private final TelefonoPersonaRepository telefonoPersonaRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional(readOnly = true)
+    public List<MaestroDTO> listarVinculosUdea() {
+        log.info("Listar vínculos con la UdeA para registro");
+        return vinculoUdeARepository.findAll().stream()
+                .map(v -> new MaestroDTO(v.getId().longValue(), null, v.getNombre()))
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public RegistroUsuarioResponse registrar(final RegistroUsuarioRequest request) {

@@ -46,6 +46,15 @@ class AuthControllerTest {
     }
 
     @Test
+    void authVinculosUdeaReturnsOk() throws Exception {
+        AuthService service = mock(AuthService.class);
+        when(service.listarVinculosUdea()).thenReturn(List.of());
+
+        mvc(new AuthController(service)).perform(get("/auth/vinculos-udea"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void authRegistrationReturnsCreated() throws Exception {
         AuthService service = mock(AuthService.class);
         when(service.registrar(any())).thenReturn(RegistroUsuarioResponse.builder()
