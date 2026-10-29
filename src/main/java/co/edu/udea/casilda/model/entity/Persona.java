@@ -53,8 +53,12 @@ public class Persona extends Auditable {
     private Sexo sexo;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "idciudadnacimiento", nullable = false)
+    @JoinColumn(name = "idciudadnacimiento")
     private Municipio ciudadNacimiento;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "idvinculoudea")
+    private VinculoUdeA vinculoUdea;
 
     // Relaciones One-to-Many
     @ToString.Exclude
