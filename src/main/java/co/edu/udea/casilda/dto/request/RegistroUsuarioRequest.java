@@ -22,8 +22,7 @@ public class RegistroUsuarioRequest {
     @Size(min = 2, max = 50)
     private String primerApellido;
 
-    @NotBlank
-    @Size(min = 2, max = 50)
+    @Size(max = 50)
     private String segundoApellido;
 
     @NotBlank
