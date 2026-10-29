@@ -103,6 +103,24 @@ class RegistroUsuarioIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void registraSinSegundoApellido() throws Exception {
+        mockMvc.perform(post("/auth/register").contentType(APPLICATION_JSON)
+                        .content("""
+                                {"primerNombre":"Sofia","primerApellido":"Rios",
+                                 "tipoDocumento":"CC","documento":"900000007","vinculoUdeaId":1,
+                                 "email":"sin.segundo@example.com","telefono":"3001234567",
+                                 "password":"%s","habeasData":true}
+                                """.formatted(PASSWORD)))
+                .andExpect(status().isCreated());
+
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from persona where numerodocumento = '900000007' and segundoapellido is null",
+                Integer.class));
+        assertEquals("Sofia Rios", jdbc.queryForObject(
+                "select nombre from usuario where email = 'sin.segundo@example.com'", String.class));
+    }
+
+    @Test
     void habeasDataFalsoRetorna400() throws Exception {
         mockMvc.perform(post("/auth/register").contentType(APPLICATION_JSON)
                 .content(body("900000005", "sin.habeas@example.com", false))).andExpect(status().isBadRequest());
