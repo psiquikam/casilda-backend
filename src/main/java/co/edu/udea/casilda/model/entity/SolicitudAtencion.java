@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,6 +74,17 @@ public class SolicitudAtencion extends Auditable {
 
     @OneToMany(mappedBy = "solicitudAtencion", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Asignacion> asignaciones = new ArrayList<>();
+
+    @Column(name = "descripcionhechos", columnDefinition = "text")
+    private String descripcionHechos;
+
+    @Column(name = "lugarocurrencia", length = 500)
+    private String lugarOcurrencia;
+
+    @OneToOne(mappedBy = "solicitudAtencion", fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private PresuntoAgresor presuntoAgresor;
 
     @PrePersist
     protected void onCreate() {
