@@ -1045,31 +1045,34 @@ public class SolicitudAcompanamientoService {
 
         Usuario usuarioAutenticado = obtenerUsuarioAutenticado();
 
-        // Crear asignación
+        // Crear asignación (el historial se conserva; la vigente es la más reciente)
         Asignacion asignacion = new Asignacion();
         asignacion.setSolicitudAtencion(solicitud);
         asignacion.setUsuarioCreacion(usuarioAutenticado);
         asignacion.setUsuarioActualizacion(usuarioAutenticado);
+        asignacion.setObservaciones(req.getObservaciones().trim());
+        asignacion.setFechaReparto(req.getFechaReparto());
 
-        if (req.getGrupoProfesionalId() != null) {
-            GrupoProfesional grupo = grupoProfesionalRepository.findById(req.getGrupoProfesionalId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Grupo profesional no encontrado con ID: " + req.getGrupoProfesionalId()));
-            asignacion.setGrupoProfesional(grupo);
-        }
-        if (req.getIdTipoAsignacion() != null) {
-            TipoAsignacion tipoAsignacion = tipoAsignacionRepository.findById(req.getIdTipoAsignacion())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Tipo de asignación no encontrado con ID: " + req.getIdTipoAsignacion()));
-            asignacion.setTipoAsignacion(tipoAsignacion);
-        }
-        if (req.getIdTipoServicio() != null) {
-            TipoServicio tipoServicio = tipoServicioRepository.findById(req.getIdTipoServicio())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Tipo de servicio no encontrado con ID: " + req.getIdTipoServicio()));
-            asignacion.setTipoServicio(tipoServicio);
-        }
+        GrupoProfesional grupo = grupoProfesionalRepository.findById(req.getGrupoProfesionalId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo profesional no encontrado con ID: " + req.getGrupoProfesionalId()));
+        validarActivo(grupo.getActivo(), "El grupo profesional", grupo.getId());
+        asignacion.setGrupoProfesional(grupo);
+
+        TipoAsignacion tipoAsignacion = tipoAsignacionRepository.findById(req.getIdTipoAsignacion())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tipo de asignación no encontrado con ID: " + req.getIdTipoAsignacion()));
+        validarActivo(tipoAsignacion.getActivo(), "El tipo de asignación", tipoAsignacion.getId());
+        asignacion.setTipoAsignacion(tipoAsignacion);
+
+        TipoServicio tipoServicio = tipoServicioRepository.findById(req.getIdTipoServicio())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tipo de servicio no encontrado con ID: " + req.getIdTipoServicio()));
+        validarActivo(tipoServicio.getActivo(), "El tipo de servicio", tipoServicio.getId());
+        asignacion.setTipoServicio(tipoServicio);
+
         asignacionRepository.save(asignacion);
+        solicitud.getAsignaciones().add(asignacion);
 
         // Actualizar estado de la solicitud a ASIGNADA
         solicitud.setEstadoSolicitud(estadoSolicitudRepository.findById(EstadoSolicitud.ASIGNADA.getId())
@@ -1180,16 +1183,23 @@ public class SolicitudAcompanamientoService {
                 .collect(Collectors.toList());
     }
 
+    private void validarActivo(Boolean activo, String entidad, Integer id) {
+        if (!Boolean.TRUE.equals(activo)) {
+            throw new IllegalArgumentException(entidad + " con ID " + id + " no está activo");
+        }
+    }
+
     /**
-     * Lista todos los grupos profesionales del sistema
+     * Lista los grupos profesionales activos del sistema
      */
     @Transactional(readOnly = true)
     public List<ProfesionalResponse> listarGruposProfesionales() {
-        log.info("Listando todos los grupos profesionales");
-        return grupoProfesionalRepository.findAll().stream()
+        log.info("Listando grupos profesionales activos");
+        return grupoProfesionalRepository.findByActivoTrueOrderByNombreAsc().stream()
                 .map(g -> ProfesionalResponse.builder()
                         .id(g.getId().longValue())
                         .nombre(g.getNombre())
+                        .activo(g.getActivo())
                         .build())
                 .collect(Collectors.toList());
     }

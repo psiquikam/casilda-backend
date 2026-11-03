@@ -100,6 +100,10 @@ INSERT INTO tipotelefono (id, nombre) VALUES (1, 'Celular') ON CONFLICT (id) DO 
 INSERT INTO identidadgenero (id, nombre) VALUES (1, 'Mujer') ON CONFLICT (id) DO NOTHING;
 INSERT INTO tiposolicitud (id, nombre) VALUES (1, 'Acompañamiento') ON CONFLICT (id) DO NOTHING;
 INSERT INTO estadosolicitud (id, nombre) VALUES (1, 'Pendiente') ON CONFLICT (id) DO NOTHING;
+INSERT INTO estadosolicitud (id, nombre) VALUES (2, 'Asignada') ON CONFLICT (id) DO NOTHING;
+INSERT INTO grupoprofesional (id, nombre, activo) VALUES (1, 'Psicología', true), (2, 'Jurídico', true), (3, 'Inactivo', false) ON CONFLICT (id) DO NOTHING;
+INSERT INTO tipoasignacion (id, nombre, activo) VALUES (1, 'Nueva', true), (2, 'Reasignación', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO tiposervicio (id, nombre, activo) VALUES (1, 'Psicológico', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO mediosolicitud (id, nombre) VALUES (1, 'Web') ON CONFLICT (id) DO NOTHING;
 INSERT INTO cargo (id, nombre) VALUES (1, 'Docente') ON CONFLICT (id) DO NOTHING;
 INSERT INTO campus (id, nombre) VALUES (1, 'Medellín') ON CONFLICT (id) DO NOTHING;

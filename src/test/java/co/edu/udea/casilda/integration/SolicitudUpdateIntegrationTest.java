@@ -133,13 +133,66 @@ class SolicitudUpdateIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.vinculoUniversidadId").value(1))
                 .andExpect(jsonPath("$.agresorNombre").value("Pedro Pérez"))
                 .andExpect(jsonPath("$.agresorVinculoUdeaId").value(1))
-                .andExpect(jsonPath("$.agresorOtroVinculoUdea").doesNotExist())
-                .andExpect(jsonPath("$.tipoAsignacion").doesNotExist());
+                .andExpect(jsonPath("$.agresorOtroVinculoUdea").doesNotExist());
 
         mockMvc.perform(get("/solicitudes/acompanamiento/100")
                         .header("Authorization", bearer("admin@udea.edu.co")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.agresorCorreo").value("pedro@example.com"))
                 .andExpect(jsonPath("$.lugarOcurrencia").value("Bloque 5"));
+    }
+
+    private String reparto(int grupo, int tipoAsignacion, String obs) {
+        return "{\"grupoProfesionalId\":" + grupo + ",\"idTipoAsignacion\":" + tipoAsignacion
+                + ",\"idTipoServicio\":1,\"fechaReparto\":\"2026-11-03\",\"observaciones\":\"" + obs + "\"}";
+    }
+
+    @Test
+    void repartoPersistsFieldsAndLatestOneIsCurrent() throws Exception {
+        mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")
+                        .header("Authorization", bearer("admin@udea.edu.co"))
+                        .contentType(APPLICATION_JSON)
+                        .content(reparto(1, 1, "Primero")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.idEstadoSolicitud").value(2))
+                .andExpect(jsonPath("$.grupoProfesionalId").value(1))
+                .andExpect(jsonPath("$.tipoAsignacionId").value(1))
+                .andExpect(jsonPath("$.tipoServicioId").value(1))
+                .andExpect(jsonPath("$.fechaReparto").value("2026-11-03"))
+                .andExpect(jsonPath("$.observacionesReparto").value("Primero"));
+
+        mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")
+                        .header("Authorization", bearer("admin@udea.edu.co"))
+                        .contentType(APPLICATION_JSON)
+                        .content(reparto(2, 2, "Segundo")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/solicitudes/acompanamiento/100")
+                        .header("Authorization", bearer("admin@udea.edu.co")))
+                .andExpect(jsonPath("$.grupoProfesionalId").value(2))
+                .andExpect(jsonPath("$.observacionesReparto").value("Segundo"));
+    }
+
+    @Test
+    void repartoRejectsInactiveGroupAndUnknownCatalogs() throws Exception {
+        mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")
+                        .header("Authorization", bearer("admin@udea.edu.co"))
+                        .contentType(APPLICATION_JSON)
+                        .content(reparto(3, 1, "x")))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")
+                        .header("Authorization", bearer("admin@udea.edu.co"))
+                        .contentType(APPLICATION_JSON)
+                        .content(reparto(1, 99, "x")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void groupsEndpointListsOnlyActive() throws Exception {
+        mockMvc.perform(get("/solicitudes/grupos-profesionales")
+                        .header("Authorization", bearer("admin@udea.edu.co")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].activo").value(true));
     }
 }
