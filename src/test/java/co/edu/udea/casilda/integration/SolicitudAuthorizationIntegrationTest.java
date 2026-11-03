@@ -42,18 +42,35 @@ class SolicitudAuthorizationIntegrationTest extends IntegrationTestBase {
                         403, result.getResponse().getStatus()));
     }
 
-    static Stream<String> rolesWithoutSolicitudPermission() {
+    static Stream<String> readOnlyStaffRoles() {
         return Stream.of("profesional@udea.edu.co", "revisor@udea.edu.co");
     }
 
     @ParameterizedTest
-    @MethodSource("rolesWithoutSolicitudPermission")
-    void rolesWithoutSolicitudPermissionAreForbidden(String email) throws Exception {
+    @MethodSource("readOnlyStaffRoles")
+    void readOnlyStaffCanReadButNotModifySolicitudes(String email) throws Exception {
         mockMvc.perform(get("/solicitudes/acompanamiento/100")
                         .header("Authorization", bearer(email)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/solicitudes/grupos-profesionales")
+                        .header("Authorization", bearer(email)))
+                .andExpect(status().isOk());
         mockMvc.perform(delete("/solicitudes/acompanamiento/100")
                         .header("Authorization", bearer(email)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")
+                        .header("Authorization", bearer(email))
+                        .contentType(APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @org.junit.jupiter.api.Test
+    void usuarioCannotAssignSolicitudes() throws Exception {
+        mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")
+                        .header("Authorization", bearer("user@udea.edu.co"))
+                        .contentType(APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isForbidden());
     }
 

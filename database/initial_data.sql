@@ -29,6 +29,7 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/casos/**', 'POST', true, false),
     ('/solicitudes/**', 'GET', true, false),
     ('/solicitudes/**', 'POST', true, false),
+    ('/solicitudes/acompanamiento', 'POST', true, false),
     ('/solicitudes/**', 'PUT', true, false),
     ('/solicitudes/**', 'DELETE', true, false),
     ('/atenciones/**', 'GET', true, false),
@@ -78,8 +79,17 @@ INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id
 FROM endpoint e
 JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR')
-WHERE e.path LIKE '/solicitudes/%'
+WHERE e.path = '/solicitudes/**'
   AND e.http_method IN ('GET', 'POST', 'PUT', 'DELETE')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+-- Consulta de solicitudes y reparto para todo el equipo de atención.
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN ('PROFESIONAL', 'REVISOR')
+WHERE e.path = '/solicitudes/**'
+  AND e.http_method = 'GET'
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)
@@ -95,9 +105,16 @@ INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id
 FROM endpoint e
 JOIN rol r ON r.codigo = 'USUARIO'
-WHERE e.path = '/solicitudes/**'
-  AND e.http_method IN ('GET', 'POST')
+WHERE (e.path = '/solicitudes/**' AND e.http_method = 'GET')
+   OR (e.path = '/solicitudes/acompanamiento' AND e.http_method = 'POST')
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+-- USUARIO solo puede crear solicitudes; no debe alcanzar /asignar ni otros POST.
+DELETE FROM endpointrole er
+USING endpoint e, rol r
+WHERE er.idendpoint = e.id AND er.idrol = r.id
+  AND r.codigo = 'USUARIO'
+  AND e.path = '/solicitudes/**' AND e.http_method = 'POST';
 
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id

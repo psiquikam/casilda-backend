@@ -49,7 +49,8 @@ INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
     (31, '/contenidos', 'GET', true, false), (32, '/contenidos/{id}', 'GET', true, false),
     (33, '/contenidos', 'POST', true, false), (34, '/contenidos/{id}', 'PUT', true, false),
     (35, '/contenidos/{id}', 'DELETE', true, false),
-    (36, '/contenidos/imagenes/**', 'GET', true, true)
+    (36, '/contenidos/imagenes/**', 'GET', true, true),
+    (37, '/solicitudes/acompanamiento', 'POST', true, false)
 ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method,
     activo = true, publico = EXCLUDED.publico;
 
@@ -65,14 +66,17 @@ SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','COORDINADO
 WHERE e.id IN (8, 9, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
--- Solicitudes GET/POST are also available to USUARIO.
+-- Solicitudes: GET para todo el equipo de atención; USUARIO solo GET y crear (POST /solicitudes/acompanamiento).
 INSERT INTO endpointrole (idendpoint, idrol)
-SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','COORDINADOR','USUARIO')
-WHERE e.id IN (10, 11)
+SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','COORDINADOR','PROFESIONAL','REVISOR','USUARIO')
+WHERE e.id = 10
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','COORDINADOR')
-WHERE e.id IN (12, 13)
+WHERE e.id IN (11, 12, 13)
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT 37, r.id FROM rol r WHERE r.codigo = 'USUARIO'
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 -- User administration and parameter/catalog writes are ADMIN-only.
