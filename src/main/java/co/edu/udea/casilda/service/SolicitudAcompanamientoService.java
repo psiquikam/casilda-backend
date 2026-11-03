@@ -260,7 +260,9 @@ public class SolicitudAcompanamientoService {
         persona.setNumeroDocumento(datos.getNumeroDocumento());
 
         // Usar la fecha de nacimiento proporcionada
-        persona.setFechaNacimiento(datos.getFechaNacimiento().atStartOfDay());
+        if (datos.getFechaNacimiento() != null) {
+            persona.setFechaNacimiento(datos.getFechaNacimiento().atStartOfDay());
+        }
 
         // Lookup FK a tablas maestras usando IDs
         persona.setTipoIdentificacion(tipoIdentificacionRepository.findById(datos.getTipoDocumentoId())

@@ -152,11 +152,12 @@ public class SolicitudController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Solicitud asignada exitosamente"),
-            @ApiResponse(responseCode = "404", description = "Solicitud o profesional no encontrado")
+            @ApiResponse(responseCode = "400", description = "Datos de reparto inválidos"),
+            @ApiResponse(responseCode = "404", description = "Solicitud o elemento de catálogo no encontrado")
     })
     public ResponseEntity<SolicitudAcompanamientoResponse> asignarSolicitud(
             @PathVariable Long id,
-            @RequestBody AsignarSolicitudRequest request) {
+            @Valid @RequestBody AsignarSolicitudRequest request) {
         return ResponseEntity.ok(service.asignarSolicitud(id, request));
     }
 

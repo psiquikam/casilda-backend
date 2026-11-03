@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,6 +34,34 @@ public class SolicitudAcompanamientoResponse {
     private String unidadAdministrativa;
     private String profesional;
     private String tipoAsignacion;
+
+    // Reparto vigente (null mientras la solicitud no tenga asignación)
+    private Integer tipoAsignacionId;
+    private Integer tipoServicioId;
+    private String tipoServicio;
+    private Integer grupoProfesionalId;
+    private LocalDate fechaReparto;
+    private String observacionesReparto;
+
+    // Hechos
+    private String descripcionHechos;
+    private String lugarOcurrencia;
+
+    // Vínculo del solicitante con la universidad
+    private Integer vinculoUniversidadId;
+    private String vinculoUniversidad;
+
+    // Presunta persona agresora
+    private String agresorIdentificacion;
+    private String agresorNombre;
+    private Integer agresorVinculoUdeaId;
+    private String agresorVinculoUdea;
+    private String agresorOtroVinculoUdea;
+    private Integer agresorVinculoVictimaId;
+    private String agresorVinculoVictima;
+    private String agresorOtroVinculoVictima;
+    private String agresorCorreo;
+    private String agresorRemitirUad;
 
     // Datos del solicitante (resumen)
     private String nombreSolicitante;
