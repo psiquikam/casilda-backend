@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -103,5 +104,42 @@ class SolicitudUpdateIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.validationErrors.descripcionHechos").exists())
                 .andExpect(jsonPath("$.validationErrors['datosSolicitante.correos']").exists())
                 .andExpect(jsonPath("$.validationErrors['datosSolicitante.telefonos']").exists());
+    }
+
+    @Test
+    void persistsNewFieldsAndAggressorWithoutCaso() throws Exception {
+        String body = """
+                {
+                  "primerNombre":"Ana",
+                  "correos":[{"correo":"ana@example.edu.co","tipoId":1}],
+                  "telefonos":[{"telefono":"3111111111","tipoId":1}],
+                  "vinculoUniversidadId":1,
+                  "descripcionHechos":"Hechos ocurridos",
+                  "lugarOcurrencia":"Bloque 5",
+                  "agresorNombre":"Pedro Pérez",
+                  "agresorVinculoUdeaId":1,
+                  "agresorOtroVinculoUdea":"No aplica",
+                  "agresorCorreo":"pedro@example.com"
+                }
+                """;
+        mockMvc.perform(put("/solicitudes/acompanamiento/100")
+                        .header("Authorization", bearer("admin@udea.edu.co"))
+                        .contentType(APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("SOL-100"))
+                .andExpect(jsonPath("$.descripcionHechos").value("Hechos ocurridos"))
+                .andExpect(jsonPath("$.lugarOcurrencia").value("Bloque 5"))
+                .andExpect(jsonPath("$.vinculoUniversidadId").value(1))
+                .andExpect(jsonPath("$.agresorNombre").value("Pedro Pérez"))
+                .andExpect(jsonPath("$.agresorVinculoUdeaId").value(1))
+                .andExpect(jsonPath("$.agresorOtroVinculoUdea").doesNotExist())
+                .andExpect(jsonPath("$.tipoAsignacion").doesNotExist());
+
+        mockMvc.perform(get("/solicitudes/acompanamiento/100")
+                        .header("Authorization", bearer("admin@udea.edu.co")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.agresorCorreo").value("pedro@example.com"))
+                .andExpect(jsonPath("$.lugarOcurrencia").value("Bloque 5"));
     }
 }
