@@ -17,4 +17,7 @@ public class Campus extends Auditable {
 
     @Column(nullable = false)
     private String nombre;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean activo = true;
 }
