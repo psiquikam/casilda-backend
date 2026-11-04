@@ -21,4 +21,7 @@ public class GrupoProfesional extends Auditable {
 
     @Column(name = "nombre", nullable = false, length = 200)
     private String nombre;
+
+    @Column(name = "activo", nullable = false, columnDefinition = "boolean default true")
+    private Boolean activo = true;
 }

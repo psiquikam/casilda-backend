@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -78,6 +79,9 @@ public class SolicitudAcompanamientoService {
     private final ParametroSistemaRepository parametroSistemaRepository;
     private final UsuarioRepository usuarioRepository;
     private final MedioSolicitudRepository medioSolicitudRepository;
+    private final PresuntoAgresorRepository presuntoAgresorRepository;
+    private final VinculoUdeARepository vinculoUdeARepository;
+    private final VinculoAgresorVictimaRepository vinculoAgresorVictimaRepository;
 
     /**
      * Crea una nueva solicitud de acompañamiento usando arquitectura relacional
@@ -246,7 +250,12 @@ public class SolicitudAcompanamientoService {
         Optional<Persona> existente = personaRepository.findByNumeroDocumento(datos.getNumeroDocumento());
         if (existente.isPresent()) {
             log.info("Persona encontrada con documento: {}", datos.getNumeroDocumento());
-            return existente.get();
+            Persona personaExistente = existente.get();
+            if (datos.getVinculoUniversidadId() != null) {
+                personaExistente.setVinculoUdea(buscarVinculoUdea(datos.getVinculoUniversidadId()));
+                personaRepository.save(personaExistente);
+            }
+            return personaExistente;
         }
 
         log.info("Creando nueva persona con documento: {}", datos.getNumeroDocumento());
@@ -260,12 +269,18 @@ public class SolicitudAcompanamientoService {
         persona.setNumeroDocumento(datos.getNumeroDocumento());
 
         // Usar la fecha de nacimiento proporcionada
-        persona.setFechaNacimiento(datos.getFechaNacimiento().atStartOfDay());
+        if (datos.getFechaNacimiento() != null) {
+            persona.setFechaNacimiento(datos.getFechaNacimiento().atStartOfDay());
+        }
 
         // Lookup FK a tablas maestras usando IDs
         persona.setTipoIdentificacion(tipoIdentificacionRepository.findById(datos.getTipoDocumentoId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "TipoIdentificacion no encontrado con ID: " + datos.getTipoDocumentoId())));
+
+        if (datos.getVinculoUniversidadId() != null) {
+            persona.setVinculoUdea(buscarVinculoUdea(datos.getVinculoUniversidadId()));
+        }
 
         Persona personaGuardada = personaRepository.save(persona);
 
@@ -431,8 +446,72 @@ public class SolicitudAcompanamientoService {
 
         solicitud.setObservacionesTelefono(request.getObservacionesTelefono());
         solicitud.setObservacionesCorreo(request.getObservacionesCorreo());
+        solicitud.setDescripcionHechos(request.getDescripcionHechos().trim());
+        solicitud.setLugarOcurrencia(normalizarTextoOpcional(request.getLugarOcurrencia()));
 
-        return solicitudAtencionRepository.save(solicitud);
+        SolicitudAtencion guardada = solicitudAtencionRepository.save(solicitud);
+        guardarPresuntoAgresor(guardada, request.getAgresorIdentificacion(), request.getAgresorNombre(),
+                request.getAgresorVinculoUdeaId(), request.getAgresorOtroVinculoUdea(),
+                request.getAgresorVinculoVictimaId(), request.getAgresorOtroVinculoVictima(),
+                request.getAgresorCorreo(), request.getAgresorRemitirUad());
+        return guardada;
+    }
+
+    private VinculoUdeA buscarVinculoUdea(Integer id) {
+        return vinculoUdeARepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vínculo con la universidad no encontrado con ID: " + id));
+    }
+
+    private boolean esVinculoOtro(String nombre) {
+        return nombre != null && nombre.trim().toLowerCase().startsWith("otr");
+    }
+
+    /**
+     * Crea, actualiza o elimina la presunta persona agresora de la solicitud.
+     * Los campos "otro vínculo" solo se guardan cuando el vínculo seleccionado es "Otro".
+     */
+    private void guardarPresuntoAgresor(SolicitudAtencion solicitud, String identificacion, String nombre,
+            Integer vinculoUdeaId, String otroVinculoUdea, Integer vinculoVictimaId, String otroVinculoVictima,
+            String correo, String remitirUad) {
+        boolean sinDatos = !tieneTexto(identificacion) && !tieneTexto(nombre) && vinculoUdeaId == null
+                && vinculoVictimaId == null && !tieneTexto(correo) && !tieneTexto(otroVinculoUdea)
+                && !tieneTexto(otroVinculoVictima) && !tieneTexto(remitirUad);
+
+        Optional<PresuntoAgresor> existente = presuntoAgresorRepository.findBySolicitudAtencionId(solicitud.getId());
+        if (sinDatos) {
+            existente.ifPresent(agresor -> {
+                solicitud.setPresuntoAgresor(null);
+                presuntoAgresorRepository.delete(agresor);
+            });
+            return;
+        }
+
+        PresuntoAgresor agresor = existente.orElseGet(PresuntoAgresor::new);
+        agresor.setSolicitudAtencion(solicitud);
+        agresor.setIdentificacion(normalizarTextoOpcional(identificacion));
+        agresor.setNombre(normalizarTextoOpcional(nombre));
+        agresor.setCorreo(normalizarTextoOpcional(correo));
+        agresor.setRemitirUad(normalizarTextoOpcional(remitirUad));
+
+        VinculoUdeA vinculoUdea = vinculoUdeaId != null ? buscarVinculoUdea(vinculoUdeaId) : null;
+        agresor.setVinculoUdeA(vinculoUdea);
+        agresor.setOtroVinculoUdeA(
+                vinculoUdea != null && esVinculoOtro(vinculoUdea.getNombre())
+                        ? normalizarTextoOpcional(otroVinculoUdea)
+                        : null);
+
+        VinculoAgresorVictima vinculoVictima = vinculoVictimaId != null
+                ? vinculoAgresorVictimaRepository.findById(vinculoVictimaId)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Vínculo agresor-víctima no encontrado con ID: " + vinculoVictimaId))
+                : null;
+        agresor.setVinculoAgresorVictima(vinculoVictima);
+        agresor.setOtroVinculoAgresorVictima(
+                vinculoVictima != null && esVinculoOtro(vinculoVictima.getNombre())
+                        ? normalizarTextoOpcional(otroVinculoVictima)
+                        : null);
+
+        solicitud.setPresuntoAgresor(presuntoAgresorRepository.save(agresor));
     }
 
     /**
@@ -450,18 +529,22 @@ public class SolicitudAcompanamientoService {
 
         Persona remitentePersona = remision != null ? remision.getRemitente() : null;
 
-        // Grupo profesional asignado (última asignación) y Tipo de asignación
-        String profesionalNombre = "Sin asignar";
-        String tipoAsignacionNombre = "Sin asignar";
-        if (solicitud.getAsignaciones() != null && !solicitud.getAsignaciones().isEmpty()) {
-            Asignacion ultimaAsignacion = solicitud.getAsignaciones().get(solicitud.getAsignaciones().size() - 1);
-            if (ultimaAsignacion.getGrupoProfesional() != null) {
-                profesionalNombre = ultimaAsignacion.getGrupoProfesional().getNombre();
-            }
-            if (ultimaAsignacion.getTipoAsignacion() != null) {
-                tipoAsignacionNombre = ultimaAsignacion.getTipoAsignacion().getNombre();
-            }
-        }
+        // Reparto vigente: la asignación más reciente (fechaCreacion e id descendentes)
+        Asignacion asignacionVigente = solicitud.getAsignaciones() == null ? null
+                : solicitud.getAsignaciones().stream()
+                        .max(Comparator
+                                .comparing(Asignacion::getFechaCreacion,
+                                        Comparator.nullsFirst(Comparator.<LocalDateTime>naturalOrder()))
+                                .thenComparing(Asignacion::getId,
+                                        Comparator.nullsFirst(Comparator.<Long>naturalOrder())))
+                        .orElse(null);
+        GrupoProfesional grupoVigente = asignacionVigente != null ? asignacionVigente.getGrupoProfesional() : null;
+        TipoAsignacion tipoAsignacionVigente = asignacionVigente != null ? asignacionVigente.getTipoAsignacion()
+                : null;
+        TipoServicio tipoServicioVigente = asignacionVigente != null ? asignacionVigente.getTipoServicio() : null;
+        PresuntoAgresor agresor = presuntoAgresorRepository.findBySolicitudAtencionId(solicitud.getId())
+                .orElse(null);
+        VinculoUdeA vinculoSolicitante = solicitante.getVinculoUdea();
 
         // Correos del solicitante (usando TipoCorreoEnum)
         String correoInstitucional = "";
@@ -589,7 +672,7 @@ public class SolicitudAcompanamientoService {
 
         return SolicitudAcompanamientoResponse.builder()
                 .id(solicitud.getId())
-                .codigo(solicitud.getId().toString()) // No hay código específico para solicitud, usar ID como string
+                .codigo("SOL-" + solicitud.getId())
                 .tipoSolicitud(solicitud.getTipoSolicitud().getNombre())
                 .idEstadoSolicitud(
                         solicitud.getEstadoSolicitud() != null ? solicitud.getEstadoSolicitud().getId() : null)
@@ -599,8 +682,32 @@ public class SolicitudAcompanamientoService {
                 .medioSolicitud(medioSolicitud)
                 .observacionesTelefono(solicitud.getObservacionesTelefono())
                 .observacionesCorreo(solicitud.getObservacionesCorreo())
-                .profesional(profesionalNombre)
-                .tipoAsignacion(tipoAsignacionNombre)
+                .profesional(grupoVigente != null ? grupoVigente.getNombre() : null)
+                .grupoProfesionalId(grupoVigente != null ? grupoVigente.getId() : null)
+                .tipoAsignacion(tipoAsignacionVigente != null ? tipoAsignacionVigente.getNombre() : null)
+                .tipoAsignacionId(tipoAsignacionVigente != null ? tipoAsignacionVigente.getId() : null)
+                .tipoServicio(tipoServicioVigente != null ? tipoServicioVigente.getNombre() : null)
+                .tipoServicioId(tipoServicioVigente != null ? tipoServicioVigente.getId() : null)
+                .fechaReparto(asignacionVigente != null ? asignacionVigente.getFechaReparto() : null)
+                .observacionesReparto(asignacionVigente != null ? asignacionVigente.getObservaciones() : null)
+                .descripcionHechos(solicitud.getDescripcionHechos())
+                .lugarOcurrencia(solicitud.getLugarOcurrencia())
+                .vinculoUniversidadId(vinculoSolicitante != null ? vinculoSolicitante.getId() : null)
+                .vinculoUniversidad(vinculoSolicitante != null ? vinculoSolicitante.getNombre() : null)
+                .agresorIdentificacion(agresor != null ? agresor.getIdentificacion() : null)
+                .agresorNombre(agresor != null ? agresor.getNombre() : null)
+                .agresorVinculoUdeaId(agresor != null && agresor.getVinculoUdeA() != null
+                        ? agresor.getVinculoUdeA().getId() : null)
+                .agresorVinculoUdea(agresor != null && agresor.getVinculoUdeA() != null
+                        ? agresor.getVinculoUdeA().getNombre() : null)
+                .agresorOtroVinculoUdea(agresor != null ? agresor.getOtroVinculoUdeA() : null)
+                .agresorVinculoVictimaId(agresor != null && agresor.getVinculoAgresorVictima() != null
+                        ? agresor.getVinculoAgresorVictima().getId() : null)
+                .agresorVinculoVictima(agresor != null && agresor.getVinculoAgresorVictima() != null
+                        ? agresor.getVinculoAgresorVictima().getNombre() : null)
+                .agresorOtroVinculoVictima(agresor != null ? agresor.getOtroVinculoAgresorVictima() : null)
+                .agresorCorreo(agresor != null ? agresor.getCorreo() : null)
+                .agresorRemitirUad(agresor != null ? agresor.getRemitirUad() : null)
                 // Solicitante resumen
                 .nombreSolicitante(solicitante != null ? solicitante.getNombreCompleto() : "")
                 .documentoSolicitante(solicitante != null ? solicitante.getNumeroDocumento() : "")
@@ -669,6 +776,7 @@ public class SolicitudAcompanamientoService {
         log.info("Eliminando solicitud con ID: {}", id);
         SolicitudAtencion solicitud = solicitudAtencionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada con ID: " + id));
+        presuntoAgresorRepository.deleteBySolicitudAtencionId(id);
         solicitudAtencionRepository.delete(solicitud);
     }
 
@@ -693,6 +801,12 @@ public class SolicitudAcompanamientoService {
 
         solicitud.setObservacionesTelefono(req.getObservacionesTelefono());
         solicitud.setObservacionesCorreo(req.getObservacionesCorreo());
+        solicitud.setDescripcionHechos(req.getDescripcionHechos().trim());
+        solicitud.setLugarOcurrencia(normalizarTextoOpcional(req.getLugarOcurrencia()));
+        guardarPresuntoAgresor(solicitud, req.getAgresorIdentificacion(), req.getAgresorNombre(),
+                req.getAgresorVinculoUdeaId(), req.getAgresorOtroVinculoUdea(),
+                req.getAgresorVinculoVictimaId(), req.getAgresorOtroVinculoVictima(),
+                req.getAgresorCorreo(), req.getAgresorRemitirUad());
 
         if (req.getMedioSolicitudId() != null) {
             solicitud.setMedioSolicitud(medioSolicitudRepository.findById(req.getMedioSolicitudId())
@@ -748,6 +862,9 @@ public class SolicitudAcompanamientoService {
         }
         if (req.getFechaNacimiento() != null) {
             solicitante.setFechaNacimiento(req.getFechaNacimiento().atStartOfDay());
+        }
+        if (req.getVinculoUniversidadId() != null) {
+            solicitante.setVinculoUdea(buscarVinculoUdea(req.getVinculoUniversidadId()));
         }
         if (req.getTipoDocumentoId() != null) {
             solicitante.setTipoIdentificacion(tipoIdentificacionRepository.findById(req.getTipoDocumentoId())
@@ -928,31 +1045,34 @@ public class SolicitudAcompanamientoService {
 
         Usuario usuarioAutenticado = obtenerUsuarioAutenticado();
 
-        // Crear asignación
+        // Crear asignación (el historial se conserva; la vigente es la más reciente)
         Asignacion asignacion = new Asignacion();
         asignacion.setSolicitudAtencion(solicitud);
         asignacion.setUsuarioCreacion(usuarioAutenticado);
         asignacion.setUsuarioActualizacion(usuarioAutenticado);
+        asignacion.setObservaciones(req.getObservaciones().trim());
+        asignacion.setFechaReparto(req.getFechaReparto());
 
-        if (req.getGrupoProfesionalId() != null) {
-            GrupoProfesional grupo = grupoProfesionalRepository.findById(req.getGrupoProfesionalId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Grupo profesional no encontrado con ID: " + req.getGrupoProfesionalId()));
-            asignacion.setGrupoProfesional(grupo);
-        }
-        if (req.getIdTipoAsignacion() != null) {
-            TipoAsignacion tipoAsignacion = tipoAsignacionRepository.findById(req.getIdTipoAsignacion())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Tipo de asignación no encontrado con ID: " + req.getIdTipoAsignacion()));
-            asignacion.setTipoAsignacion(tipoAsignacion);
-        }
-        if (req.getIdTipoServicio() != null) {
-            TipoServicio tipoServicio = tipoServicioRepository.findById(req.getIdTipoServicio())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Tipo de servicio no encontrado con ID: " + req.getIdTipoServicio()));
-            asignacion.setTipoServicio(tipoServicio);
-        }
+        GrupoProfesional grupo = grupoProfesionalRepository.findById(req.getGrupoProfesionalId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo profesional no encontrado con ID: " + req.getGrupoProfesionalId()));
+        validarActivo(grupo.getActivo(), "El grupo profesional", grupo.getId());
+        asignacion.setGrupoProfesional(grupo);
+
+        TipoAsignacion tipoAsignacion = tipoAsignacionRepository.findById(req.getIdTipoAsignacion())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tipo de asignación no encontrado con ID: " + req.getIdTipoAsignacion()));
+        validarActivo(tipoAsignacion.getActivo(), "El tipo de asignación", tipoAsignacion.getId());
+        asignacion.setTipoAsignacion(tipoAsignacion);
+
+        TipoServicio tipoServicio = tipoServicioRepository.findById(req.getIdTipoServicio())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tipo de servicio no encontrado con ID: " + req.getIdTipoServicio()));
+        validarActivo(tipoServicio.getActivo(), "El tipo de servicio", tipoServicio.getId());
+        asignacion.setTipoServicio(tipoServicio);
+
         asignacionRepository.save(asignacion);
+        solicitud.getAsignaciones().add(asignacion);
 
         // Actualizar estado de la solicitud a ASIGNADA
         solicitud.setEstadoSolicitud(estadoSolicitudRepository.findById(EstadoSolicitud.ASIGNADA.getId())
@@ -1063,16 +1183,23 @@ public class SolicitudAcompanamientoService {
                 .collect(Collectors.toList());
     }
 
+    private void validarActivo(Boolean activo, String entidad, Integer id) {
+        if (!Boolean.TRUE.equals(activo)) {
+            throw new IllegalArgumentException(entidad + " con ID " + id + " no está activo");
+        }
+    }
+
     /**
-     * Lista todos los grupos profesionales del sistema
+     * Lista los grupos profesionales activos del sistema
      */
     @Transactional(readOnly = true)
     public List<ProfesionalResponse> listarGruposProfesionales() {
-        log.info("Listando todos los grupos profesionales");
-        return grupoProfesionalRepository.findAll().stream()
+        log.info("Listando grupos profesionales activos");
+        return grupoProfesionalRepository.findByActivoTrueOrderByNombreAsc().stream()
                 .map(g -> ProfesionalResponse.builder()
                         .id(g.getId().longValue())
                         .nombre(g.getNombre())
+                        .activo(g.getActivo())
                         .build())
                 .collect(Collectors.toList());
     }

@@ -23,6 +23,8 @@ class DynamicEndpointAuthorizationIntegrationTest extends IntegrationTestBase {
                 Arguments.of("coordinador@udea.edu.co", "/solicitudes/acompanamiento"),
                 Arguments.of("profesional@udea.edu.co", "/atenciones/pestana/5"),
                 Arguments.of("revisor@udea.edu.co", "/citas"),
+                Arguments.of("profesional@udea.edu.co", "/solicitudes/acompanamiento"),
+                Arguments.of("revisor@udea.edu.co", "/solicitudes/acompanamiento"),
                 Arguments.of("user@udea.edu.co", "/personas/documento/does-not-exist"),
                 Arguments.of("user@udea.edu.co", "/maestros/paises")
         );
@@ -32,7 +34,7 @@ class DynamicEndpointAuthorizationIntegrationTest extends IntegrationTestBase {
         return Stream.of(
                 Arguments.of("user@udea.edu.co", "/usuarios"),
                 Arguments.of("user@udea.edu.co", "/casos/paginado"),
-                Arguments.of("profesional@udea.edu.co", "/solicitudes/acompanamiento"),
+                Arguments.of("user@udea.edu.co", "/parametros/max-llamadas-contacto"),
                 Arguments.of("revisor@udea.edu.co", "/parametros/max-llamadas-contacto"),
                 Arguments.of("coordinador@udea.edu.co", "/usuarios")
         );

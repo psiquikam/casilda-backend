@@ -45,16 +45,19 @@ public class DatosSolicitanteRequest {
     @NotBlank(message = "El número de documento es obligatorio")
     private String numeroDocumento;
 
-    @NotNull(message = "La fecha de nacimiento es obligatoria")
     @JsonFormat(pattern = "dd/MM/yyyy")
     private LocalDate fechaNacimiento;
 
     @NotNull(message = "La identidad de género es obligatoria")
     private Integer identidadGeneroId;
 
+    private Integer vinculoUniversidadId;
+
+    @NotEmpty(message = "Debe registrar al menos un correo electrónico")
     @Valid
     private List<CorreoSolicitanteRequest> correos = new ArrayList<>();
 
+    @NotEmpty(message = "Debe registrar al menos un teléfono")
     @Valid
     private List<TelefonoSolicitanteRequest> telefonos = new ArrayList<>();
 }

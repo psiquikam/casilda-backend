@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -43,12 +44,18 @@ public class Asignacion extends Auditable {
     private GrupoProfesional grupoProfesional;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "idtipoasignacion")
+    @JoinColumn(name = "idtipoasignacion", nullable = false)
     private TipoAsignacion tipoAsignacion;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "idtiposervicio")
+    @JoinColumn(name = "idtiposervicio", nullable = false)
     private TipoServicio tipoServicio;
+
+    @Column(name = "observaciones", length = 500)
+    private String observaciones;
+
+    @Column(name = "fecha_reparto")
+    private LocalDate fechaReparto;
 
     @PrePersist
     protected void onCreate() {

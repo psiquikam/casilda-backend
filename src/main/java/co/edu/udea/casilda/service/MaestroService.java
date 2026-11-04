@@ -782,7 +782,7 @@ public class MaestroService {
     @Transactional(readOnly = true)
     public List<MaestroDTO> obtenerTiposAsignacion() {
         log.info("Obteniendo tipos de asignación desde la base de datos");
-        return tipoAsignacionRepository.findAll().stream()
+        return tipoAsignacionRepository.findByActivoTrueOrderByNombreAsc().stream()
             .map(t -> new MaestroDTO(t.getId().longValue(), null, t.getNombre()))
             .collect(Collectors.toList());
     }
@@ -793,7 +793,7 @@ public class MaestroService {
     @Transactional(readOnly = true)
     public List<MaestroDTO> obtenerTiposServicio() {
         log.info("Obteniendo tipos de servicio desde la base de datos");
-        return tipoServicioRepository.findAll().stream()
+        return tipoServicioRepository.findByActivoTrueOrderByNombreAsc().stream()
             .filter(t -> !t.getId().equals(TipoServicioEnum.ATENCION_APH.getId()))
             .map(t -> new MaestroDTO(t.getId().longValue(), null, t.getNombre()))
             .collect(Collectors.toList());
