@@ -125,6 +125,18 @@ class ReporteCasoIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/maestros/rutas-activacion"))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/tipos-solicitud"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/unidades-administrativas"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/unidades-academicas"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/identidades-genero"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/cargos"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/medio-solicitud"))
+                .andExpect(status().isOk());
     }
 
     @Test
