@@ -57,7 +57,7 @@ INSERT INTO identidadgenero (id, nombre) VALUES
 (5, 'No binaria'),
 (6, 'Prefiere no responder'),
 (7, 'Otra'),
-(8, 'SD');
+(8, 'SIN DATO');
 
 -- ============================================================================
 -- 6. ORIENTACIÓN SEXUAL

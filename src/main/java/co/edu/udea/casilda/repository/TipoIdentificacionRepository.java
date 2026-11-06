@@ -10,4 +10,9 @@ import java.util.Optional;
 public interface TipoIdentificacionRepository extends JpaRepository<TipoIdentificacion, Integer> {
 
     Optional<TipoIdentificacion> findByCodigo(String codigo);
+
+    /**
+     * Busca un tipo de identificación activo por su identificador.
+     */
+    Optional<TipoIdentificacion> findByIdAndActivoTrue(Integer id);
 }

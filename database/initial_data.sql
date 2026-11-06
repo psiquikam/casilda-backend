@@ -54,7 +54,8 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/contenidos', 'POST', true, false),
     ('/contenidos/{id}', 'PUT', true, false),
     ('/contenidos/{id}', 'DELETE', true, false),
-    ('/contenidos/imagenes/**', 'GET', true, true)
+    ('/contenidos/imagenes/**', 'GET', true, true),
+    ('/reportes', 'POST', true, true)
 ON CONFLICT (path, http_method) DO UPDATE
 SET activo = EXCLUDED.activo,
     publico = EXCLUDED.publico;

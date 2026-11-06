@@ -115,6 +115,7 @@ public class MaestroService {
     public List<MaestroDTO> obtenerTiposIdentificacion() {
         log.info("Obteniendo tipos de identificación desde la base de datos");
         return tipoIdentificacionRepository.findAll().stream()
+            .filter(t -> Boolean.TRUE.equals(t.getActivo()))
             .map(t -> new MaestroDTO(t.getId().longValue(), t.getCodigo(), t.getNombre()))
             .collect(Collectors.toList());
     }
@@ -226,6 +227,7 @@ public class MaestroService {
     public List<MaestroDTO> obtenerCampus() {
         log.info("Obteniendo campus desde la base de datos");
         return campusRepository.findAll().stream()
+            .filter(c -> Boolean.TRUE.equals(c.getActivo()))
             .map(c -> new MaestroDTO(c.getId().longValue(), null, c.getNombre()))
             .collect(Collectors.toList());
     }
@@ -850,7 +852,8 @@ public class MaestroService {
     public List<MaestroDTO> obtenerRutasActivacion() {
         log.info("Obteniendo rutas de activación desde la base de datos");
         return rutaActivacionRepository.findAll().stream()
-            .map(r -> new MaestroDTO(r.getId().longValue(), null, r.getNombre()))
+            .filter(r -> Boolean.TRUE.equals(r.getActivo()))
+            .map(r -> new MaestroDTO(r.getId().longValue(), r.getCodigo(), r.getNombre()))
             .collect(Collectors.toList());
     }
 
