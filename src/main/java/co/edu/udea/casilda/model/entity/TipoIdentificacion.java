@@ -20,4 +20,7 @@ public class TipoIdentificacion extends Auditable {
 
     @Column(unique = true, nullable = false)
     private String nombre;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean activo = true;
 }

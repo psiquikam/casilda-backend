@@ -70,6 +70,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
+    @ExceptionHandler(FieldValidationException.class)
+    public ResponseEntity<ValidationErrorResponse> handleFieldValidationException(
+            FieldValidationException ex, WebRequest request) {
+        ValidationErrorResponse errorResponse = ValidationErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Datos inválidos")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .validationErrors(ex.getValidationErrors())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResourceFoundException(
             NoResourceFoundException ex, WebRequest request) {

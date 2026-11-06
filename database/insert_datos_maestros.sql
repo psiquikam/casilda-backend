@@ -57,7 +57,7 @@ INSERT INTO identidadgenero (id, nombre) VALUES
 (5, 'No binaria'),
 (6, 'Prefiere no responder'),
 (7, 'Otra'),
-(8, 'SD');
+(8, 'SIN DATO');
 
 -- ============================================================================
 -- 6. ORIENTACIÓN SEXUAL
@@ -746,18 +746,18 @@ insert into tiporutaactivacion (id, nombre) values
 (1, 'Interna'),
 (2, 'Externa');
 
-insert into rutaactivacion (id, nombre) values
-(1, 'UAD 3 y 4 (Unidad de asuntos disciplinarios)'),
-(2, 'URC (Unidad de resolución de conflictos)'),
-(3, 'Defensa técnica'),
-(4, 'Línea Alma'),
-(5, 'Seguridad a personas y bienes (vigilancia)'),
-(6, 'Ruta de atención por amenaza'),
-(7, 'Medidas de protección (académicas)'),
-(8, 'Medidas de protección (laborales)'),
-(9, 'No acepta/No toma ninguna decisión en esta sesión'),
-(10, 'No aplica'),
-(11, 'Otras');
+insert into rutaactivacion (id, codigo, nombre, activo) values
+(1, 'UAD_3_4', 'UAD 3 y 4 (Unidad de asuntos disciplinarios)', true),
+(2, 'URC', 'URC (Unidad de resolución de conflictos)', true),
+(3, 'DEFENSA_TECNICA', 'Defensa técnica', true),
+(4, 'LINEA_ALMA', 'Línea Alma', true),
+(5, 'SEGURIDAD_PERSONAS_BIENES', 'Seguridad a personas y bienes (vigilancia)', true),
+(6, 'AMENAZA', 'Ruta de atención por amenaza', true),
+(7, 'PROTECCION_ACADEMICA', 'Medidas de protección (académicas)', true),
+(8, 'PROTECCION_LABORAL', 'Medidas de protección (laborales)', true),
+(9, 'NO_DECISION', 'No acepta/No toma ninguna decisión en esta sesión', true),
+(10, 'NO_APLICA', 'No aplica', true),
+(11, 'OTRAS', 'Otras', true);
 
 insert into tiporemision (id, nombre) values
 (1, 'Interna'),

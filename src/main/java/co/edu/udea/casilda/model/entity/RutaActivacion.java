@@ -14,6 +14,12 @@ public class RutaActivacion extends Auditable {
     @Id
     private Integer id;
 
+    @Column(unique = true, length = 30)
+    private String codigo;
+
     @Column(nullable = false)
     private String nombre;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean activo = true;
 }

@@ -50,7 +50,8 @@ INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
     (33, '/contenidos', 'POST', true, false), (34, '/contenidos/{id}', 'PUT', true, false),
     (35, '/contenidos/{id}', 'DELETE', true, false),
     (36, '/contenidos/imagenes/**', 'GET', true, true),
-    (37, '/solicitudes/acompanamiento', 'POST', true, false)
+    (37, '/solicitudes/acompanamiento', 'POST', true, false),
+    (38, '/reportes', 'POST', true, true)
 ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method,
     activo = true, publico = EXCLUDED.publico;
 
@@ -95,7 +96,9 @@ INSERT INTO departamento (id, codigo, nombre) VALUES (1, '05', 'Antioquia')
 ON CONFLICT (id) DO NOTHING;
 INSERT INTO municipio (id, codigo, nombre, iddepartamento) VALUES (1, '05001', 'Medellín', 1)
 ON CONFLICT (id) DO NOTHING;
-INSERT INTO tipoidentificacion (id, codigo, nombre) VALUES (1, 'CC', 'Cédula')
+INSERT INTO tipoidentificacion (id, codigo, nombre, activo) VALUES
+    (1, 'CC', 'Cédula', true),
+    (2, 'TI', 'Tarjeta de identidad', true)
 ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipocorreo (id, nombre) VALUES (1, 'Personal') ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipocorreo (id, nombre) VALUES (2, 'Correo Personal') ON CONFLICT (id) DO NOTHING;
@@ -110,7 +113,10 @@ INSERT INTO tipoasignacion (id, nombre, activo) VALUES (1, 'Nueva', true), (2, '
 INSERT INTO tiposervicio (id, nombre, activo) VALUES (1, 'Psicológico', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO mediosolicitud (id, nombre) VALUES (1, 'Web') ON CONFLICT (id) DO NOTHING;
 INSERT INTO cargo (id, nombre) VALUES (1, 'Docente') ON CONFLICT (id) DO NOTHING;
-INSERT INTO campus (id, nombre) VALUES (1, 'Medellín') ON CONFLICT (id) DO NOTHING;
+INSERT INTO campus (id, nombre, activo) VALUES (1, 'Medellín', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO rutaactivacion (id, codigo, nombre, activo) VALUES
+    (1, 'RUTA_PSICO', 'Acompañamiento psicosocial', true)
+ON CONFLICT (id) DO UPDATE SET codigo = EXCLUDED.codigo, nombre = EXCLUDED.nombre, activo = true;
 INSERT INTO unidadadministrativa (id, nombre) VALUES (1, 'Bienestar') ON CONFLICT (id) DO NOTHING;
 INSERT INTO unidadacademica (id, nombre) VALUES (1, 'Derecho') ON CONFLICT (id) DO NOTHING;
 INSERT INTO persona (id, primernombre, primerapellido, idtipoidentificacion, numerodocumento, idciudadnacimiento)
