@@ -51,7 +51,10 @@ INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
     (35, '/contenidos/{id}', 'DELETE', true, false),
     (36, '/contenidos/imagenes/**', 'GET', true, true),
     (37, '/solicitudes/acompanamiento', 'POST', true, false),
-    (38, '/reportes', 'POST', true, true)
+    (38, '/reportes', 'POST', true, true),
+    (39, '/maestros/tipos-identificacion', 'GET', true, true),
+    (40, '/maestros/campus', 'GET', true, true),
+    (41, '/maestros/rutas-activacion', 'GET', true, true)
 ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method,
     activo = true, publico = EXCLUDED.publico;
 

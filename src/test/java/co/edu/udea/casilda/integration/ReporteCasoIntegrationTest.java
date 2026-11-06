@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -114,6 +115,16 @@ class ReporteCasoIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.validationErrors.tipoDocumentoId")
                         .value("La tarjeta de identidad solo aplica a menores de 18 años. Seleccione otro tipo de documento."));
+    }
+
+    @Test
+    void catalogosDelFormularioAnonimoSonPublicos() throws Exception {
+        mockMvc.perform(get("/maestros/tipos-identificacion"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/campus"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/maestros/rutas-activacion"))
+                .andExpect(status().isOk());
     }
 
     @Test
