@@ -115,4 +115,34 @@ class ReporteCasoIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.validationErrors.tipoDocumentoId")
                         .value("La tarjeta de identidad solo aplica a menores de 18 años. Seleccione otro tipo de documento."));
     }
+
+    @Test
+    void bearerInvalidoRetornaUnauthorized() throws Exception {
+        mockMvc.perform(post("/reportes")
+                        .header("Authorization", "Bearer token-invalido")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "No debe persistirse",
+                                  "rutaActivacionId": 1
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer"));
+    }
+
+    @Test
+    void esquemaDeAutorizacionDistintoDeBearerSeRechaza() throws Exception {
+        mockMvc.perform(post("/reportes")
+                        .header("Authorization", "Basic abc")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "No debe persistirse",
+                                  "rutaActivacionId": 1
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer"));
+    }
 }

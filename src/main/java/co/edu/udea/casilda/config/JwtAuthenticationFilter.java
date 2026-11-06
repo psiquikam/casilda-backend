@@ -31,8 +31,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || authHeader.isBlank()) {
             filterChain.doFilter(request, response);
+            return;
+        }
+        if (!authHeader.startsWith("Bearer ")) {
+            rejectUnauthorized(response);
             return;
         }
 
@@ -42,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             username = jwtService.extractUsername(jwt);
         } catch (Exception ex) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido o vencido");
+            rejectUnauthorized(response);
             return;
         }
 
@@ -54,7 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             if (!jwtService.isTokenValid(jwt, userDetails)) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido o vencido");
+                rejectUnauthorized(response);
                 return;
             }
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -65,10 +69,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
         } catch (Exception ex) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido o vencido");
+            rejectUnauthorized(response);
             return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void rejectUnauthorized(final HttpServletResponse response) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setHeader("WWW-Authenticate", "Bearer");
     }
 }
