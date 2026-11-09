@@ -3,6 +3,7 @@ package co.edu.udea.casilda.model.entity;
 import co.edu.udea.casilda.model.enums.EstadoReporteRutaEnum;
 import co.edu.udea.casilda.model.enums.TipoReportanteEnum;
 import jakarta.persistence.Column;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -12,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -21,6 +23,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Reporte inicial de un caso enviado desde el formulario anónimo o autenticado.
@@ -167,6 +171,10 @@ public class ReporteCaso extends Auditable {
 
     @Column(name = "agresor_remitir_uad_version", length = 30)
     private String agresorRemitirUadVersion;
+
+    @OneToMany(mappedBy = "reporteCaso", fetch = FetchType.LAZY, cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    private List<EvidenciaReporte> evidencias = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
