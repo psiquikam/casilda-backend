@@ -7,6 +7,7 @@ import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.exception.FieldValidationException;
 import co.edu.udea.casilda.model.entity.Campus;
 import co.edu.udea.casilda.model.entity.Cargo;
+import co.edu.udea.casilda.model.entity.EvidenciaReporte;
 import co.edu.udea.casilda.model.entity.IdentidadGenero;
 import co.edu.udea.casilda.model.entity.ReporteCaso;
 import co.edu.udea.casilda.model.entity.RutaActivacion;
@@ -42,6 +43,8 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 
@@ -68,9 +71,17 @@ public class ReporteCasoService {
     private final CargoRepository cargoRepository;
     private final VinculoUdeARepository vinculoUdeARepository;
     private final VinculoAgresorVictimaRepository vinculoAgresorVictimaRepository;
+    private final ReporteEvidenciaStorageService evidenciaStorageService;
 
     @Transactional
     public ReporteCasoResponse crear(final ReporteCasoRequest request) {
+        return crear(request, List.of());
+    }
+
+    @Transactional
+    public ReporteCasoResponse crear(
+            final ReporteCasoRequest request, final List<org.springframework.web.multipart.MultipartFile> archivos) {
+        evidenciaStorageService.validarCantidadYTamanoTotal(archivos);
         validarRequest(request);
 
         final TipoIdentificacion tipoDocumento = obtenerTipoDocumento(
@@ -98,9 +109,27 @@ public class ReporteCasoService {
         reporte.setEstadoRuta(EstadoReporteRutaEnum.SOLICITADA);
         completarDatosAdicionales(reporte, request);
 
-        final ReporteCaso guardado = reporteCasoRepository.save(reporte);
-        log.info("Reporte de caso creado con id {}", guardado.getId());
-        return toResponse(guardado);
+        final List<String> archivosAlmacenados = new ArrayList<>();
+        try {
+            for (org.springframework.web.multipart.MultipartFile archivo : archivos) {
+                final ReporteEvidenciaStorageService.StoredEvidence almacenado =
+                        evidenciaStorageService.guardar(archivo);
+                final EvidenciaReporte evidencia = new EvidenciaReporte();
+                evidencia.setReporteCaso(reporte);
+                evidencia.setNombreOriginal(almacenado.nombreOriginal());
+                evidencia.setNombreAlmacenado(almacenado.nombreAlmacenado());
+                evidencia.setTipoContenido(almacenado.tipoContenido());
+                evidencia.setTamanoBytes(almacenado.tamanoBytes());
+                reporte.getEvidencias().add(evidencia);
+                archivosAlmacenados.add(almacenado.nombreAlmacenado());
+            }
+            final ReporteCaso guardado = reporteCasoRepository.saveAndFlush(reporte);
+            log.info("Reporte de caso creado con id {}", guardado.getId());
+            return toResponse(guardado);
+        } catch (RuntimeException ex) {
+            archivosAlmacenados.forEach(evidenciaStorageService::eliminar);
+            throw ex;
+        }
     }
 
     private void validarRequest(final ReporteCasoRequest request) {

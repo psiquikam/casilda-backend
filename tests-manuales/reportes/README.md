@@ -27,5 +27,6 @@ OMITIR_CATALOGOS=true ./probar.sh
 
 El script consulta los catálogos públicos, valida un caso inválido y crea un reporte
 con los bloques de víctima, contacto y presunto agresor. La creación persiste un
-registro real y no existe todavía un endpoint público para eliminarlo; usarlo
+registro real y también prueba `multipart/form-data` con una evidencia PDF de prueba.
+No existe todavía un endpoint público para eliminar los reportes; usarlo
 preferiblemente en una base local de pruebas.

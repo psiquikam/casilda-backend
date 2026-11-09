@@ -1,16 +1,20 @@
 package co.edu.udea.casilda.integration;
 
 import co.edu.udea.casilda.model.entity.ReporteCaso;
+import co.edu.udea.casilda.repository.EvidenciaReporteRepository;
 import co.edu.udea.casilda.repository.ReporteCasoRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockMultipartFile;
 
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +23,9 @@ class ReporteCasoIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private ReporteCasoRepository reporteCasoRepository;
+
+    @Autowired
+    private EvidenciaReporteRepository evidenciaReporteRepository;
 
     @Test
     void creaReporteAnonimoYLoPersiste() throws Exception {
@@ -286,5 +293,50 @@ class ReporteCasoIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.validationErrors['victima.cargoId']")
                         .value("El cargo de la víctima no existe"));
+    }
+
+    @Test
+    void creaReporteMultipartConEvidenciaPdf() throws Exception {
+        MockMultipartFile reporte = new MockMultipartFile(
+                "reporte", "reporte.json", APPLICATION_JSON_VALUE, """
+                {
+                  "descripcionHechos": "Reporte multipart con evidencia.",
+                  "rutaActivacionId": 1
+                }
+                """.getBytes());
+        MockMultipartFile evidencia = new MockMultipartFile(
+                "evidencias", "evidencia.pdf", "application/pdf",
+                "%PDF-1.7\ncontenido de prueba".getBytes());
+
+        String response = mockMvc.perform(multipart("/reportes")
+                        .file(reporte)
+                        .file(evidencia))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.codigo", matchesPattern("CAS-[A-Z2-9]{10}")))
+                .andReturn().getResponse().getContentAsString();
+
+        String codigo = objectMapper.readTree(response).get("codigo").asText();
+        assertEquals(1, evidenciaReporteRepository.countByReporteCasoCodigo(codigo));
+    }
+
+    @Test
+    void rechazaEvidenciaConFirmaInvalida() throws Exception {
+        MockMultipartFile reporte = new MockMultipartFile(
+                "reporte", "reporte.json", APPLICATION_JSON_VALUE, """
+                {
+                  "descripcionHechos": "Reporte multipart inválido.",
+                  "rutaActivacionId": 1
+                }
+                """.getBytes());
+        MockMultipartFile evidencia = new MockMultipartFile(
+                "evidencias", "evidencia.pdf", "application/pdf",
+                "no es un pdf".getBytes());
+
+        mockMvc.perform(multipart("/reportes")
+                        .file(reporte)
+                        .file(evidencia))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("El contenido de la evidencia no coincide con su tipo"));
     }
 }

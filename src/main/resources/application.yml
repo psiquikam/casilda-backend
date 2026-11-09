@@ -20,8 +20,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 1MB
-      max-request-size: 2MB
+      max-file-size: 10MB
+      max-request-size: 25MB
 
 server:
   port: 8080
@@ -29,6 +29,9 @@ server:
     context-path: /api/v1
 
 app:
+  reportes:
+    evidencias:
+      directorio: uploads/reportes
   contenidos:
     imagenes:
       directorio: uploads/contenidos

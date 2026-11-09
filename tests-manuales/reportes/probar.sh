@@ -15,7 +15,9 @@ VINCULO_VICTIMA_ID="${VINCULO_VICTIMA_ID:-1}"
 OMITIR_CATALOGOS="${OMITIR_CATALOGOS:-false}"
 
 RESPUESTA=$(mktemp)
-trap 'rm -f "$RESPUESTA"' EXIT
+EVIDENCIA=$(mktemp --suffix=.pdf)
+printf '%%PDF-1.7\nprueba manual\n' > "$EVIDENCIA"
+trap 'rm -f "$RESPUESTA" "$EVIDENCIA"' EXIT
 
 PASS=0
 FAIL=0
@@ -117,6 +119,16 @@ if [ "$STATUS" = "201" ]; then
   verificar "respuesta inicia la ruta como SOLICITADA" 201 \
     '.rutaActivacion.estado == "SOLICITADA"'
 fi
+
+echo "== Crear reporte multipart con evidencia =="
+CUERPO_MULTIPART=$(printf '%s' "$CUERPO")
+STATUS=$(curl -sS -o "$RESPUESTA" -w '%{http_code}' \
+  -X POST "$BASE_URL/reportes" \
+  -F "reporte=$CUERPO_MULTIPART;type=application/json" \
+  -F "evidencias=@$EVIDENCIA;type=application/pdf")
+BODY=$(cat "$RESPUESTA")
+verificar "crear reporte multipart" 201 \
+  '.codigo | startswith("CAS-")'
 
 echo
 echo "Resultado: $PASS correctas, $FAIL con falla"
