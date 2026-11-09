@@ -168,4 +168,123 @@ class ReporteCasoIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string("WWW-Authenticate", "Bearer"));
     }
+
+    @Test
+    void persisteDatosAdicionalesDelReporte() throws Exception {
+        String response = mockMvc.perform(post("/reportes")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "Reporte con datos adicionales.",
+                                  "rutaActivacionId": 1,
+                                  "tipoReportante": "TERCERO",
+                                  "victima": {
+                                    "primerNombre": "Ana",
+                                    "primerApellido": "Pérez",
+                                    "correo": "ana@correo.com",
+                                    "identidadGeneroId": 1,
+                                    "cargoId": 1
+                                  },
+                                  "contacto": {
+                                    "deseaContacto": true,
+                                    "correo": "contacto@correo.com",
+                                    "whatsapp": "3001234567"
+                                  },
+                                  "presuntoAgresor": {
+                                    "numeroDocumento": "98765432",
+                                    "primerNombre": "Carlos",
+                                    "primerApellido": "Gómez",
+                                    "vinculoUniversidadId": 1,
+                                    "vinculoVictimaId": 1,
+                                    "otroVinculoVictima": "Jefe de práctica",
+                                    "informacionAdicional": "Trabaja en el bloque 12",
+                                    "remitirUad": true
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String codigo = objectMapper.readTree(response).get("codigo").asText();
+        ReporteCaso reporte = reporteCasoRepository.findByCodigo(codigo).orElseThrow();
+
+        assertEquals("TERCERO", reporte.getTipoReportante().name());
+        assertEquals("Ana", reporte.getVictimaPrimerNombre());
+        assertEquals("contacto@correo.com", reporte.getContactoCorreo());
+        assertEquals("3001234567", reporte.getContactoWhatsapp());
+        assertEquals("98765432", reporte.getAgresorNumeroDocumento());
+        assertEquals("Jefe de práctica", reporte.getAgresorOtroVinculoVictima());
+        assertEquals(Boolean.TRUE, reporte.getAgresorRemitirUad());
+        assertEquals("v1", reporte.getAgresorRemitirUadVersion());
+    }
+
+    @Test
+    void contactoSolicitadoRequiereCorreoOWhatsapp() throws Exception {
+        mockMvc.perform(post("/reportes")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "Falta medio de contacto.",
+                                  "rutaActivacionId": 1,
+                                  "contacto": {
+                                    "deseaContacto": true
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.contacto")
+                        .value("Ingrese un correo o WhatsApp para ser contactada"));
+    }
+
+    @Test
+    void tipoReportanteInvalidoRetornaValidacion() throws Exception {
+        mockMvc.perform(post("/reportes")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "Tipo inválido.",
+                                  "rutaActivacionId": 1,
+                                  "tipoReportante": "OTRO"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.tipoReportante")
+                        .value("El tipo de reportante debe ser AFECTADA o TERCERO"));
+    }
+
+    @Test
+    void victimaRequiereNombreApellidoYCargo() throws Exception {
+        mockMvc.perform(post("/reportes")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "Datos incompletos de víctima.",
+                                  "rutaActivacionId": 1,
+                                  "victima": {}
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors['victima.primerNombre']")
+                        .value("El primer nombre de la víctima es obligatorio"));
+    }
+
+    @Test
+    void referenciaDeCatalogoInexistenteRetornaValidacion() throws Exception {
+        mockMvc.perform(post("/reportes")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "descripcionHechos": "Catálogo inexistente.",
+                                  "rutaActivacionId": 1,
+                                  "victima": {
+                                    "primerNombre": "Ana",
+                                    "primerApellido": "Pérez",
+                                    "cargoId": 999999
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors['victima.cargoId']")
+                        .value("El cargo de la víctima no existe"));
+    }
 }

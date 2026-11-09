@@ -6,16 +6,28 @@ import co.edu.udea.casilda.dto.response.RutaActivacionReporteResponse;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.exception.FieldValidationException;
 import co.edu.udea.casilda.model.entity.Campus;
+import co.edu.udea.casilda.model.entity.Cargo;
+import co.edu.udea.casilda.model.entity.IdentidadGenero;
 import co.edu.udea.casilda.model.entity.ReporteCaso;
 import co.edu.udea.casilda.model.entity.RutaActivacion;
 import co.edu.udea.casilda.model.entity.TipoIdentificacion;
 import co.edu.udea.casilda.model.entity.Usuario;
+import co.edu.udea.casilda.model.entity.VinculoAgresorVictima;
+import co.edu.udea.casilda.model.entity.VinculoUdeA;
 import co.edu.udea.casilda.model.enums.EstadoReporteRutaEnum;
+import co.edu.udea.casilda.model.enums.TipoReportanteEnum;
+import co.edu.udea.casilda.dto.request.ReporteContactoRequest;
+import co.edu.udea.casilda.dto.request.ReportePresuntoAgresorRequest;
+import co.edu.udea.casilda.dto.request.ReporteVictimaRequest;
+import co.edu.udea.casilda.repository.CargoRepository;
+import co.edu.udea.casilda.repository.IdentidadGeneroRepository;
 import co.edu.udea.casilda.repository.CampusRepository;
 import co.edu.udea.casilda.repository.ReporteCasoRepository;
 import co.edu.udea.casilda.repository.RutaActivacionRepository;
 import co.edu.udea.casilda.repository.TipoIdentificacionRepository;
 import co.edu.udea.casilda.repository.UsuarioRepository;
+import co.edu.udea.casilda.repository.VinculoAgresorVictimaRepository;
+import co.edu.udea.casilda.repository.VinculoUdeARepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -25,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneId;
@@ -51,6 +64,10 @@ public class ReporteCasoService {
     private final TipoIdentificacionRepository tipoIdentificacionRepository;
     private final CampusRepository campusRepository;
     private final UsuarioRepository usuarioRepository;
+    private final IdentidadGeneroRepository identidadGeneroRepository;
+    private final CargoRepository cargoRepository;
+    private final VinculoUdeARepository vinculoUdeARepository;
+    private final VinculoAgresorVictimaRepository vinculoAgresorVictimaRepository;
 
     @Transactional
     public ReporteCasoResponse crear(final ReporteCasoRequest request) {
@@ -79,6 +96,7 @@ public class ReporteCasoService {
         reporte.setDescripcionHechos(request.getDescripcionHechos().trim());
         reporte.setRutaActivacion(ruta);
         reporte.setEstadoRuta(EstadoReporteRutaEnum.SOLICITADA);
+        completarDatosAdicionales(reporte, request);
 
         final ReporteCaso guardado = reporteCasoRepository.save(reporte);
         log.info("Reporte de caso creado con id {}", guardado.getId());
@@ -86,6 +104,7 @@ public class ReporteCasoService {
     }
 
     private void validarRequest(final ReporteCasoRequest request) {
+        validarDatosAdicionales(request);
         final boolean tieneTipoDocumento = request.getTipoDocumentoId() != null;
         final boolean tieneNumeroDocumento = StringUtils.hasText(request.getNumeroDocumento());
         if (tieneTipoDocumento != tieneNumeroDocumento) {
@@ -93,6 +112,7 @@ public class ReporteCasoService {
             if (!tieneTipoDocumento) {
                 errors.put("tipoDocumentoId", "El tipo de documento es obligatorio cuando se envía el número de documento");
             }
+
             if (!tieneNumeroDocumento) {
                 errors.put("numeroDocumento", "El número de documento es obligatorio cuando se envía el tipo de documento");
             }
@@ -129,6 +149,151 @@ public class ReporteCasoService {
                 && !request.getFechaNacimiento().isBefore(LocalDate.now(BOGOTA))) {
             throw fieldError("fechaNacimiento", "La fecha de nacimiento debe ser anterior a hoy");
         }
+    }
+
+    private void validarDatosAdicionales(final ReporteCasoRequest request) {
+        if (StringUtils.hasText(request.getTipoReportante())) {
+            try {
+                TipoReportanteEnum.valueOf(request.getTipoReportante().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw fieldError("tipoReportante", "El tipo de reportante debe ser AFECTADA o TERCERO");
+            }
+        }
+
+        final ReporteVictimaRequest victima = request.getVictima();
+        if (victima != null) {
+            if (!StringUtils.hasText(victima.getPrimerNombre())) {
+                throw fieldError("victima.primerNombre", "El primer nombre de la víctima es obligatorio");
+            }
+            if (!StringUtils.hasText(victima.getPrimerApellido())) {
+                throw fieldError("victima.primerApellido", "El primer apellido de la víctima es obligatorio");
+            }
+            if (victima.getCargoId() == null) {
+                throw fieldError("victima.cargoId", "El cargo de la víctima es obligatorio");
+            }
+        }
+
+        final ReporteContactoRequest contacto = request.getContacto();
+        if (contacto != null && Boolean.TRUE.equals(contacto.getDeseaContacto())
+                && !StringUtils.hasText(contacto.getCorreo())
+                && !StringUtils.hasText(contacto.getWhatsapp())) {
+            throw fieldError("contacto", "Ingrese un correo o WhatsApp para ser contactada");
+        }
+
+        final ReportePresuntoAgresorRequest agresor = request.getPresuntoAgresor();
+        if (agresor != null) {
+            final VinculoUdeA vinculoUdeA = obtenerVinculoUdeA(agresor.getVinculoUniversidadId());
+            final VinculoAgresorVictima vinculoVictima =
+                    obtenerVinculoVictima(agresor.getVinculoVictimaId());
+            validarOtroVinculo("presuntoAgresor.otroVinculoUniversidad",
+                    agresor.getOtroVinculoUniversidad(), vinculoUdeA);
+            validarOtroVinculo("presuntoAgresor.otroVinculoVictima",
+                    agresor.getOtroVinculoVictima(), vinculoVictima);
+            if (agresor.getRemitirUad() != null && vinculoUdeA == null) {
+                throw fieldError("presuntoAgresor.remitirUad",
+                        "La autorización para remitir a la UAD requiere un vínculo con la Universidad");
+            }
+        }
+    }
+
+    private void completarDatosAdicionales(
+            final ReporteCaso reporte, final ReporteCasoRequest request) {
+        if (StringUtils.hasText(request.getTipoReportante())) {
+            reporte.setTipoReportante(TipoReportanteEnum.valueOf(
+                    request.getTipoReportante().trim().toUpperCase(Locale.ROOT)));
+        }
+
+        final ReporteVictimaRequest victima = request.getVictima();
+        if (victima != null) {
+            reporte.setVictimaPrimerNombre(normalizar(victima.getPrimerNombre()));
+            reporte.setVictimaSegundoNombre(normalizar(victima.getSegundoNombre()));
+            reporte.setVictimaPrimerApellido(normalizar(victima.getPrimerApellido()));
+            reporte.setVictimaSegundoApellido(normalizar(victima.getSegundoApellido()));
+            reporte.setVictimaCorreo(normalizar(victima.getCorreo()));
+            reporte.setVictimaIdentidadGenero(obtenerIdentidadGenero(victima.getIdentidadGeneroId()));
+            reporte.setVictimaCargo(obtenerCargo(victima.getCargoId()));
+        }
+
+        final ReporteContactoRequest contacto = request.getContacto();
+        if (contacto != null) {
+            reporte.setDeseaContacto(contacto.getDeseaContacto());
+            if (Boolean.TRUE.equals(contacto.getDeseaContacto())) {
+                reporte.setContactoCorreo(normalizar(contacto.getCorreo()));
+                reporte.setContactoWhatsapp(normalizar(contacto.getWhatsapp()));
+            }
+        }
+
+        final ReportePresuntoAgresorRequest agresor = request.getPresuntoAgresor();
+        if (agresor != null) {
+            reporte.setAgresorNumeroDocumento(normalizar(agresor.getNumeroDocumento()));
+            reporte.setAgresorPrimerNombre(normalizar(agresor.getPrimerNombre()));
+            reporte.setAgresorSegundoNombre(normalizar(agresor.getSegundoNombre()));
+            reporte.setAgresorPrimerApellido(normalizar(agresor.getPrimerApellido()));
+            reporte.setAgresorSegundoApellido(normalizar(agresor.getSegundoApellido()));
+            reporte.setAgresorVinculoUdeA(obtenerVinculoUdeA(agresor.getVinculoUniversidadId()));
+            reporte.setAgresorVinculoVictima(obtenerVinculoVictima(agresor.getVinculoVictimaId()));
+            reporte.setAgresorOtroVinculoUdeA(normalizar(agresor.getOtroVinculoUniversidad()));
+            reporte.setAgresorOtroVinculoVictima(normalizar(agresor.getOtroVinculoVictima()));
+            reporte.setAgresorInformacionAdicional(normalizar(agresor.getInformacionAdicional()));
+            reporte.setAgresorRemitirUad(agresor.getRemitirUad());
+            if (agresor.getRemitirUad() != null) {
+                reporte.setAgresorRemitirUadFecha(Instant.now());
+                reporte.setAgresorRemitirUadVersion("v1");
+            }
+        }
+    }
+
+    private IdentidadGenero obtenerIdentidadGenero(final Integer id) {
+        if (id == null) {
+            return null;
+        }
+        return identidadGeneroRepository.findById(id)
+                .orElseThrow(() -> fieldError(
+                        "victima.identidadGeneroId", "La identidad de género no existe"));
+    }
+
+    private Cargo obtenerCargo(final Integer id) {
+        if (id == null) {
+            throw fieldError("victima.cargoId", "El cargo de la víctima es obligatorio");
+        }
+        return cargoRepository.findById(id)
+                .orElseThrow(() -> fieldError("victima.cargoId", "El cargo de la víctima no existe"));
+    }
+
+    private VinculoUdeA obtenerVinculoUdeA(final Integer id) {
+        if (id == null) {
+            return null;
+        }
+        return vinculoUdeARepository.findById(id)
+                .orElseThrow(() -> fieldError(
+                        "presuntoAgresor.vinculoUniversidadId",
+                        "El vínculo con la Universidad no existe"));
+    }
+
+    private VinculoAgresorVictima obtenerVinculoVictima(final Integer id) {
+        if (id == null) {
+            return null;
+        }
+        return vinculoAgresorVictimaRepository.findById(id)
+                .orElseThrow(() -> fieldError(
+                        "presuntoAgresor.vinculoVictimaId",
+                        "El vínculo con la víctima no existe"));
+    }
+
+    private void validarOtroVinculo(
+            final String field, final String otherValue, final Object vinculo) {
+        final boolean hasOtherValue = StringUtils.hasText(otherValue);
+        final boolean isOther = vinculo != null && "otro".equalsIgnoreCase(nombreVinculo(vinculo));
+        if (hasOtherValue != isOther) {
+            throw fieldError(field, isOther
+                    ? "Describa el otro vínculo seleccionado"
+                    : "Este campo solo aplica cuando el vínculo es Otro");
+        }
+    }
+
+    private String nombreVinculo(final Object vinculo) {
+        return vinculo instanceof VinculoUdeA udea ? udea.getNombre()
+                : ((VinculoAgresorVictima) vinculo).getNombre();
     }
 
     private TipoIdentificacion obtenerTipoDocumento(
