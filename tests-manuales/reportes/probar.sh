@@ -3,7 +3,7 @@
 # Uso:
 #   ./probar.sh
 # Variables opcionales: BASE_URL, RUTA_ID, GENERO_ID, CARGO_ID,
-# VINCULO_UDEA_ID, VINCULO_VICTIMA_ID
+# VINCULO_UDEA_ID, VINCULO_VICTIMA_ID, OMITIR_CATALOGOS
 set -u
 
 BASE_URL="${BASE_URL:-http://localhost:8080/api/v1}"
@@ -12,6 +12,7 @@ GENERO_ID="${GENERO_ID:-1}"
 CARGO_ID="${CARGO_ID:-1}"
 VINCULO_UDEA_ID="${VINCULO_UDEA_ID:-1}"
 VINCULO_VICTIMA_ID="${VINCULO_VICTIMA_ID:-1}"
+OMITIR_CATALOGOS="${OMITIR_CATALOGOS:-false}"
 
 RESPUESTA=$(mktemp)
 trap 'rm -f "$RESPUESTA"' EXIT
@@ -47,19 +48,24 @@ verificar() {
   fi
 }
 
-echo "== Catálogos públicos =="
-llamar GET /maestros/rutas-activacion
-verificar "rutas de activación disponibles" 200 \
-  "type == \"array\" and length > 0"
-if [ "$STATUS" != "200" ]; then
-  echo "No se pudieron consultar los catálogos; revise BASE_URL y el servidor."
-  exit 1
-fi
+if [ "$OMITIR_CATALOGOS" = "true" ]; then
+  echo "== Catálogos públicos (omitidos) =="
+else
+  echo "== Catálogos públicos =="
+  llamar GET /maestros/rutas-activacion
+  verificar "rutas de activación disponibles" 200 \
+    "type == \"array\" and length > 0"
+  if [ "$STATUS" != "200" ]; then
+    echo "No se pudieron consultar los catálogos."
+    echo "Use OMITIR_CATALOGOS=true si la base local aún no tiene esos permisos."
+    exit 1
+  fi
 
-llamar GET /maestros/identidades-genero
-verificar "identidades de género disponibles" 200 "type == \"array\""
-llamar GET /maestros/cargos
-verificar "cargos disponibles" 200 "type == \"array\""
+  llamar GET /maestros/identidades-genero
+  verificar "identidades de género disponibles" 200 "type == \"array\""
+  llamar GET /maestros/cargos
+  verificar "cargos disponibles" 200 "type == \"array\""
+fi
 
 echo "== Validaciones =="
 llamar POST /reportes '{

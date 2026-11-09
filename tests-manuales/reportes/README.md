@@ -18,6 +18,13 @@ VINCULO_UDEA_ID=1 VINCULO_VICTIMA_ID=1 \
 ./probar.sh
 ```
 
+Si la base local todavía no tiene cargados los permisos públicos de catálogos,
+se puede probar únicamente el endpoint de reportes:
+
+```bash
+OMITIR_CATALOGOS=true ./probar.sh
+```
+
 El script consulta los catálogos públicos, valida un caso inválido y crea un reporte
 con los bloques de víctima, contacto y presunto agresor. La creación persiste un
 registro real y no existe todavía un endpoint público para eliminarlo; usarlo
