@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 
@@ -48,4 +49,15 @@ public class ReporteCasoRequest {
 
     @NotNull(message = "La ruta de activación es obligatoria")
     private Integer rutaActivacionId;
+
+    private String tipoReportante;
+
+    @Valid
+    private ReporteVictimaRequest victima;
+
+    @Valid
+    private ReporteContactoRequest contacto;
+
+    @Valid
+    private ReportePresuntoAgresorRequest presuntoAgresor;
 }

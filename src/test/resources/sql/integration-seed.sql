@@ -112,6 +112,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipocorreo (id, nombre) VALUES (1, 'Personal') ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipocorreo (id, nombre) VALUES (2, 'Correo Personal') ON CONFLICT (id) DO NOTHING;
 INSERT INTO vinculoudea (id, nombre) VALUES (1, 'Estudiante') ON CONFLICT (id) DO NOTHING;
+INSERT INTO vinculoagresorvictima (id, nombre) VALUES (1, 'Otro') ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipotelefono (id, nombre) VALUES (1, 'Celular') ON CONFLICT (id) DO NOTHING;
 INSERT INTO identidadgenero (id, nombre) VALUES (1, 'Mujer') ON CONFLICT (id) DO NOTHING;
 INSERT INTO tiposolicitud (id, nombre) VALUES (1, 'Acompañamiento') ON CONFLICT (id) DO NOTHING;
