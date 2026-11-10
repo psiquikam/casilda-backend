@@ -1200,6 +1200,7 @@ public class SolicitudAcompanamientoService {
                         .id(g.getId().longValue())
                         .nombre(g.getNombre())
                         .activo(g.getActivo())
+                        .idTipoServicio(g.getTipoServicio().getId())
                         .build())
                 .collect(Collectors.toList());
     }

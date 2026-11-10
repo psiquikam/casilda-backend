@@ -498,6 +498,10 @@ CREATE TABLE tiposervicio (
     constraint tiposervicio_pkey PRIMARY KEY (id)
 );
 
+ALTER TABLE grupoprofesional ADD COLUMN idtiposervicio int NOT NULL;
+ALTER TABLE grupoprofesional ADD CONSTRAINT grupoprofesional_idtiposervicio_fkey
+    FOREIGN KEY (idtiposervicio) REFERENCES tiposervicio(id) ON DELETE NO ACTION;
+
 CREATE TABLE asignacion (
     id bigserial NOT NULL,
     fechacreacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -855,7 +859,7 @@ CREATE TABLE registrolinealma (
     idquienremite integer,                   -- FK actorremitente (solo cuando indirecta)
     fechahoraatencion timestamp without time zone NOT NULL,
     idpersonaatiende integer NOT NULL,       -- grupo profesional que atiende
-    idtiposervicio integer NOT NULL,         -- FK tiposervicio (fijo: Atención APH)
+    idtiposervicio integer NOT NULL,         -- FK tiposervicio seleccionado
     idpersonaregistra bigint NOT NULL,       -- usuario que registra
     ididentidadgenero int not null,
     idorientacionsexual INT,

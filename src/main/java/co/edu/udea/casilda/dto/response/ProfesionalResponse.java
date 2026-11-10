@@ -16,4 +16,5 @@ public class ProfesionalResponse {
     private Long id;
     private String nombre;
     private Boolean activo;
+    private Integer idTipoServicio;
 }

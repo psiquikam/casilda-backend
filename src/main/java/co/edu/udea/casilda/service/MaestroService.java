@@ -5,7 +5,6 @@ import co.edu.udea.casilda.dto.response.MaestroDTO;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.model.entity.*;
 import co.edu.udea.casilda.repository.*;
-import co.edu.udea.casilda.model.enums.TipoServicioEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -796,7 +795,6 @@ public class MaestroService {
     public List<MaestroDTO> obtenerTiposServicio() {
         log.info("Obteniendo tipos de servicio desde la base de datos");
         return tipoServicioRepository.findByActivoTrueOrderByNombreAsc().stream()
-            .filter(t -> !t.getId().equals(TipoServicioEnum.ATENCION_APH.getId()))
             .map(t -> new MaestroDTO(t.getId().longValue(), null, t.getNombre()))
             .collect(Collectors.toList());
     }

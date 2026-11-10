@@ -69,6 +69,8 @@ Con el token devuelto, autoriza en Swagger con:
 
 ### Maestros
 
+- `GET /maestros/tipos-servicio` (tipos de servicio activos)
+- `GET /solicitudes/grupos-profesionales` (grupos activos; cada elemento incluye `idTipoServicio` para filtrar)
 - `GET /maestros/sexos`
 - `GET /maestros/tipos-identificacion`
 - `GET /maestros/etnias`
@@ -77,6 +79,28 @@ Con el token devuelto, autoriza en Swagger con:
 - `GET /maestros/dependencias`
 - `GET /maestros/modalidades-violencia`
 - `GET /maestros/programas`
+
+El registro de la pestaña 0 de Línea ALMA (`POST /linea-alma/registros/pestana/0`)
+requiere `idTipoServicio` y guarda el servicio seleccionado; ya no se asigna
+automáticamente Atención APH.
+
+Para una base existente, coordinar una ventana de mantenimiento con el frontend:
+
+1. Desplegar esta versión e iniciar la aplicación para que Hibernate cree la columna
+   nullable `grupoprofesional.idtiposervicio` y su clave foránea. No habilitar tráfico todavía:
+   los grupos existentes no tendrán servicio hasta ejecutar el siguiente paso.
+2. Ejecutar `database/update_catalogos_servicio_grupo.sql` y verificar que finalice
+   correctamente. Actualiza los datos y establece `NOT NULL` después de completar la relación.
+3. Habilitar el tráfico una vez comprobados los catálogos y actualizado el frontend.
+
+Respaldar y revisar los datos antes de ejecutar el script. El script
+reemplaza los nombres asociados a los IDs existentes: las referencias históricas
+conservarán sus IDs pero mostrarán el nuevo significado, incluido el antiguo ID 5
+de Atención APH. Eliminará otros IDs de estos catálogos solo si no tienen referencias;
+si existen referencias, falla y revierte la transacción sin borrar registros. En ese caso,
+mantener la ventana de mantenimiento y resolver las referencias antes de reintentarlo.
+En una base nueva, ejecutar también el script después del primer inicio de Hibernate
+para cargar los catálogos y establecer la restricción `NOT NULL`.
 
 ### Formularios
 

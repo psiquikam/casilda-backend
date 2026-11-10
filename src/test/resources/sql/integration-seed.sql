@@ -118,9 +118,11 @@ INSERT INTO identidadgenero (id, nombre) VALUES (1, 'Mujer') ON CONFLICT (id) DO
 INSERT INTO tiposolicitud (id, nombre) VALUES (1, 'Acompañamiento') ON CONFLICT (id) DO NOTHING;
 INSERT INTO estadosolicitud (id, nombre) VALUES (1, 'Pendiente') ON CONFLICT (id) DO NOTHING;
 INSERT INTO estadosolicitud (id, nombre) VALUES (2, 'Asignada') ON CONFLICT (id) DO NOTHING;
-INSERT INTO grupoprofesional (id, nombre, activo) VALUES (1, 'Psicología', true), (2, 'Jurídico', true), (3, 'Inactivo', false) ON CONFLICT (id) DO NOTHING;
+INSERT INTO tiposervicio (id, nombre, activo) VALUES (1, 'Jurídico', true), (2, 'Dupla Psicojurídica', true), (5, 'Trabajo Social', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO grupoprofesional (id, nombre, activo, idtiposervicio) VALUES (1, 'Dupla N° 1', true, 2), (2, 'Dupla N° 2', true, 2), (3, 'Inactivo', false, 1), (8, 'Trabajadora social', true, 5) ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipoasignacion (id, nombre, activo) VALUES (1, 'Nueva', true), (2, 'Reasignación', true) ON CONFLICT (id) DO NOTHING;
-INSERT INTO tiposervicio (id, nombre, activo) VALUES (1, 'Psicológico', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO tiporeportealma (id, nombre) VALUES (1, 'Directa') ON CONFLICT (id) DO NOTHING;
+INSERT INTO canalcontacto (id, nombre) VALUES (1, 'Llamada') ON CONFLICT (id) DO NOTHING;
 INSERT INTO mediosolicitud (id, nombre) VALUES (1, 'Web') ON CONFLICT (id) DO NOTHING;
 INSERT INTO cargo (id, nombre) VALUES (1, 'Docente') ON CONFLICT (id) DO NOTHING;
 INSERT INTO campus (id, nombre, activo) VALUES (1, 'Medellín', true) ON CONFLICT (id) DO NOTHING;

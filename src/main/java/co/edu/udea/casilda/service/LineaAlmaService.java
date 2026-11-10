@@ -18,7 +18,6 @@ import co.edu.udea.casilda.dto.response.RegistroLineaAlmaResponse;
 import co.edu.udea.casilda.dto.response.RemisionRegistroAlmaResponse;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.model.entity.*;
-import co.edu.udea.casilda.model.enums.TipoServicioEnum;
 import co.edu.udea.casilda.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,10 +102,9 @@ public class LineaAlmaService {
         registro.setPersonaAtiende(grupoProfesionalRepository.findById(request.getIdPersonaAtiende().intValue())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Grupo profesional no encontrado con ID: " + request.getIdPersonaAtiende())));
-        registro.setTipoServicio(tipoServicioRepository.findById(TipoServicioEnum.ATENCION_APH.getId())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Tipo servicio " + TipoServicioEnum.ATENCION_APH.getNombre()
-                                + " no encontrado con ID: " + TipoServicioEnum.ATENCION_APH.getId())));
+        registro.setTipoServicio(tipoServicioRepository.findByIdAndActivoTrue(request.getIdTipoServicio())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tipo de servicio activo no encontrado con ID: " + request.getIdTipoServicio())));
         registro.setPersonaRegistra(usuarioRepository.findById(request.getIdPersonaRegistra())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Usuario registra no encontrado con ID: " + request.getIdPersonaRegistra())));
