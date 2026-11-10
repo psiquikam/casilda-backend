@@ -192,7 +192,10 @@ class SolicitudUpdateIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get("/solicitudes/grupos-profesionales")
                         .header("Authorization", bearer("admin@udea.edu.co")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].activo").value(true));
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].activo").value(true))
+                .andExpect(jsonPath("$[0].idTipoServicio").value(2))
+                .andExpect(jsonPath("$[1].idTipoServicio").value(2))
+                .andExpect(jsonPath("$[2].idTipoServicio").value(5));
     }
 }

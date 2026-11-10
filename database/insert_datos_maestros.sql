@@ -637,12 +637,23 @@ ON CONFLICT (id) DO NOTHING;
 -- 27. TIPO SERVICIO
 -- ============================================================================
 INSERT INTO tiposervicio (id, nombre) VALUES
-    (1, 'Psicología'),
-    (2, 'Asesoría Jurídica'),
-    (3, 'Trabajo Social'),
-    (4, 'Dupla Psicojurídica'),
-    (5, 'Atención APH')
-ON CONFLICT (id) DO NOTHING;    
+    (1, 'Jurídico'),
+    (2, 'Dupla Psicojurídica'),
+    (3, 'Psicología'),
+    (4, 'Psicoorientación'),
+    (5, 'Trabajo Social')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO grupoprofesional (id, nombre, idtiposervicio) VALUES
+    (1, 'Dupla N° 1', 2),
+    (2, 'Dupla N° 2', 2),
+    (3, 'Abogada N° 1', 1),
+    (4, 'Abogada N° 2', 1),
+    (5, 'Psicóloga N° 1', 3),
+    (6, 'Psicóloga N° 2', 3),
+    (7, 'Psicoorientadora', 4),
+    (8, 'Trabajadora social', 5)
+ON CONFLICT (id) DO NOTHING;
 
 
 INSERT INTO formaocurrencia (id, nombre) VALUES

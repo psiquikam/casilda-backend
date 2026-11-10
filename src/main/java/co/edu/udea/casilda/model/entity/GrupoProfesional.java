@@ -22,6 +22,10 @@ public class GrupoProfesional extends Auditable {
     @Column(name = "nombre", nullable = false, length = 200)
     private String nombre;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "idtiposervicio")
+    private TipoServicio tipoServicio;
+
     @Column(name = "activo", nullable = false, columnDefinition = "boolean default true")
     private Boolean activo = true;
 }

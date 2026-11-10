@@ -168,7 +168,7 @@ public class SolicitudController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Listar grupos profesionales",
-            description = "Obtiene todos los grupos profesionales disponibles para asignación. **Requiere autenticación.**"
+            description = "Obtiene los grupos profesionales activos con su idTipoServicio para filtrarlos por servicio. **Requiere autenticación.**"
     )
     @ApiResponse(responseCode = "200", description = "Lista de grupos profesionales obtenida exitosamente")
     public ResponseEntity<List<ProfesionalResponse>> listarGruposProfesionales() {

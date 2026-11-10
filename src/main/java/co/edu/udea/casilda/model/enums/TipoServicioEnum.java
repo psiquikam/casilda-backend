@@ -7,11 +7,11 @@ import lombok.Getter;
  */
 @Getter
 public enum TipoServicioEnum {
-    PSICOLOGIA(1, "Psicología"),
-    ASESORIA_JURIDICA(2, "Asesoría Jurídica"),
-    TRABAJO_SOCIAL(3, "Trabajo Social"),
-    DUPLA_PSICOSOCIAL(4, "Dupla Psicosocial"),
-    ATENCION_APH(5, "Atención APH");
+    JURIDICO(1, "Jurídico"),
+    DUPLA_PSICOJURIDICA(2, "Dupla Psicojurídica"),
+    PSICOLOGIA(3, "Psicología"),
+    PSICOORIENTACION(4, "Psicoorientación"),
+    TRABAJO_SOCIAL(5, "Trabajo Social");
 
     private final Integer id;
     private final String nombre;

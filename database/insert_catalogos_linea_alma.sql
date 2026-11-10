@@ -32,11 +32,6 @@ INSERT INTO resultadotriage (id, nombre) VALUES
     (3, 'Baja')
 ON CONFLICT (id) DO NOTHING;
 
--- Tipo de servicio requerido por el flujo de Atención PR (Línea ALMA)
-INSERT INTO tiposervicio (id, nombre) VALUES
-    (5, 'Atención APH')
-ON CONFLICT (id) DO NOTHING;
-
 INSERT INTO actorremitente (id, nombre) VALUES
     (1, 'Masculinidades'),
     (2, 'Bienestar Universitario'),
