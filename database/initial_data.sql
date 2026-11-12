@@ -57,6 +57,8 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/maestros/identidades-genero', 'GET', true, true),
     ('/maestros/cargos', 'GET', true, true),
     ('/maestros/medio-solicitud', 'GET', true, true),
+    ('/maestros/vinculos-udea', 'GET', true, true),
+    ('/maestros/vinculos-agresor-victima', 'GET', true, true),
     ('/contenidos/home', 'GET', true, true),
     ('/contenidos', 'GET', true, false),
     ('/contenidos/{id}', 'GET', true, false),

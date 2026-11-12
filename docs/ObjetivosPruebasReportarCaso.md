@@ -15,6 +15,12 @@ La primera versión de las pruebas cubre el backend del flujo compartido por:
   - `GET /maestros/campus`
   - `GET /maestros/rutas-activacion`
 
+El formulario anónimo del home también puede consultar sin autenticación
+`GET /maestros/vinculos-udea` y `GET /maestros/vinculos-agresor-victima`. Para bases
+de datos existentes, ejecutar [`update_endpoints_vinculos_publicos.sql`](../database/update_endpoints_vinculos_publicos.sql);
+el script es idempotente y no modifica los permisos de escritura ni de otros catálogos.
+Si se envía un token inválido, la petición sigue siendo rechazada con `401`.
+
 La prueba debe verificar el comportamiento HTTP, la validación del contrato, la seguridad y
 la persistencia real en PostgreSQL. No se debe considerar suficiente comprobar solamente que
 el controlador devuelve una respuesta con forma válida.
