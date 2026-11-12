@@ -929,7 +929,7 @@ CREATE TABLE atencionaph (
     idprotocoloaph integer NOT NULL,
     practicotriage boolean NOT NULL DEFAULT FALSE,
     idresultadotriage integer,                        -- NULL cuando practicotriage = false
-    notaaph character varying COLLATE pg_catalog."default",
+    notaaph character varying(2000) COLLATE pg_catalog."default",
     motivonotriage character varying COLLATE pg_catalog."default",
     aceptapsicologia boolean NOT NULL DEFAULT TRUE,
     requiereremision boolean NOT NULL DEFAULT FALSE,

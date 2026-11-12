@@ -47,7 +47,7 @@ public class AtencionAph extends Auditable {
     @JoinColumn(name = "idresultadotriage")
     private ResultadoTriage resultadoTriage;
 
-    @Column(name = "notaaph")
+    @Column(name = "notaaph", length = 2000)
     private String notaAph;
 
     @Column(name = "motivonotriage")

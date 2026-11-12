@@ -84,6 +84,20 @@ El registro de la pestaña 0 de Línea ALMA (`POST /linea-alma/registros/pestana
 requiere `idTipoServicio` y guarda el servicio seleccionado; ya no se asigna
 automáticamente Atención APH.
 
+La nota de la pestaña APH (`POST /linea-alma/registros/pestana/3`) admite hasta
+2000 caracteres. Antes de desplegar esta versión en una base existente, respaldarla
+y ejecutar `database/update_schema_atencion_aph_nota.sql`. El cambio falla sin
+truncar datos si hay notas que superan el límite; revisarlas antes de reintentarlo.
+Los valores que superan el límite reciben `400` con
+`validationErrors["atencionAph.notaAph"]`.
+
+Para habilitar el selector de instancias de remisión, ejecutar
+`database/update_schema_instancia_remision.sql` en la base correspondiente después
+de respaldarla. Carga una lista inicial limitada (una instancia interna y cuatro
+externas), pendiente de confirmación como catálogo oficial. El script valida los
+tipos 1: Interna y 2: Externa y falla si los IDs de instancia ya tienen datos
+diferentes; no modifica ni elimina otras instancias.
+
 Para una base existente, coordinar una ventana de mantenimiento con el frontend:
 
 1. Desplegar esta versión e iniciar la aplicación para que Hibernate cree la columna
