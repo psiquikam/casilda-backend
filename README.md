@@ -98,6 +98,27 @@ externas), pendiente de confirmación como catálogo oficial. El script valida l
 tipos 1: Interna y 2: Externa y falla si los IDs de instancia ya tienen datos
 diferentes; no modifica ni elimina otras instancias.
 
+Para habilitar el rol `PROFESIONAL_APH` en una base existente, ejecutar
+`database/update_add_rol_profesional_aph.sql` después de crear las tablas de seguridad.
+El script es idempotente y solo concede acceso a `GET /maestros/roles`; los permisos
+de las nuevas rutas APH se asignarán de forma específica al implementarlas.
+
+Para pruebas exclusivamente locales, `database/insert_usuario_prueba_profesional_aph.sql`
+crea una cuenta sintética con el rol `PROFESIONAL_APH`, copiando el hash de la cuenta
+de prueba `revisor1@udea.edu.co`. Verificar que esa cuenta sea de prueba y que se
+conozca su contraseña antes de ejecutarlo; el nuevo usuario tendrá la misma. El script
+no cambia cuentas existentes y falla si la cuenta sintética ya existe. No usarlo en QA
+ni producción, y no reutilizar la contraseña de prueba fuera del entorno local.
+
+El nuevo módulo expone `GET /alma/catalogos/{nombre}` a cualquier usuario
+autenticado, sin modificar los permisos del módulo anterior. Después de iniciar
+esta versión para crear `catalogoalmaitem`, ejecutar
+`database/insert_catalogos_aph_provisionales.sql`: los valores propuestos quedan
+inactivos hasta su aprobación y el script no sobrescribe valores existentes.
+`tipos-identificacion` reutiliza el catálogo vigente; `textos-consentimiento`
+estará vacío hasta cargar el texto oficial. Antes de integrar con Front se debe
+homologar el código de pasaporte y comunicar el código `PROFESIONAL_APH`.
+
 Para una base existente, coordinar una ventana de mantenimiento con el frontend:
 
 1. Desplegar esta versión e iniciar la aplicación para que Hibernate cree la columna

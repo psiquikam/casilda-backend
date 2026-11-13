@@ -1,0 +1,36 @@
+-- Ejecutar después de que Hibernate cree catalogoalmaitem.
+-- Los códigos y etiquetas propuestos requieren aprobación antes de activarlos.
+-- No se carga texto de consentimiento hasta recibir una versión oficial.
+INSERT INTO catalogoalmaitem (catalogo, codigo, etiqueta, activo) VALUES
+    ('estratos', '1', 'Estrato 1', false),
+    ('estratos', '2', 'Estrato 2', false),
+    ('estratos', '3', 'Estrato 3', false),
+    ('estratos', '4', 'Estrato 4', false),
+    ('estratos', '5', 'Estrato 5', false),
+    ('estratos', '6', 'Estrato 6', false),
+    ('parentescos-solicitante', 'MADRE_PADRE', 'Madre o padre', false),
+    ('parentescos-solicitante', 'PAREJA', 'Pareja', false),
+    ('parentescos-solicitante', 'AMISTAD', 'Amistad', false),
+    ('parentescos-solicitante', 'COMPANERIA_ACADEMICA', 'Compañía académica', false),
+    ('parentescos-solicitante', 'DOCENTE', 'Docente', false),
+    ('parentescos-solicitante', 'OTRO', 'Otro', false),
+    ('destinos-internos', 'SPYB', 'Seguridad a personas y bienes', false),
+    ('destinos-internos', 'EA', 'Equipo de atención', false),
+    ('destinos-internos', 'DUPLA_PSICOJURIDICA', 'Dupla psicojurídica', false),
+    ('destinos-internos', 'MASCULINIDADES', 'Masculinidades', false),
+    ('destinos-internos', 'UAD', 'Unidad de asuntos disciplinarios', false),
+    ('rutas-externas', 'LINEA_123', 'Línea 123', false),
+    ('rutas-externas', 'CODIGO_FUCSIA', 'Código fucsia', false),
+    ('rutas-externas', 'FISCALIA', 'Fiscalía', false),
+    ('rutas-externas', 'COMISARIA_FAMILIA', 'Comisaría de familia', false),
+    ('rutas-externas', 'POLICIA_NACIONAL', 'Policía nacional', false),
+    ('rutas-externas', 'ICBF', 'Instituto Colombiano de Bienestar Familiar', false),
+    ('rutas-externas', 'CAIVAS', 'Centro de atención a víctimas de violencia sexual', false),
+    ('resultados-ruta-externa', 'ATENDIDA', 'Atendida', false),
+    ('resultados-ruta-externa', 'SIN_RESPUESTA', 'Sin respuesta', false),
+    ('resultados-ruta-externa', 'NO_ACEPTA', 'No acepta', false),
+    ('motivos-cierre-aph', 'NO_ACEPTA_PSICOLOGIA', 'No acepta psicología', false),
+    ('motivos-cierre-aph', 'ORIENTACION_BRINDADA', 'Orientación brindada', false),
+    ('motivos-cierre-aph', 'REMITIDA_RUTA_EXTERNA', 'Remitida a ruta externa', false),
+    ('motivos-cierre-aph', 'SIN_RESPUESTA', 'Sin respuesta', false)
+ON CONFLICT (catalogo, codigo) DO NOTHING;

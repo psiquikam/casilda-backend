@@ -13,6 +13,15 @@ SET codigo = EXCLUDED.codigo,
     nombre = EXCLUDED.nombre,
     activo = EXCLUDED.activo;
 
+INSERT INTO rol (id, codigo, nombre, activo)
+SELECT COALESCE(MAX(id), 0) + 1, 'PROFESIONAL_APH', 'Profesional APH', true
+FROM rol
+HAVING NOT EXISTS (
+    SELECT 1
+    FROM rol
+    WHERE codigo = 'PROFESIONAL_APH'
+);
+
 INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/auth/**', 'ANY', true, true),
     ('/api-docs/**', 'ANY', true, true),
@@ -45,6 +54,7 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/parametros/**', 'GET', true, false),
     ('/parametros/**', 'PUT', true, false),
     ('/maestros/**', 'GET', true, false),
+    ('/maestros/roles', 'GET', true, false),
     ('/maestros/**', 'POST', true, false),
     ('/maestros/**', 'PUT', true, false),
     ('/maestros/**', 'DELETE', true, false),
@@ -77,6 +87,14 @@ FROM endpoint e
 JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL', 'REVISOR', 'USUARIO')
 WHERE e.http_method = 'GET'
   AND e.path IN ('/maestros/**', '/personas/**')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo = 'PROFESIONAL_APH'
+WHERE e.path = '/maestros/roles'
+  AND e.http_method = 'GET'
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)

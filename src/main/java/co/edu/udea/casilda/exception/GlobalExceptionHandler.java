@@ -20,6 +20,15 @@ import java.util.NoSuchElementException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(CatalogoAlmaNoEncontradoException.class)
+    public ResponseEntity<Map<String, Object>> handleCatalogoAlmaNoEncontrado(
+            CatalogoAlmaNoEncontradoException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "codigo", "CATALOGO_NO_ENCONTRADO",
+                "mensaje", ex.getMessage(),
+                "detalles", Map.of()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
             IllegalArgumentException ex, WebRequest request) {
