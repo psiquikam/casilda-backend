@@ -1141,12 +1141,12 @@ public class SolicitudAcompanamientoService {
             log.info("Creando cita para solicitud {} (llamada {}, unilateral={})", solicitudId, numeroDeLlamada,
                     esUnilateral);
             LocalDateTime fechaHoraCita = LocalDateTime.parse(req.getFechaCita() + "T" + req.getHoraCita());
-            EstadoCita estadoCreada = estadoCitaRepository.findById(EstadoCitaEnum.CREADA.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Estado de cita 'Creada' no encontrado"));
+            EstadoCita estadoProgramada = estadoCitaRepository.findById(EstadoCitaEnum.PROGRAMADA.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Estado de cita 'Programada' no encontrado"));
             Cita cita = new Cita();
             cita.setSolicitudAtencion(solicitud);
             cita.setFecha(fechaHoraCita);
-            cita.setEstadoCita(estadoCreada);
+            cita.setEstadoCita(estadoProgramada);
             cita.setUsuarioCreacion(usuarioAutenticado);
             cita.setUsuarioActualizacion(usuarioAutenticado);
             cita = citaRepository.save(cita);

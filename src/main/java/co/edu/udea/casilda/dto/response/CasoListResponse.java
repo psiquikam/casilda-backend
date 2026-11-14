@@ -18,6 +18,7 @@ public class CasoListResponse {
     private String codigo;
     private Long solicitudId;
     private Long citaId;
+    private long cantidadAtenciones;
 
     // Datos de la persona atendida (víctima / solicitante / remitente)
     private String nombreSolicitante;
@@ -56,4 +57,3 @@ public class CasoListResponse {
     private String correoInstitucional;
     private String correoPersonal;
 }
-

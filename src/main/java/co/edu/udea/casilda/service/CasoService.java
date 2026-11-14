@@ -5,6 +5,7 @@ import co.edu.udea.casilda.dto.response.CasoResponse;
 import co.edu.udea.casilda.dto.response.AtencionResponse;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.model.entity.*;
+import co.edu.udea.casilda.model.enums.EstadoCitaEnum;
 import co.edu.udea.casilda.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class CasoService {
     private final SolicitudAtencionRepository solicitudAtencionRepository;
     private final PersonaRepository personaRepository;
     private final CasoRepository casoRepository;
+    private final AtencionRepository atencionRepository;
     private final UsuarioRepository usuarioRepository;
     private final CorreoPersonaRepository correoPersonaRepository;
     private final TelefonoPersonaRepository telefonoPersonaRepository;
@@ -85,6 +87,14 @@ public class CasoService {
                 Cita cita = citaRepository.findById(request.getCitaId())
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Cita no encontrada con ID: " + request.getCitaId()));
+                if (cita.getEstadoCita() == null
+                        || !EstadoCitaEnum.ATENDIDA.getId().equals(cita.getEstadoCita().getId())) {
+                    throw new IllegalArgumentException("Solo se puede crear un caso después de registrar la cita como atendida.");
+                }
+                if (!casoRepository.findByCitaSolicitudAtencionIdOrderByFechaCreacionDesc(
+                        cita.getSolicitudAtencion().getId()).isEmpty()) {
+                    throw new IllegalArgumentException("La solicitud ya tiene un caso; registre la atención como seguimiento.");
+                }
                 caso = new Caso();
                 caso.setCita(cita);
                 caso.setCodigo(generarCodigoCaso(cita.getSolicitudAtencion()));
@@ -709,6 +719,7 @@ public class CasoService {
                 .codigo(caso.getCodigo())
                 .solicitudId(sa != null ? sa.getId() : null)
                 .citaId(cita != null ? cita.getId() : null)
+                .cantidadAtenciones(atencionRepository.countByCasoId(caso.getId()))
                 .nombreSolicitante(persona != null ? persona.getNombreCompleto().trim() : "")
                 .tipoDocumento(persona != null && persona.getTipoIdentificacion() != null
                         ? persona.getTipoIdentificacion().getNombre()

@@ -4,6 +4,7 @@ import co.edu.udea.casilda.dto.request.*;
 import co.edu.udea.casilda.dto.response.AtencionResponse;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.model.entity.*;
+import co.edu.udea.casilda.model.enums.EstadoCitaEnum;
 import co.edu.udea.casilda.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class AtencionService {
     private final AtencionRepository atencionRepository;
     private final SeguimientoAtencionRepository seguimientoAtencionRepository;
     private final CompromisoService compromisoService;
+    private final CitaRepository citaRepository;
 
     // Repositories de entidades relacionadas
     private final PersonaRepository personaRepository;
@@ -69,6 +71,21 @@ public class AtencionService {
         Caso caso = casoRepository.findById(request.getCasoId())
                 .orElseThrow(() -> new ResourceNotFoundException("Caso no encontrado con ID: " + request.getCasoId()));
 
+        Cita cita = request.getCitaId() == null
+                ? caso.getCita()
+                : citaRepository.findById(request.getCitaId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Cita no encontrada con ID: " + request.getCitaId()));
+        if (caso.getCita() == null || cita == null) {
+            throw new IllegalArgumentException("El caso debe estar asociado a una solicitud con cita.");
+        }
+        if (!cita.getSolicitudAtencion().getId().equals(caso.getCita().getSolicitudAtencion().getId())) {
+            throw new IllegalArgumentException("La cita no pertenece a la solicitud asociada al caso.");
+        }
+        if (!EstadoCitaEnum.ATENDIDA.getId().equals(cita.getEstadoCita().getId())) {
+            throw new IllegalArgumentException("Solo se puede registrar una atención después de atender la cita.");
+        }
+
         AtencionRegistroRequest atencionRequest = new AtencionRegistroRequest();
         atencionRequest.setCasoId(request.getCasoId());
         atencionRequest.setIdAtencion(request.getIdAtencion());
@@ -80,15 +97,29 @@ public class AtencionService {
 
         Atencion atencion;
         if (request.getIdAtencion() != null) {
-            atencion = atencionRepository.findById(request.getIdAtencion()).orElse(null);
+            atencion = atencionRepository.findById(request.getIdAtencion())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Atención no encontrada con ID: " + request.getIdAtencion()));
+            if (!atencion.getCaso().getId().equals(caso.getId())) {
+                throw new IllegalArgumentException("La atención no pertenece al caso indicado.");
+            }
+            if (atencion.getCita() != null && !atencion.getCita().getId().equals(cita.getId())) {
+                throw new IllegalArgumentException("La atención ya está asociada a otra cita.");
+            }
         } else {
-            atencion = new Atencion();
-            atencion.setCaso(caso);
-            atencion.setUsuarioCreacion(usuario);
-            atencion.setFechaCreacion(LocalDateTime.now());
-            atencion.setEstadoAtencion(estadoAtencionRepository.findById(1).orElse(null));
+            atencion = atencionRepository.findByCasoIdAndCitaId(caso.getId(), cita.getId()).orElseGet(() -> {
+                Atencion nuevaAtencion = new Atencion();
+                nuevaAtencion.setCaso(caso);
+                nuevaAtencion.setCita(cita);
+                nuevaAtencion.setUsuarioCreacion(usuario);
+                nuevaAtencion.setFechaCreacion(LocalDateTime.now());
+                nuevaAtencion.setEstadoAtencion(estadoAtencionRepository.findById(1)
+                        .orElseThrow(() -> new ResourceNotFoundException("Estado de atención no encontrado con ID: 1")));
+                return nuevaAtencion;
+            });
         }
 
+        atencion.setCita(cita);
         atencion.setUsuarioActualizacion(usuario);
         atencion.setFechaActualizacion(LocalDateTime.now());
 
@@ -514,7 +545,8 @@ public class AtencionService {
 
     @Transactional(readOnly = true)
     public AtencionResponse obtenerAtencionPorCita(Long citaId) {
-        Atencion atencion = atencionRepository.findByCasoCitaId(citaId)
+        Atencion atencion = atencionRepository.findByCitaId(citaId)
+                .or(() -> atencionRepository.findByCasoCitaId(citaId))
                 .orElseThrow(() -> new ResourceNotFoundException("Atención no encontrada para la cita ID: " + citaId));
         return mapToResponse(atencion);
     }

@@ -17,6 +17,10 @@ public class CitaResponse {
     private Long id;
     private Long solicitudId;
     private String codigoSolicitud;
+    private Long casoId;
+    private String codigoCaso;
+    private boolean solicitudTieneCaso;
+    private String tipoAtencion;
 
     // Datos del solicitante
     private String nombreSolicitante;

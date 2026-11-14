@@ -610,9 +610,11 @@ insert into estadosolicitud values(2, 'Asignada');
 -- ============================================================================
 -- 24. ESTADOS DE CITA
 -- ============================================================================
-insert into estadocita values(1, 'Creada');
+insert into estadocita values(1, 'Programada');
 insert into estadocita values(2, 'Cancelada');
 insert into estadocita values(3, 'Reprogramada');
+insert into estadocita values(4, 'Atendida');
+insert into estadocita values(5, 'Inasistencia');
 
 -- ============================================================================
 -- 25. MOTIVO ESTADO CITA

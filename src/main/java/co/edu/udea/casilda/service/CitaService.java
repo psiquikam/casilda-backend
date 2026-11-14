@@ -1,13 +1,16 @@
 package co.edu.udea.casilda.service;
 
 import co.edu.udea.casilda.dto.request.CancelarCitaRequest;
+import co.edu.udea.casilda.dto.request.ProgramarCitaSeguimientoRequest;
 import co.edu.udea.casilda.dto.request.ReprogramarCitaRequest;
+import co.edu.udea.casilda.dto.request.RegistrarResultadoCitaRequest;
 import co.edu.udea.casilda.dto.response.CitaResponse;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.model.entity.*;
 import co.edu.udea.casilda.model.enums.TipoCorreoEnum;
 import co.edu.udea.casilda.model.enums.TipoTelefonoEnum;
 import co.edu.udea.casilda.model.enums.EstadoCitaEnum;
+import co.edu.udea.casilda.repository.CasoRepository;
 import co.edu.udea.casilda.repository.CitaRepository;
 import co.edu.udea.casilda.repository.EstadoCitaRepository;
 import co.edu.udea.casilda.repository.MotivoEstadoCitaRepository;
@@ -23,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,6 +41,7 @@ import java.util.stream.Collectors;
 public class CitaService {
 
     private final CitaRepository citaRepository;
+    private final CasoRepository casoRepository;
     private final EstadoCitaRepository estadoCitaRepository;
     private final MotivoEstadoCitaRepository motivoEstadoCitaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -71,11 +77,94 @@ public class CitaService {
         return citas.map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<CitaResponse> listarCitasPendientesDeCaso(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        List<Integer> estadosElegibles = List.of(
+                EstadoCitaEnum.PROGRAMADA.getId(),
+                EstadoCitaEnum.REPROGRAMADA.getId(),
+                EstadoCitaEnum.ATENDIDA.getId());
+        return citaRepository.findPendientesDeCaso(estadosElegibles, PageRequest.of(safePage, safeSize))
+                .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CitaResponse> listarHistorialAtenciones(Long casoId) {
+        Caso caso = casoRepository.findById(casoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Caso no encontrado con ID: " + casoId));
+        Long citaInicialId = caso.getCita().getId();
+        return citaRepository
+                .findBySolicitudAtencionIdOrderByFechaDesc(caso.getCita().getSolicitudAtencion().getId())
+                .stream()
+                .filter(cita -> cita.getId() >= citaInicialId)
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CitaResponse registrarResultado(Long id, RegistrarResultadoCitaRequest req) {
+        Cita cita = citaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con ID: " + id));
+        validarCitaPendiente(cita);
+        if (cita.getFecha() == null || cita.getFecha().isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("El resultado solo puede registrarse a partir de la fecha y hora de la cita.");
+        }
+
+        EstadoCitaEnum resultado = switch (req.getResultado()) {
+            case "ATENDIDA" -> EstadoCitaEnum.ATENDIDA;
+            case "INASISTENCIA" -> EstadoCitaEnum.INASISTENCIA;
+            default -> throw new IllegalArgumentException("Resultado de cita no válido.");
+        };
+        EstadoCita estado = estadoCitaRepository.findById(resultado.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Estado de cita '" + resultado.getNombre() + "' no encontrado"));
+        cita.setEstadoCita(estado);
+        if (req.getObservaciones() != null) {
+            cita.setObservaciones(req.getObservaciones().trim());
+        }
+        Usuario usuarioAutenticado = obtenerUsuarioAutenticado();
+        if (usuarioAutenticado != null) {
+            cita.setUsuarioActualizacion(usuarioAutenticado);
+        }
+        return mapToResponse(citaRepository.save(cita));
+    }
+
+    @Transactional
+    public CitaResponse programarSeguimiento(Long casoId, ProgramarCitaSeguimientoRequest req) {
+        Caso caso = casoRepository.findById(casoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Caso no encontrado con ID: " + casoId));
+
+        LocalDateTime fechaHora;
+        try {
+            fechaHora = LocalDateTime.of(LocalDate.parse(req.getFechaCita()), LocalTime.parse(req.getHoraCita()));
+        } catch (RuntimeException error) {
+            throw new IllegalArgumentException("La fecha u hora de la cita no tienen un formato válido.", error);
+        }
+        if (!fechaHora.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("La cita de seguimiento debe programarse en una fecha futura.");
+        }
+
+        EstadoCita estadoProgramada = estadoCitaRepository.findById(EstadoCitaEnum.PROGRAMADA.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Estado de cita 'Programada' no encontrado"));
+        Usuario usuarioAutenticado = obtenerUsuarioAutenticado();
+
+        Cita cita = new Cita();
+        cita.setSolicitudAtencion(caso.getCita().getSolicitudAtencion());
+        cita.setFecha(fechaHora);
+        cita.setEstadoCita(estadoProgramada);
+        cita.setObservaciones("Cita de seguimiento del caso " + caso.getCodigo());
+        cita.setUsuarioCreacion(usuarioAutenticado);
+        cita.setUsuarioActualizacion(usuarioAutenticado);
+        return mapToResponse(citaRepository.save(cita));
+    }
+
     @Transactional
     public CitaResponse reprogramar(Long id, ReprogramarCitaRequest req) {
         log.info("Reprogramando cita id={}", id);
         Cita cita = citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con ID: " + id));
+        validarCitaPendiente(cita);
         if (cita.getFecha() != null && cita.getFecha().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("No se puede reprogramar una cita cuya fecha ha caducado");
         }
@@ -102,6 +191,7 @@ public class CitaService {
         log.info("Cancelando cita id={}", id);
         Cita cita = citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con ID: " + id));
+        validarCitaPendiente(cita);
         EstadoCita estadoCancelada = estadoCitaRepository.findById(EstadoCitaEnum.CANCELADA.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Estado de cita 'Cancelada' no encontrado"));
         cita.setEstadoCita(estadoCancelada);
@@ -118,10 +208,21 @@ public class CitaService {
         return mapToResponse(citaRepository.save(cita));
     }
 
+    private void validarCitaPendiente(Cita cita) {
+        Integer estadoId = cita.getEstadoCita() != null ? cita.getEstadoCita().getId() : null;
+        if (!EstadoCitaEnum.PROGRAMADA.getId().equals(estadoId)
+                && !EstadoCitaEnum.REPROGRAMADA.getId().equals(estadoId)) {
+            throw new IllegalArgumentException("Solo se pueden gestionar citas programadas o reprogramadas.");
+        }
+    }
+
     // ─── Mapeo ──────────────────────────────────────────────────────────────────
 
     private CitaResponse mapToResponse(Cita cita) {
         SolicitudAtencion sa = cita.getSolicitudAtencion();
+        Caso caso = casoRepository.findFirstByCitaSolicitudAtencionIdOrderByFechaCreacionAsc(sa.getId())
+                .orElse(null);
+        boolean perteneceAlCaso = caso != null && cita.getId() >= caso.getCita().getId();
         Remision remision = sa.getRemision();
         // La persona es el solicitante de la solicitud; para solicitudes indirectas también existe el remitente
         Persona persona = sa.getSolicitante();
@@ -202,6 +303,11 @@ public class CitaService {
                 .id(cita.getId())
                 .solicitudId(sa.getId())
                 .codigoSolicitud(sa.getId().toString())
+                .casoId(perteneceAlCaso ? caso.getId() : null)
+                .codigoCaso(perteneceAlCaso ? caso.getCodigo() : null)
+                .solicitudTieneCaso(caso != null)
+                .tipoAtencion(perteneceAlCaso && !cita.getId().equals(caso.getCita().getId())
+                        ? "SEGUIMIENTO" : "INICIAL")
                 .nombreSolicitante(persona.getNombreCompleto().trim())
                 .tipoDocumento(persona.getTipoIdentificacion() != null ? persona.getTipoIdentificacion().getNombre() : null)
                 .documento(persona.getNumeroDocumento())
