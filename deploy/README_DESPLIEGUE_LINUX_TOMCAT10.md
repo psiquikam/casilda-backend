@@ -163,6 +163,28 @@ Propiedades a validar/cambiar según el servidor destino:
 
 Nota: en Tomcat, las variables definidas en setenv.sh (SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD, etc.) sobrescriben los valores de application.yml en tiempo de ejecución.
 
+### CORS en QA para desarrollo local
+
+`APP_CORS_ALLOWED_ORIGINS` es una lista separada por comas. Para permitir que el
+frontend local en `http://localhost:4200` consuma QA, conservar también el origen
+del frontend desplegado:
+
+```bash
+export APP_CORS_ALLOWED_ORIGINS="https://<ORIGEN_FRONTEND>,http://localhost:4200"
+```
+
+Aplicar el cambio en `/opt/tomcat/bin/setenv.sh` y reiniciar Tomcat. No usar `*` ni
+añadir `localhost` a producción. Verificar el preflight:
+
+```bash
+curl -i -X OPTIONS "https://casildaqa.duckdns.org/api-casilda/auth/login" \
+  -H "Origin: http://localhost:4200" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type"
+```
+
+Debe responder `200` e incluir `Access-Control-Allow-Origin: http://localhost:4200`.
+
 Crear setenv.sh de Tomcat:
 
 ```bash
