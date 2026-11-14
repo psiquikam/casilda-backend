@@ -76,9 +76,10 @@ para el Home y no forma parte de esta configuración de permisos.
 | `/citas/**` | `GET`, `PUT` | GESTIÓN TOTAL | GESTIÓN TOTAL | GESTIÓN TOTAL | GESTIÓN TOTAL | SIN ACCESO | SIN ACCESO |
 | `/compromisos/**` | `GET`, `POST`, `DELETE` | GESTIÓN TOTAL | GESTIÓN TOTAL | GESTIÓN TOTAL | GESTIÓN TOTAL | SIN ACCESO | SIN ACCESO |
 | `/linea-alma/**` | `GET`, `POST` | GESTIÓN TOTAL | GESTIÓN TOTAL | GESTIÓN TOTAL | GESTIÓN TOTAL | SIN ACCESO | SIN ACCESO |
-| `/solicitudes/**` | `GET`, `POST` | GESTIÓN TOTAL | GESTIÓN TOTAL | SIN ACCESO | SIN ACCESO | CREACIÓN y LECTURA | SIN ACCESO |
-| `/solicitudes/acompanamiento` | `POST` | CREACIÓN | CREACIÓN | CREACIÓN | CREACIÓN | CREACIÓN (*) | SIN ACCESO |
-| `/solicitudes/acompanamiento/{id}/contacto` | `POST` | REGISTRO | REGISTRO | REGISTRO | SIN ACCESO (*) | CREACIÓN (*) | SIN ACCESO |
+| `/solicitudes/**` | `GET` | LECTURA | LECTURA | LECTURA | LECTURA | LECTURA | SIN ACCESO |
+| `/solicitudes/**` | `POST` | GESTIÓN TOTAL | GESTIÓN TOTAL | SIN ACCESO (*) | SIN ACCESO (*) | SIN ACCESO (*) | SIN ACCESO |
+| `/solicitudes/acompanamiento` | `POST` | CREACIÓN | CREACIÓN | CREACIÓN | CREACIÓN | CREACIÓN | SIN ACCESO |
+| `/solicitudes/acompanamiento/{id}/contacto` | `POST` | REGISTRO | REGISTRO | REGISTRO | SIN ACCESO (*) | SIN ACCESO (*) | SIN ACCESO |
 | `/citas/caso/{casoId}/seguimientos` | `POST` | CREACIÓN | CREACIÓN | CREACIÓN | SIN ACCESO (*) | SIN ACCESO | SIN ACCESO |
 | `/usuarios` | `GET`, `POST` | GESTIÓN TOTAL | SIN ACCESO | SIN ACCESO | SIN ACCESO | SIN ACCESO | SIN ACCESO |
 | `/usuarios/paginado` | `GET` | LECTURA | SIN ACCESO | SIN ACCESO | SIN ACCESO | SIN ACCESO | SIN ACCESO |
@@ -98,9 +99,9 @@ defecto. Deben agregarse al contrato antes de asignarles permisos.
 
 Los permisos específicos anteriores se añaden a bases existentes mediante
 `database/update_acceso_solicitud_contacto.sql`, después de revisar los roles
-vigentes. (*) Un permiso más amplio que coincida con la misma ruta también puede
-conceder acceso: por ejemplo, el `POST /solicitudes/**` de `USUARIO` cubre esas
-rutas y cualquier permiso adicional existente podría afectar a `REVISOR`. La
+vigentes. (*) Un permiso adicional existente que coincida con la misma ruta puede
+conceder acceso: por ejemplo, si una base existente conserva el permiso
+`POST /solicitudes/**` para `USUARIO`, también permite registrar contactos. La
 migración agrega permisos, pero no revoca los existentes.
 
 ## 6. Solicitud de un nuevo rol
