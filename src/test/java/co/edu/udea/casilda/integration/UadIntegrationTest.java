@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.SqlMergeMode;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,8 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Autorización y reglas UAD de punta a punta: rutas registradas en {@code endpoint}, roles reales en el JWT,
  * visibilidad por equipo en el servidor y radicación NDA/NDI. Requiere Docker (Testcontainers).
  */
-@SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
-@Sql(scripts = "/sql/uad-integration-seed.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+// Un @Sql en la subclase reemplaza al de IntegrationTestBase (no se heredan ni se combinan): se declaran ambas semillas.
+@Sql(scripts = {"/sql/integration-seed.sql", "/sql/uad-integration-seed.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class UadIntegrationTest extends IntegrationTestBase {
 
     private static final String E3 = "uad.e3@udea.edu.co";

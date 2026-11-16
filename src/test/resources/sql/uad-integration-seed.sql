@@ -1,6 +1,6 @@
 -- Fixture UAD para pruebas de integración. Reproduce los permisos de database/uad_modulo_entrega1.sql con
 -- ids explícitos, porque integration-seed.sql inserta rutas con id fijo sin ajustar la secuencia.
--- Se ejecuta después de integration-seed.sql (@SqlMergeMode MERGE en UadIntegrationTest).
+-- Se ejecuta después de integration-seed.sql (ambas se declaran en el @Sql de UadIntegrationTest).
 
 INSERT INTO rol (id, codigo, nombre, activo) VALUES
     (7, 'UAD_COORDINACION', 'Coordinación UAD', true),
@@ -8,14 +8,16 @@ INSERT INTO rol (id, codigo, nombre, activo) VALUES
     (9, 'UAD_EQUIPO_4', 'Profesional UAD Equipo 4', true)
 ON CONFLICT (id) DO UPDATE SET codigo = EXCLUDED.codigo, nombre = EXCLUDED.nombre, activo = true;
 
--- Casilda2024! (mismo hash que integration-seed.sql). Datos ficticios.
+-- Casilda2024! (mismo hash que integration-seed.sql). Datos ficticios. Ids altos: otras pruebas crean usuarios con
+-- la secuencia (7, 8...) en el mismo contenedor, y un id fijo bajo chocaría con ellos.
 INSERT INTO usuario (id, email, password, nombre, activo, fechacreacion, fechaactualizacion, idrol) VALUES
-    (7, 'uad.coord@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Coordinación UAD de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 7),
-    (8, 'uad.e3@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional E3 de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 8),
-    (9, 'uad.e4@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional E4 de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 9)
-ON CONFLICT (id) DO UPDATE SET idrol = EXCLUDED.idrol, activo = true;
+    (9007, 'uad.coord@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Coordinación UAD de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 7),
+    (9008, 'uad.e3@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional E3 de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 8),
+    (9009, 'uad.e4@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional E4 de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 9)
+ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, password = EXCLUDED.password, nombre = EXCLUDED.nombre,
+    idrol = EXCLUDED.idrol, activo = true;
 
-INSERT INTO usuariorol (idusuario, idrol) VALUES (7, 7), (8, 8), (9, 9)
+INSERT INTO usuariorol (idusuario, idrol) VALUES (9007, 7), (9008, 8), (9009, 9)
 ON CONFLICT (idusuario, idrol) DO NOTHING;
 
 INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
