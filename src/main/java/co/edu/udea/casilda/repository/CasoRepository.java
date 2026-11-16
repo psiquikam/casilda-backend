@@ -18,6 +18,9 @@ public interface CasoRepository extends JpaRepository<Caso, Long> {
      * Busca un caso por su código único
      */
     Optional<Caso> findByCodigo(String codigo);
+
+    /** Casos del Equipo de Atención de una persona por su documento (consulta de casos asociados UAD, D-UAD-18). */
+    List<Caso> findByCitaSolicitudAtencionSolicitanteNumeroDocumento(String numeroDocumento);
     
     /**
      * Verifica si existe un caso con el código dado
