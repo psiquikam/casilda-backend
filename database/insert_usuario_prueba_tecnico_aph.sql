@@ -1,11 +1,11 @@
 -- SOLO PARA ENTORNOS LOCALES DE PRUEBA; no ejecutar en QA ni producción.
 -- Crea una cuenta sintética con la misma contraseña que el usuario de prueba indicado.
 -- Antes de ejecutar, confirmar que la cuenta fuente sea realmente de prueba.
--- Requiere haber ejecutado update_add_rol_profesional_aph.sql.
+-- Requiere haber ejecutado update_add_rol_tecnico_aph.sql.
 DO $$
 DECLARE
-    correo_nuevo constant text := 'profesional.aph@casilda.test';
-    nombre_nuevo constant text := 'Profesional APH de prueba';
+    correo_nuevo constant text := 'tecnico.aph@casilda.test';
+    nombre_nuevo constant text := 'Técnico APH de prueba';
     correo_fuente constant text := 'revisor1@udea.edu.co';
     id_rol integer;
     clave_fuente text;
@@ -13,10 +13,10 @@ DECLARE
 BEGIN
     SELECT id INTO id_rol
     FROM rol
-    WHERE codigo = 'PROFESIONAL_APH' AND activo = true;
+    WHERE codigo = 'TECNICO_APH' AND activo = true;
 
     IF id_rol IS NULL THEN
-        RAISE EXCEPTION 'El rol PROFESIONAL_APH no existe o está inactivo';
+        RAISE EXCEPTION 'El rol TECNICO_APH no existe o está inactivo';
     END IF;
 
     SELECT password INTO clave_fuente

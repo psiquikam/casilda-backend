@@ -98,13 +98,13 @@ externas), pendiente de confirmación como catálogo oficial. El script valida l
 tipos 1: Interna y 2: Externa y falla si los IDs de instancia ya tienen datos
 diferentes; no modifica ni elimina otras instancias.
 
-Para habilitar el rol `PROFESIONAL_APH` en una base existente, ejecutar
-`database/update_add_rol_profesional_aph.sql` después de crear las tablas de seguridad.
+Para habilitar el rol `TECNICO_APH` en una base existente, ejecutar
+`database/update_add_rol_tecnico_aph.sql` después de crear las tablas de seguridad.
 El script es idempotente y solo concede acceso a `GET /maestros/roles`; los permisos
 de las nuevas rutas APH se asignarán de forma específica al implementarlas.
 
-Para pruebas exclusivamente locales, `database/insert_usuario_prueba_profesional_aph.sql`
-crea una cuenta sintética con el rol `PROFESIONAL_APH`, copiando el hash de la cuenta
+Para pruebas exclusivamente locales, `database/insert_usuario_prueba_tecnico_aph.sql`
+crea una cuenta sintética con el rol `TECNICO_APH`, copiando el hash de la cuenta
 de prueba `revisor1@udea.edu.co`. Verificar que esa cuenta sea de prueba y que se
 conozca su contraseña antes de ejecutarlo; el nuevo usuario tendrá la misma. El script
 no cambia cuentas existentes y falla si la cuenta sintética ya existe. No usarlo en QA
@@ -113,11 +113,43 @@ ni producción, y no reutilizar la contraseña de prueba fuera del entorno local
 El nuevo módulo expone `GET /alma/catalogos/{nombre}` a cualquier usuario
 autenticado, sin modificar los permisos del módulo anterior. Después de iniciar
 esta versión para crear `catalogoalmaitem`, ejecutar
-`database/insert_catalogos_aph_provisionales.sql`: los valores propuestos quedan
-inactivos hasta su aprobación y el script no sobrescribe valores existentes.
+`database/insert_catalogos_aph.sql`: carga y activa los catálogos de APH, actualizando
+etiqueta y estado activo si el código ya existe.
 `tipos-identificacion` reutiliza el catálogo vigente; `textos-consentimiento`
-estará vacío hasta cargar el texto oficial. Antes de integrar con Front se debe
-homologar el código de pasaporte y comunicar el código `PROFESIONAL_APH`.
+estará vacío hasta cargar el texto oficial. Los cambios futuros de códigos o etiquetas
+deben aplicarse también mediante una modificación versionada de la base de datos.
+El catálogo de tipos de identificación conserva los códigos maestros existentes.
+
+Reglas confirmadas para los siguientes endpoints de APH:
+
+- Un seguimiento psicológico está activo cuando la persona tiene un caso en curso con Psicología y una fecha para el próximo control.
+- «Mis atenciones» lista las atenciones o casos asignados o tomados por el usuario autenticado.
+- La auditoría solo estará disponible para `ADMIN` y las coordinaciones `EA_COORDINACION`,
+  `ALMA_COORDINACION`, `UAD_COORDINACION` y `SPB_COORDINACION`, limitada al tramo de cada rol.
+- Las remisiones entrantes podrán originarse en `SPB_ANALISTA` (y traslados puntuales de emergencia
+  desde Central de Monitoreo), `UAD_EQUIPO_3`, `UAD_EQUIPO_4` y la coordinación UAD. Estos roles
+  son adicionales; no reemplazan ni modifican roles existentes.
+
+El primer bloque de atenciones nuevas permite crear, consultar y editar borradores mediante
+`POST /alma/atenciones-aph`, `GET /alma/atenciones-aph/{idAtencion}` y
+`PATCH /alma/atenciones-aph/{idAtencion}`. Requiere iniciar esta versión para crear sus
+tablas y ejecutar `database/update_permisos_borrador_alma_aph.sql` después de crear el rol
+`TECNICO_APH`. El consecutivo es anual y usa el año UTC; las escrituras exigen la versión
+vigente. Cada técnico puede consultar y editar únicamente sus atenciones; `REVISOR` tiene
+acceso de lectura conforme al contrato. La creación y edición registran eventos sin el
+contenido de la atención.
+
+El triaje manual o su omisión justificada se registra con
+`PUT /alma/atenciones-aph/{idAtencion}/triaje`. Es exclusivo del técnico asignado;
+requiere motivo de consulta y versión vigente. Cambia la atención a `EN_GESTION_APH`.
+Tras reiniciar esta versión para añadir las columnas, ejecutar
+`database/update_permisos_triaje_alma_aph.sql` en la base correspondiente.
+
+En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
+confiable para calcularla; el frontend debe tolerar ese valor. Derivaciones,
+remisiones, bandejas, cierre y consulta de auditoría todavía no están implementados en el
+nuevo módulo: no habilitar el flujo completo ni desactivar el mock del grupo
+`atencionesAph` hasta implementar sus demás acciones.
 
 Para una base existente, coordinar una ventana de mantenimiento con el frontend:
 

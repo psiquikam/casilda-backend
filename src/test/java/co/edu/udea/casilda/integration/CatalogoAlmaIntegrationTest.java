@@ -30,14 +30,14 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
 
     @Test
     @Transactional
-    void catalogosSonAutenticadosYValoresProvisionalesNoSeActivan() throws Exception {
+    void catalogosSonAutenticadosYElSeedActivaLosValoresConfigurados() throws Exception {
         ResourceDatabasePopulator seed = new ResourceDatabasePopulator(
-                new FileSystemResource("database/insert_catalogos_aph_provisionales.sql"));
+                new FileSystemResource("database/insert_catalogos_aph.sql"));
         seed.execute(dataSource);
         seed.execute(dataSource);
 
         assertEquals(31, jdbcTemplate.queryForObject("SELECT count(*) FROM catalogoalmaitem", Integer.class));
-        assertEquals(0, jdbcTemplate.queryForObject(
+        assertEquals(31, jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM catalogoalmaitem WHERE activo = true", Integer.class));
 
         mockMvc.perform(get("/alma/catalogos/estratos")).andExpect(status().isForbidden());
@@ -46,7 +46,7 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(6)))
                 .andExpect(jsonPath("$[*].codigo", hasItem("1")))
-                .andExpect(jsonPath("$[*].activo", hasItem(false)));
+                .andExpect(jsonPath("$[*].activo", hasItem(true)));
         mockMvc.perform(get("/alma/catalogos/tipos-identificacion").header("Authorization", auth))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.codigo == 'CC')].etiqueta", hasItem("Cédula")))
@@ -55,7 +55,7 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
                 "rutas-externas", "resultados-ruta-externa", "motivos-cierre-aph"}) {
             mockMvc.perform(get("/alma/catalogos/" + catalogo).header("Authorization", auth))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[*].activo", hasItem(false)));
+                    .andExpect(jsonPath("$[*].activo", hasItem(true)));
         }
         mockMvc.perform(get("/alma/catalogos/textos-consentimiento").header("Authorization", auth))
                 .andExpect(status().isOk())
@@ -69,13 +69,13 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(post("/alma/catalogos/estratos").header("Authorization", auth))
                 .andExpect(status().isForbidden());
 
-        jdbcTemplate.update("UPDATE catalogoalmaitem SET activo = true, etiqueta = 'Etiqueta aprobada' "
+        jdbcTemplate.update("UPDATE catalogoalmaitem SET activo = false, etiqueta = 'Etiqueta obsoleta' "
                 + "WHERE catalogo = 'estratos' AND codigo = '1'");
         seed.execute(dataSource);
         entityManager.clear();
         mockMvc.perform(get("/alma/catalogos/estratos").header("Authorization", auth))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.codigo == '1')].etiqueta", hasItem("Etiqueta aprobada")))
+                .andExpect(jsonPath("$[?(@.codigo == '1')].etiqueta", hasItem("Estrato 1")))
                 .andExpect(jsonPath("$[?(@.codigo == '1')].activo", hasItem(true)));
     }
 }
