@@ -1,0 +1,54 @@
+-- Fixture UAD para pruebas de integración. Reproduce los permisos de database/uad_modulo_entrega1.sql con
+-- ids explícitos, porque integration-seed.sql inserta rutas con id fijo sin ajustar la secuencia.
+-- Se ejecuta después de integration-seed.sql (@SqlMergeMode MERGE en UadIntegrationTest).
+
+INSERT INTO rol (id, codigo, nombre, activo) VALUES
+    (7, 'UAD_COORDINACION', 'Coordinación UAD', true),
+    (8, 'UAD_EQUIPO_3', 'Profesional UAD Equipo 3', true),
+    (9, 'UAD_EQUIPO_4', 'Profesional UAD Equipo 4', true)
+ON CONFLICT (id) DO UPDATE SET codigo = EXCLUDED.codigo, nombre = EXCLUDED.nombre, activo = true;
+
+-- Casilda2024! (mismo hash que integration-seed.sql). Datos ficticios.
+INSERT INTO usuario (id, email, password, nombre, activo, fechacreacion, fechaactualizacion, idrol) VALUES
+    (7, 'uad.coord@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Coordinación UAD de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 7),
+    (8, 'uad.e3@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional E3 de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 8),
+    (9, 'uad.e4@udea.edu.co', '$2a$10$rjll9Epf8UWi7HeH5kmBaulRKTHMP7TZ8/zWEmpadDn7SFdXpjKru', 'Profesional E4 de prueba', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 9)
+ON CONFLICT (id) DO UPDATE SET idrol = EXCLUDED.idrol, activo = true;
+
+INSERT INTO usuariorol (idusuario, idrol) VALUES (7, 7), (8, 8), (9, 9)
+ON CONFLICT (idusuario, idrol) DO NOTHING;
+
+INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
+    (900, '/uad/contexto', 'GET', true, false),
+    (901, '/uad/noticias', 'GET', true, false),
+    (902, '/uad/noticias/*', 'GET', true, false),
+    (903, '/uad/noticias/*/clasificacion', 'POST', true, false),
+    (904, '/uad/noticias/*/casos-asociados', 'GET', true, false),
+    (905, '/uad/noticias/*/decisiones', 'POST', true, false),
+    (906, '/uad/noticias/*/historial', 'GET', true, false),
+    (907, '/uad/evidencias/*/descarga', 'GET', true, false),
+    (908, '/maestros/uad-causales-inhibitorio', 'GET', true, false),
+    (909, '/maestros/uad-entidades-remision', 'GET', true, false),
+    (910, '/maestros/uad-tipos-solicitud-informacion', 'GET', true, false),
+    (911, '/uad/noticias-anonimas', 'POST', true, true)
+ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method, activo = true, publico = EXCLUDED.publico;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('UAD_EQUIPO_3', 'UAD_EQUIPO_4')
+WHERE e.id BETWEEN 900 AND 910
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT 900, r.id FROM rol r WHERE r.codigo IN ('UAD_COORDINACION', 'ADMIN')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO rutaactivacion (id, codigo, nombre, activo) VALUES (2, 'UAD_3_4', 'UAD 3 y 4 (Unidad de asuntos disciplinarios)', true)
+ON CONFLICT (id) DO UPDATE SET codigo = EXCLUDED.codigo, activo = true;
+
+INSERT INTO vinculoudea (id, nombre) VALUES (6, 'Docente Vinculado') ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO uad_catalogo (catalogo, codigo, nombre, orden, activo) VALUES
+    ('CAUSAL_INHIBITORIO', 'DUPLICIDAD', 'Duplicidad de actuación en curso', 1, true),
+    ('ENTIDAD_REMISION', 'FISCALIA', 'Fiscalía General de la Nación', 1, true),
+    ('TIPO_SOLICITUD_INFORMACION', 'ACLARACION_HECHOS', 'Aclaración o ampliación de información', 1, true)
+ON CONFLICT (catalogo, codigo) DO NOTHING;
