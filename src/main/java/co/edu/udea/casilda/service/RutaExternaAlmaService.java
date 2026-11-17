@@ -42,9 +42,9 @@ public class RutaExternaAlmaService {
             atencionService.validarTipo(datos, campo, JsonNode::isTextual, "");
         }
         atencionService.validarTipo(datos, "peligroInminente", JsonNode::isBoolean, "");
-        AtencionAlmaAph atencion = contexto(datos.path("tipoContexto").asText(null),
+        AtencionAlmaAph atencion = atencionService.contextoAphPropietario(datos.path("tipoContexto").asText(null),
                 datos.path("idContexto").asText(null), auth, true);
-        verificarAbierta(atencion);
+        atencionService.verificarAbiertaParaRutas(atencion);
         String entidad = datos.path("entidad").asText(null);
         if (!StringUtils.hasText(entidad)
                 || catalogos.findByCatalogoAndCodigoAndActivoTrue("rutas-externas", entidad).isEmpty()) {
@@ -88,7 +88,7 @@ public class RutaExternaAlmaService {
     @Transactional(readOnly = true)
     public List<RutaExternaAlmaResponse> listar(String tipoContexto, String idContexto, Authentication auth) {
         atencionService.verificarRol(auth, ROLES);
-        AtencionAlmaAph atencion = contexto(tipoContexto, idContexto, auth, false);
+        AtencionAlmaAph atencion = atencionService.contextoAphPropietario(tipoContexto, idContexto, auth, false);
         return rutas.findByAtencionIdOrderByIdAsc(atencion.getId()).stream().map(RutaExternaAlmaResponse::desde).toList();
     }
 
@@ -98,7 +98,7 @@ public class RutaExternaAlmaService {
         ObjectNode datos = atencionService.comprobarObjeto(request, "", Set.of("version", "estado", "resultado"));
         long id = idRuta(codigo);
         String codigoAtencion = rutas.findCodigoAtencionById(id).orElseThrow(this::noEncontrada);
-        AtencionAlmaAph atencion = contexto("ATENCION_APH", codigoAtencion, auth, true);
+        AtencionAlmaAph atencion = atencionService.contextoAphPropietario("ATENCION_APH", codigoAtencion, auth, true);
         RutaExternaAlma ruta = rutas.findByIdForUpdate(id).orElseThrow(this::noEncontrada);
         JsonNode version = datos.get("version");
         if (version == null || !version.isIntegralNumber() || !version.canConvertToInt()
@@ -106,7 +106,7 @@ public class RutaExternaAlmaService {
             throw new AtencionAlmaException(HttpStatus.CONFLICT, "CONFLICTO_VERSION",
                     "La ruta cambió. Recargue antes de continuar.", Map.of("versionActual", ruta.getVersion()));
         }
-        verificarAbierta(atencion);
+        atencionService.verificarAbiertaParaRutas(atencion);
         if ("CERRADA".equals(ruta.getEstado())) {
             throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "ATENCION_NO_EDITABLE",
                     "La ruta cerrada no se puede modificar.", Map.of("estado", ruta.getEstado()));
@@ -130,28 +130,6 @@ public class RutaExternaAlmaService {
         atencionService.registrarEvento(atencion, atencionService.usuario(auth), "ACTUALIZACION", ahora);
         log.info("Actualizada ruta externa {} para atención {}", codigo, atencion.getCodigo());
         return RutaExternaAlmaResponse.desde(ruta);
-    }
-
-    private AtencionAlmaAph contexto(String tipo, String codigo, Authentication auth, boolean bloquear) {
-        if (!"ATENCION_APH".equals(tipo)) {
-            throw atencionService.validacion(Map.of("tipoContexto", "Seleccione una atención APH."));
-        }
-        if (!StringUtils.hasText(codigo)) {
-            throw atencionService.validacion(Map.of("idContexto", "Indique la atención."));
-        }
-        AtencionAlmaAph atencion = atencionService.buscar(codigo, bloquear);
-        if (!atencionService.puedeConsultarRutas(atencion, auth)) {
-            throw new AtencionAlmaException(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
-                    "No tiene acceso a esta atención.", Map.of());
-        }
-        return atencion;
-    }
-
-    private void verificarAbierta(AtencionAlmaAph atencion) {
-        if ("CERRADO".equals(atencion.getEstado()) || "PENDIENTE_APH".equals(atencion.getEstado())) {
-            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "ATENCION_NO_EDITABLE",
-                    "La atención no admite cambios en su estado actual.", Map.of("estado", atencion.getEstado()));
-        }
     }
 
     private long idRuta(String codigo) {

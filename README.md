@@ -207,6 +207,18 @@ Para una base existente, iniciar esta versión para crear `rutaexternaalma` y ej
 `database/update_permisos_rutas_externas_aph.sql` en el entorno autorizado. El cierre
 de atención y la comprobación de rutas pendientes aún no están implementados.
 
+Las derivaciones internas de atenciones APH se registran y consultan en
+`/alma/derivaciones/internas` por el técnico propietario o `ADMIN`. Son solo registros:
+no se notifican ni entregan automáticamente a la dependencia. Se devuelve
+`estado: REGISTRADA`, `fechaRegistro` y `fechaEnvio: null`; coordinar con el frontend
+antes de habilitar el flujo, pues el contrato original esperaba `ENVIADA`.
+Los demás roles no reciben derivaciones en el detalle. Los casos y el acceso de
+Psicología quedan pendientes. Se requiere consentimiento salvo peligro inminente
+hacia `SPYB`; la versión del texto es opcional, pero si se envía debe estar activa.
+Sin versión no se puede acreditar qué texto se aceptó.
+Para una base existente, iniciar esta versión para crear `derivacioninternaalma` y
+ejecutar `database/update_permisos_derivaciones_internas_aph.sql`.
+
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
 confiable para calcularla; el frontend debe tolerar ese valor. Cierre y consulta
 de auditoría todavía no están implementados en el nuevo módulo: no habilitar el flujo completo

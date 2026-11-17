@@ -1,6 +1,7 @@
 package co.edu.udea.casilda.service;
 
 import co.edu.udea.casilda.dto.request.AtencionAlmaDatos;
+import co.edu.udea.casilda.dto.response.DerivacionInternaAlmaResponse;
 import co.edu.udea.casilda.dto.response.RutaExternaAlmaResponse;
 import co.edu.udea.casilda.exception.AtencionAlmaException;
 import co.edu.udea.casilda.model.entity.AtencionAlmaAph;
@@ -8,6 +9,7 @@ import co.edu.udea.casilda.model.entity.EventoAtencionAlma;
 import co.edu.udea.casilda.model.entity.Usuario;
 import co.edu.udea.casilda.repository.AtencionAlmaAphRepository;
 import co.edu.udea.casilda.repository.CatalogoAlmaItemRepository;
+import co.edu.udea.casilda.repository.DerivacionInternaAlmaRepository;
 import co.edu.udea.casilda.repository.EventoAtencionAlmaRepository;
 import co.edu.udea.casilda.repository.RutaExternaAlmaRepository;
 import co.edu.udea.casilda.repository.TipoIdentificacionRepository;
@@ -53,6 +55,7 @@ public class AtencionAlmaService {
     private final TipoIdentificacionRepository tiposIdentificacion;
     private final CatalogoAlmaItemRepository catalogos;
     private final RutaExternaAlmaRepository rutasExternas;
+    private final DerivacionInternaAlmaRepository derivacionesInternas;
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final Validator validator;
@@ -463,9 +466,12 @@ public class AtencionAlmaService {
             nota.put("fechaRegistro", atencion.getFechaNota().toString());
             nota.put("autor", atencion.getAutorNota().getNombre());
         }
-        salida.putArray("derivaciones");
+        var derivaciones = salida.putArray("derivaciones");
         var rutas = salida.putArray("rutasExternas");
         if (puedeConsultarRutas(atencion, auth)) {
+            derivacionesInternas.findByAtencionIdOrderByIdAsc(atencion.getId()).stream()
+                    .map(DerivacionInternaAlmaResponse::desde)
+                    .forEach(derivacion -> derivaciones.add(objectMapper.valueToTree(derivacion)));
             rutasExternas.findByAtencionIdOrderByIdAsc(atencion.getId()).stream()
                     .map(RutaExternaAlmaResponse::desde)
                     .forEach(ruta -> rutas.add(objectMapper.valueToTree(ruta)));
@@ -480,6 +486,28 @@ public class AtencionAlmaService {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_TECNICO_APH"))
                 && atencion.getTomadaPor() != null
                 && atencion.getTomadaPor().getId().equals(usuario(auth).getId());
+    }
+
+    AtencionAlmaAph contextoAphPropietario(String tipo, String codigo, Authentication auth, boolean bloquear) {
+        if (!"ATENCION_APH".equals(tipo)) {
+            throw validacion(Map.of("tipoContexto", "Seleccione una atención APH."));
+        }
+        if (!StringUtils.hasText(codigo)) {
+            throw validacion(Map.of("idContexto", "Indique la atención."));
+        }
+        AtencionAlmaAph atencion = buscar(codigo, bloquear);
+        if (!puedeConsultarRutas(atencion, auth)) {
+            throw new AtencionAlmaException(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
+                    "No tiene acceso a esta atención.", Map.of());
+        }
+        return atencion;
+    }
+
+    void verificarAbiertaParaRutas(AtencionAlmaAph atencion) {
+        if ("CERRADO".equals(atencion.getEstado()) || "PENDIENTE_APH".equals(atencion.getEstado())) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "ATENCION_NO_EDITABLE",
+                    "La atención no admite cambios en su estado actual.", Map.of("estado", atencion.getEstado()));
+        }
     }
 
     private String codigo(AtencionAlmaAph atencion) {
