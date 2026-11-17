@@ -210,6 +210,62 @@ public class AtencionAlmaService {
         return resultado;
     }
 
+    @Transactional
+    public JsonNode cerrar(String codigo, JsonNode request, Authentication auth) {
+        verificarRol(auth, Set.of("TECNICO_APH", "ADMIN"));
+        ObjectNode datos = comprobarObjeto(request, "", Set.of("version", "motivo", "observacion"));
+        AtencionAlmaAph atencion = contextoAphPropietario("ATENCION_APH", codigo, auth, true);
+        JsonNode version = datos.get("version");
+        if (version == null || !version.isIntegralNumber() || !version.canConvertToInt()
+                || version.intValue() != atencion.getVersion()) {
+            throw new AtencionAlmaException(HttpStatus.CONFLICT, "CONFLICTO_VERSION",
+                    "La atención cambió. Recargue antes de continuar.",
+                    Map.of("versionActual", atencion.getVersion()));
+        }
+        if ("PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())
+                || ("EN_GESTION_APH".equals(atencion.getEstado())
+                && atencion.getDatos().path("aceptaPsicologia").asBoolean(false))) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "PSICOLOGIA_PENDIENTE",
+                    "La atención tiene pendiente la gestión de Psicología.", Map.of());
+        }
+        if (!"EN_GESTION_APH".equals(atencion.getEstado())) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "ATENCION_NO_EDITABLE",
+                    "La atención no se puede cerrar en su estado actual.", Map.of("estado", atencion.getEstado()));
+        }
+        if (rutasExternas.existsByAtencionIdAndEstadoNot(atencion.getId(), "CERRADA")) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "RUTAS_PENDIENTES",
+                    "Cierre las rutas externas pendientes antes de cerrar la atención.", Map.of());
+        }
+        validarTipo(datos, "motivo", JsonNode::isTextual, "");
+        validarTipo(datos, "observacion", JsonNode::isTextual, "");
+        String motivo = datos.path("motivo").asText(null);
+        if (!StringUtils.hasText(motivo)
+                || catalogos.findByCatalogoAndCodigoAndActivoTrue("motivos-cierre-aph", motivo).isEmpty()) {
+            throw validacion(Map.of("motivo", "Seleccione el motivo de cierre."));
+        }
+        String observacion = datos.path("observacion").asText(null);
+        if (observacion != null && observacion.length() > 1000) {
+            throw validacion(Map.of("observacion", "Ingrese hasta 1000 caracteres."));
+        }
+        Instant ahora = Instant.now();
+        ObjectNode datosAtencion = ((ObjectNode) atencion.getDatos()).deepCopy();
+        ObjectNode cierre = datosAtencion.putObject("cierre");
+        cierre.put("motivo", motivo);
+        if (observacion == null) {
+            cierre.putNull("observacion");
+        } else {
+            cierre.put("observacion", observacion);
+        }
+        cierre.put("fecha", ahora.toString());
+        atencion.setDatos(datosAtencion);
+        atencion.setEstado("CERRADO");
+        atencion.setVersion(atencion.getVersion() + 1);
+        atencion.setFechaActualizacion(ahora);
+        registrarEvento(atencion, usuario(auth), "CAMBIO_ESTADO", ahora);
+        log.info("Cerrada atención APH {}", codigo);
+        return respuesta(atencion, auth);
+    }
+
     ObjectNode validarConsentimiento(JsonNode consentimientoNode, Instant ahora) {
         return validarConsentimiento(consentimientoNode, ahora, true);
     }
@@ -452,7 +508,9 @@ public class AtencionAlmaService {
         } else {
             salida.put("tomadaPor", atencion.getTomadaPor().getNombre());
         }
-        salida.putNull("cierre");
+        if (!salida.has("cierre")) {
+            salida.putNull("cierre");
+        }
         salida.putNull("numeroCaso");
         salida.putNull("gestionSimultanea");
         salida.put("fechaCreacion", atencion.getFechaCreacion().toString());

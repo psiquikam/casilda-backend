@@ -204,8 +204,7 @@ negocio, la versión del texto es opcional en estas rutas; si se envía, debe es
 activa. Sin versión no se puede acreditar qué texto se aceptó.
 
 Para una base existente, iniciar esta versión para crear `rutaexternaalma` y ejecutar
-`database/update_permisos_rutas_externas_aph.sql` en el entorno autorizado. El cierre
-de atención y la comprobación de rutas pendientes aún no están implementados.
+`database/update_permisos_rutas_externas_aph.sql` en el entorno autorizado.
 
 Las derivaciones internas de atenciones APH se registran y consultan en
 `/alma/derivaciones/internas` por el técnico propietario o `ADMIN`. Son solo registros:
@@ -219,9 +218,16 @@ Sin versión no se puede acreditar qué texto se aceptó.
 Para una base existente, iniciar esta versión para crear `derivacioninternaalma` y
 ejecutar `database/update_permisos_derivaciones_internas_aph.sql`.
 
+El cierre APH (`POST /alma/atenciones-aph/{idAtencion}/cierre`) corresponde al técnico
+propietario o `ADMIN`, solo en `EN_GESTION_APH` y con versión vigente. No se cierran
+borradores, atenciones con Psicología pendiente o aceptada, ni con rutas externas
+abiertas. El motivo debe estar activo en `motivos-cierre-aph`; la observación admite
+hasta 1000 caracteres. Para una base existente ejecutar
+`database/update_permisos_cierre_alma_aph.sql`.
+
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
-confiable para calcularla; el frontend debe tolerar ese valor. Cierre y consulta
-de auditoría todavía no están implementados en el nuevo módulo: no habilitar el flujo completo
+confiable para calcularla; el frontend debe tolerar ese valor. La consulta de auditoría
+todavía no está implementada en el nuevo módulo: no habilitar el flujo completo
 ni desactivar los mocks de `atencionesAph` y `bandejaPsicologia` hasta implementar sus acciones.
 
 Para una base existente, coordinar una ventana de mantenimiento con el frontend:

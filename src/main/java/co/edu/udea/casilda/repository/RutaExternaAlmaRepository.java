@@ -16,6 +16,9 @@ public interface RutaExternaAlmaRepository extends JpaRepository<RutaExternaAlma
     /** Lista las rutas de una atención en orden de creación. */
     List<RutaExternaAlma> findByAtencionIdOrderByIdAsc(Long atencionId);
 
+    /** Comprueba si hay rutas pendientes de cierre para la atención. */
+    boolean existsByAtencionIdAndEstadoNot(Long atencionId, String estado);
+
     /** Obtiene el identificador de la atención sin cargar la ruta antes de bloquearla. */
     @Query("select r.atencion.codigo from RutaExternaAlma r where r.id = :id")
     Optional<String> findCodigoAtencionById(@Param("id") Long id);

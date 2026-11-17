@@ -64,6 +64,7 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/alma/rutas-externas/{idRuta}', 'PATCH', true, false),
     ('/alma/derivaciones/internas', 'POST', true, false),
     ('/alma/derivaciones/internas', 'GET', true, false),
+    ('/alma/atenciones-aph/{idAtencion}/cierre', 'POST', true, false),
     ('/personas/**', 'GET', true, false),
     ('/parametros/**', 'GET', true, false),
     ('/parametros/**', 'PUT', true, false),
@@ -184,6 +185,7 @@ JOIN rol r ON r.codigo IN ('ADMIN', 'TECNICO_APH')
 WHERE (e.path = '/alma/rutas-externas' AND e.http_method IN ('GET', 'POST'))
    OR (e.path = '/alma/rutas-externas/{idRuta}' AND e.http_method = 'PATCH')
    OR (e.path = '/alma/derivaciones/internas' AND e.http_method IN ('GET', 'POST'))
+   OR (e.path = '/alma/atenciones-aph/{idAtencion}/cierre' AND e.http_method = 'POST')
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)

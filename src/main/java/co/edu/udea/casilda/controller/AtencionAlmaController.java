@@ -61,6 +61,14 @@ public class AtencionAlmaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.derivarPsicologia(idAtencion, request, auth));
     }
 
+    @PostMapping("/{idAtencion}/cierre")
+    @Operation(summary = "Cerrar una atención APH")
+    public ResponseEntity<JsonNode> cerrar(@PathVariable String idAtencion,
+                                          @Valid @RequestBody JsonNode request,
+                                          Authentication auth) {
+        return ResponseEntity.ok(service.cerrar(idAtencion, request, auth));
+    }
+
     @ExceptionHandler(AtencionAlmaException.class)
     public ResponseEntity<Map<String, Object>> handleAtencionException(AtencionAlmaException ex) {
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
