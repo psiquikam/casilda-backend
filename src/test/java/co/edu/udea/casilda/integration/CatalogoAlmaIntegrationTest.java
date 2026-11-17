@@ -30,6 +30,26 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
 
     @Test
     @Transactional
+    void informaItemsInactivosYPermiteRestaurarlosConElSeed() throws Exception {
+        ResourceDatabasePopulator seed = new ResourceDatabasePopulator(
+                new FileSystemResource("database/insert_catalogos_aph.sql"));
+        seed.execute(dataSource);
+        jdbcTemplate.update("UPDATE catalogoalmaitem SET activo = false WHERE catalogo = 'estratos' AND codigo = '1'");
+        String auth = bearer("user@udea.edu.co");
+        mockMvc.perform(get("/alma/catalogos/estratos").header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(6)))
+                .andExpect(jsonPath("$[?(@.codigo == '1')].activo", hasItem(false)));
+        mockMvc.perform(get("/alma/catalogos/estratos").header("Authorization", "Bearer invalido"))
+                .andExpect(status().isUnauthorized());
+        seed.execute(dataSource);
+        entityManager.clear();
+        mockMvc.perform(get("/alma/catalogos/estratos").header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(6)))
+                .andExpect(jsonPath("$[?(@.codigo == '1')].activo", hasItem(true)));
+    }
+
+    @Test
+    @Transactional
     void catalogosSonAutenticadosYElSeedActivaLosValoresConfigurados() throws Exception {
         ResourceDatabasePopulator seed = new ResourceDatabasePopulator(
                 new FileSystemResource("database/insert_catalogos_aph.sql"));

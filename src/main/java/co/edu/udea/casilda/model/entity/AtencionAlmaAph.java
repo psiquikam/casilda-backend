@@ -35,6 +35,21 @@ public class AtencionAlmaAph {
     @Column(name = "justificacionomisiontriaje", length = 1000)
     private String justificacionOmisionTriaje;
 
+    @Column(name = "fechaderivacion")
+    private Instant fechaDerivacion;
+
+    @Column(name = "consentimientomedio", length = 10)
+    private String consentimientoMedio;
+
+    @Column(name = "consentimientofecha")
+    private Instant consentimientoFecha;
+
+    @Column(name = "consentimientoversion", length = 80)
+    private String consentimientoVersion;
+
+    @Column(name = "consentimientorecibido")
+    private Instant consentimientoRecibido;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "idusuariotomador", nullable = false)
     private Usuario tomadaPor;

@@ -103,6 +103,18 @@ Para habilitar el rol `TECNICO_APH` en una base existente, ejecutar
 El script es idempotente y solo concede acceso a `GET /maestros/roles`; los permisos
 de las nuevas rutas APH se asignarán de forma específica al implementarlas.
 
+Para ampliar la lectura de maestros en bases existentes, ejecutar
+`database/update_permisos_get_maestros_equipo.sql`. Concede `GET /maestros/**` a los
+roles de atención existentes (`ADMIN`, `COORDINADOR`, `PROFESIONAL`, `REVISOR`,
+`TECNICO_APH`), las coordinaciones `EA_COORDINACION`, `ALMA_COORDINACION`,
+`UAD_COORDINACION`, `SPB_COORDINACION` y los remitentes `SPB_ANALISTA`,
+`UAD_EQUIPO_3`, `UAD_EQUIPO_4` que ya existan. El script es idempotente y no crea
+roles; debe ejecutarse de nuevo después de crear cualquiera de esos roles. Central de
+Monitoreo no se incluye porque todavía no hay un código de rol confirmado.
+El patrón incluye todos los GET actuales y futuros bajo `/maestros/`, incluso
+catálogos paginados; no agrega permisos de escritura ni de otras rutas. Los GET de
+maestros ya configurados como públicos seguirán siendo públicos.
+
 Para pruebas exclusivamente locales, `database/insert_usuario_prueba_tecnico_aph.sql`
 crea una cuenta sintética con el rol `TECNICO_APH`, copiando el hash de la cuenta
 de prueba `revisor1@udea.edu.co`. Verificar que esa cuenta sea de prueba y que se
@@ -145,11 +157,26 @@ requiere motivo de consulta y versión vigente. Cambia la atención a `EN_GESTIO
 Tras reiniciar esta versión para añadir las columnas, ejecutar
 `database/update_permisos_triaje_alma_aph.sql` en la base correspondiente.
 
+La derivación a Psicología y la consulta de su bandeja usan
+`POST /alma/atenciones-aph/{idAtencion}/derivaciones/psicologia` y
+`GET /alma/bandeja/psicologia`. La derivación exige triaje y consentimiento con una versión
+activa del catálogo `textos-consentimiento`; no se incluye texto oficial en este cambio.
+Sin ese texto no se puede derivar. El SLA se calcula desde la recepción en el servidor.
+Para recontacto se usa la persona resuelta por el módulo vigente y los estados «Abierto activo»
+y «Abierto en transición». El primer bloque de bandeja es de consulta: toma, intentos,
+resolución de recontactos y primer contacto aún no están implementados.
+
+Tras iniciar esta versión para crear las columnas, ejecutar
+`database/update_permisos_derivacion_psicologia.sql` solo en un entorno autorizado.
+Los permisos de la bandeja son **provisionales**: `PROFESIONAL` puede incluir usuarios de otras
+áreas y permite ver datos personales. Antes de usarlos fuera de pruebas se debe restringir
+el acceso a los profesionales de Psicología y validar el alcance de los demás roles.
+No insertar textos ficticios de consentimiento en bases compartidas o reales.
+
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
-confiable para calcularla; el frontend debe tolerar ese valor. Derivaciones,
-remisiones, bandejas, cierre y consulta de auditoría todavía no están implementados en el
-nuevo módulo: no habilitar el flujo completo ni desactivar el mock del grupo
-`atencionesAph` hasta implementar sus demás acciones.
+confiable para calcularla; el frontend debe tolerar ese valor. Remisiones, cierre y consulta
+de auditoría todavía no están implementados en el nuevo módulo: no habilitar el flujo completo
+ni desactivar los mocks de `atencionesAph` y `bandejaPsicologia` hasta implementar sus acciones.
 
 Para una base existente, coordinar una ventana de mantenimiento con el frontend:
 

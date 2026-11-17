@@ -114,6 +114,30 @@ class AtencionAlmaIntegrationTest extends IntegrationTestBase {
 
     @Test
     @Transactional
+    void rechazaEscriturasAnonimasSinAlterarLaAtencion() throws Exception {
+        mockMvc.perform(post("/alma/atenciones-aph").contentType(APPLICATION_JSON).content(REQUEST))
+                .andExpect(status().isForbidden());
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM atencionalmaaph", Integer.class));
+
+        String auth = bearer("aph1@example.edu.co");
+        String id = objectMapper.readTree(mockMvc.perform(post("/alma/atenciones-aph")
+                        .header("Authorization", auth).contentType(APPLICATION_JSON).content(REQUEST))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .path("idAtencion").asText();
+        mockMvc.perform(patch("/alma/atenciones-aph/{id}", id).contentType(APPLICATION_JSON)
+                        .content("{\"version\":1,\"notaAph\":\"Cambio no autorizado\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/alma/atenciones-aph/{id}/triaje", id).contentType(APPLICATION_JSON)
+                        .content("{\"version\":1,\"triaje\":\"ALTO\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/alma/atenciones-aph/{id}", id).header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.estado").value("BORRADOR"))
+                .andExpect(jsonPath("$.notas[0].contenido").value("Nota de prueba"));
+    }
+
+    @Test
+    @Transactional
     void restringeLecturaYEscrituraPorRolYPropietario() throws Exception {
         String auth = bearer("aph1@example.edu.co");
         String id = objectMapper.readTree(mockMvc.perform(post("/alma/atenciones-aph")

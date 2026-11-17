@@ -54,6 +54,8 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/alma/atenciones-aph/{idAtencion}', 'GET', true, false),
     ('/alma/atenciones-aph/{idAtencion}', 'PATCH', true, false),
     ('/alma/atenciones-aph/{idAtencion}/triaje', 'PUT', true, false),
+    ('/alma/atenciones-aph/{idAtencion}/derivaciones/psicologia', 'POST', true, false),
+    ('/alma/bandeja/psicologia', 'GET', true, false),
     ('/personas/**', 'GET', true, false),
     ('/parametros/**', 'GET', true, false),
     ('/parametros/**', 'PUT', true, false),
@@ -93,6 +95,18 @@ WHERE e.http_method = 'GET'
   AND e.path IN ('/maestros/**', '/personas/**')
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
+-- Lectura de maestros para el equipo APH y los roles de coordinación y remisión existentes.
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN (
+    'TECNICO_APH', 'EA_COORDINACION', 'ALMA_COORDINACION', 'UAD_COORDINACION',
+    'SPB_COORDINACION', 'SPB_ANALISTA', 'UAD_EQUIPO_3', 'UAD_EQUIPO_4'
+)
+WHERE e.path = '/maestros/**'
+  AND e.http_method = 'GET'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id
 FROM endpoint e
@@ -118,6 +132,14 @@ FROM endpoint e
 JOIN rol r ON r.codigo = 'TECNICO_APH'
 WHERE e.path = '/alma/atenciones-aph/{idAtencion}/triaje'
   AND e.http_method = 'PUT'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e
+JOIN rol r ON (e.path = '/alma/atenciones-aph/{idAtencion}/derivaciones/psicologia'
+                   AND e.http_method = 'POST' AND r.codigo = 'TECNICO_APH')
+    OR (e.path = '/alma/bandeja/psicologia' AND e.http_method = 'GET'
+                   AND r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL', 'REVISOR'))
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)

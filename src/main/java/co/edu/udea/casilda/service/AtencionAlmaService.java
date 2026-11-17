@@ -6,6 +6,7 @@ import co.edu.udea.casilda.model.entity.AtencionAlmaAph;
 import co.edu.udea.casilda.model.entity.EventoAtencionAlma;
 import co.edu.udea.casilda.model.entity.Usuario;
 import co.edu.udea.casilda.repository.AtencionAlmaAphRepository;
+import co.edu.udea.casilda.repository.CatalogoAlmaItemRepository;
 import co.edu.udea.casilda.repository.EventoAtencionAlmaRepository;
 import co.edu.udea.casilda.repository.TipoIdentificacionRepository;
 import co.edu.udea.casilda.repository.UsuarioRepository;
@@ -26,6 +27,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +49,7 @@ public class AtencionAlmaService {
     private final EventoAtencionAlmaRepository eventos;
     private final UsuarioRepository usuarios;
     private final TipoIdentificacionRepository tiposIdentificacion;
+    private final CatalogoAlmaItemRepository catalogos;
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final Validator validator;
@@ -159,6 +163,80 @@ public class AtencionAlmaService {
         registrarEvento(atencion, usuario(auth), cambioEstado ? "CAMBIO_ESTADO" : "ACTUALIZACION", ahora);
         log.info("Registrado triaje de atención APH {}", codigo(atencion));
         return respuesta(atencion);
+    }
+
+    @Transactional
+    public JsonNode derivarPsicologia(String codigo, JsonNode request, Authentication auth) {
+        verificarRol(auth, Set.of("TECNICO_APH"));
+        ObjectNode datos = comprobarObjeto(request, "", Set.of("version", "consentimiento"));
+        AtencionAlmaAph atencion = buscar(codigo, true);
+        verificarPropiedad(atencion, auth);
+        verificarVersionYEstado(atencion, datos.get("version"));
+        if (atencion.getTriaje() == null) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "TRIAJE_REQUERIDO",
+                    "Registre el triaje antes de derivar a Psicología.", Map.of());
+        }
+        JsonNode consentimientoNode = datos.get("consentimiento");
+        if (consentimientoNode == null || consentimientoNode.isNull()) {
+            throw consentimientoRequerido();
+        }
+        ObjectNode consentimiento = comprobarObjeto(consentimientoNode, "consentimiento",
+                Set.of("otorgado", "medio", "fechaRegistro", "versionTexto"));
+        validarTipo(consentimiento, "otorgado", JsonNode::isBoolean, "consentimiento.");
+        validarTipo(consentimiento, "medio", JsonNode::isTextual, "consentimiento.");
+        validarTipo(consentimiento, "fechaRegistro", JsonNode::isTextual, "consentimiento.");
+        validarTipo(consentimiento, "versionTexto", JsonNode::isTextual, "consentimiento.");
+        if (!consentimiento.path("otorgado").asBoolean(false)
+                || !StringUtils.hasText(consentimiento.path("fechaRegistro").asText(null))) {
+            throw consentimientoRequerido();
+        }
+        String medio = consentimiento.path("medio").asText(null);
+        if (medio == null || !Set.of("DIGITAL", "VERBAL").contains(medio)) {
+            throw validacion(Map.of("consentimiento.medio", "Seleccione un medio de consentimiento válido."));
+        }
+        String versionTexto = consentimiento.path("versionTexto").asText(null);
+        if (!StringUtils.hasText(versionTexto)
+                || catalogos.findByCatalogoAndCodigoAndActivoTrue("textos-consentimiento", versionTexto)
+                .filter(item -> StringUtils.hasText(item.getEtiqueta())).isEmpty()) {
+            throw validacion(Map.of("consentimiento.versionTexto",
+                    "Seleccione una versión activa del texto oficial de consentimiento."));
+        }
+        Instant fechaConsentimiento;
+        try {
+            fechaConsentimiento = OffsetDateTime.parse(consentimiento.path("fechaRegistro").asText()).toInstant();
+        } catch (DateTimeParseException ex) {
+            throw validacion(Map.of("consentimiento.fechaRegistro", "Ingrese una fecha válida con zona horaria."));
+        }
+        Instant ahora = Instant.now();
+        if (fechaConsentimiento.isAfter(ahora)) {
+            throw validacion(Map.of("consentimiento.fechaRegistro", "La fecha no puede estar en el futuro."));
+        }
+        atencion.setConsentimientoMedio(medio);
+        atencion.setConsentimientoFecha(fechaConsentimiento);
+        atencion.setConsentimientoVersion(versionTexto);
+        atencion.setConsentimientoRecibido(ahora);
+        atencion.setFechaDerivacion(ahora);
+        atencion.setEstado("PENDIENTE_PSICOLOGIA");
+        atencion.setVersion(atencion.getVersion() + 1);
+        atencion.setFechaActualizacion(ahora);
+        ObjectNode datosAtencion = ((ObjectNode) atencion.getDatos()).deepCopy();
+        datosAtencion.put("aceptaPsicologia", true);
+        atencion.setDatos(datosAtencion);
+        registrarEvento(atencion, usuario(auth), "DERIVACION", ahora);
+        ObjectNode resultado = objectMapper.createObjectNode();
+        resultado.put("idAtencion", codigo);
+        resultado.put("version", atencion.getVersion());
+        resultado.put("estado", atencion.getEstado());
+        resultado.put("triaje", atencion.getTriaje());
+        resultado.put("fechaDerivacion", ahora.toString());
+        resultado.set("sla", objectMapper.valueToTree(SlaPsicologia.calcular(atencion.getTriaje(), ahora, ahora)));
+        log.info("Derivada atención APH {} a Psicología", codigo);
+        return resultado;
+    }
+
+    private AtencionAlmaException consentimientoRequerido() {
+        return new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "CONSENTIMIENTO_REQUERIDO",
+                "Se requiere consentimiento para derivar a Psicología.", Map.of());
     }
 
     private void verificarVersionYEstado(AtencionAlmaAph atencion, JsonNode version) {
@@ -330,9 +408,20 @@ public class AtencionAlmaService {
             omision.put("peligroInminente", true);
             omision.put("justificacion", atencion.getJustificacionOmisionTriaje());
         }
-        salida.putNull("consentimiento");
-        salida.putNull("fechaDerivacion");
-        salida.putNull("sla");
+        if (atencion.getFechaDerivacion() == null) {
+            salida.putNull("consentimiento");
+            salida.putNull("fechaDerivacion");
+            salida.putNull("sla");
+        } else {
+            ObjectNode consentimiento = salida.putObject("consentimiento");
+            consentimiento.put("otorgado", true);
+            consentimiento.put("medio", atencion.getConsentimientoMedio());
+            consentimiento.put("fechaRegistro", atencion.getConsentimientoFecha().toString());
+            consentimiento.put("versionTexto", atencion.getConsentimientoVersion());
+            salida.put("fechaDerivacion", atencion.getFechaDerivacion().toString());
+            salida.set("sla", objectMapper.valueToTree(SlaPsicologia.calcular(
+                    atencion.getTriaje(), atencion.getFechaDerivacion(), Instant.now())));
+        }
         salida.put("tomadaPor", atencion.getTomadaPor().getNombre());
         salida.putNull("cierre");
         salida.putNull("numeroCaso");

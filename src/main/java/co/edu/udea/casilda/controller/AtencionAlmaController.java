@@ -53,6 +53,14 @@ public class AtencionAlmaController {
         return ResponseEntity.ok(service.registrarTriaje(idAtencion, request, auth));
     }
 
+    @PostMapping("/{idAtencion}/derivaciones/psicologia")
+    @Operation(summary = "Derivar una atención a Psicología")
+    public ResponseEntity<JsonNode> derivarPsicologia(@PathVariable String idAtencion,
+                                                       @Valid @RequestBody JsonNode request,
+                                                       Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.derivarPsicologia(idAtencion, request, auth));
+    }
+
     @ExceptionHandler(AtencionAlmaException.class)
     public ResponseEntity<Map<String, Object>> handleAtencionException(AtencionAlmaException ex) {
         return ResponseEntity.status(ex.getStatus()).body(Map.of(
