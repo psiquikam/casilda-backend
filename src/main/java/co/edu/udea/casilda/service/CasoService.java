@@ -740,6 +740,7 @@ public class CasoService {
                 .ciudadResidencia(caso.getCiudadResidencia() != null ? caso.getCiudadResidencia().getNombre() : null)
                 .direccionResidencia(caso.getDireccionResidencia())
                 .fechaCaso(caso.getFechaCreacion() != null ? caso.getFechaCreacion().format(FORMATTER) : null)
+                .fechaCierre(caso.getFechaCierre())
                 .estadoCaso(caso.getEstadoCaso() != null ? caso.getEstadoCaso().getNombre() : null)
                 .tipoSolicitud(sa != null && sa.getTipoSolicitud() != null ? sa.getTipoSolicitud().getNombre() : null)
                 .unidadAdministrativa(unidadAdministrativaNombre)

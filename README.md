@@ -225,6 +225,16 @@ abiertas. El motivo debe estar activo en `motivos-cierre-aph`; la observación a
 hasta 1000 caracteres. Para una base existente ejecutar
 `database/update_permisos_cierre_alma_aph.sql`.
 
+En el módulo de casos vigente, la transición a `Cerrado` registra `fechacierre`;
+reabrir el caso la limpia. Los casos históricos conservan fecha desconocida hasta
+corregirla: ejecutar `database/update_fecha_cierre_caso.sql` antes de usar la versión.
+La corrección se realiza con
+`PATCH /solicitudes/acompanamiento/{solicitudId}/casos/{casoId}/fecha-cierre` y
+`{"fechaCierre":"2026-01-01T10:00:00Z"}`. Solo se permite en casos cerrados de la
+solicitud indicada, a usuarios autorizados a asignar esa solicitud; la autorización
+se evalúa contra la configuración vigente de `POST /solicitudes/acompanamiento/{id}/asignar`.
+La consulta previa APH y el tratamiento del orden de cierres históricos siguen pendientes.
+
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
 confiable para calcularla; el frontend debe tolerar ese valor. La consulta de auditoría
 todavía no está implementada en el nuevo módulo: no habilitar el flujo completo

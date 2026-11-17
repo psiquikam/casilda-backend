@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.Instant;
 
 /**
  * DTO Response para listado de casos paginados
@@ -41,6 +42,7 @@ public class CasoListResponse {
 
     // Datos del caso
     private String fechaCaso;
+    private Instant fechaCierre;
     private String estadoCaso;
     private String tipoSolicitud;
     private String unidadAdministrativa;
@@ -56,4 +58,3 @@ public class CasoListResponse {
     private String correoInstitucional;
     private String correoPersonal;
 }
-

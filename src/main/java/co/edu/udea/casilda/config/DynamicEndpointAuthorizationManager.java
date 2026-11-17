@@ -35,12 +35,32 @@ public class DynamicEndpointAuthorizationManager
             final Supplier<Authentication> authenticationSupplier,
             final RequestAuthorizationContext context
     ) {
+        return checkPath(authenticationSupplier, context.getRequest().getMethod(), getRequestPath(context));
+    }
+
+    public AuthorizationDecision checkAsignarSolicitud(
+            final Supplier<Authentication> authenticationSupplier,
+            final RequestAuthorizationContext context
+    ) {
+        Authentication authentication = authenticationSupplier.get();
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return new AuthorizationDecision(false);
+        }
+        String solicitudId = context.getVariables().get("solicitudId");
+        if (solicitudId == null || !solicitudId.matches("[0-9]+")) {
+            return new AuthorizationDecision(false);
+        }
+        return checkPath(authenticationSupplier, "POST", "/solicitudes/acompanamiento/" + solicitudId + "/asignar");
+    }
+
+    private AuthorizationDecision checkPath(
+            final Supplier<Authentication> authenticationSupplier, final String method, final String path
+    ) {
         final Authentication authentication = authenticationSupplier.get();
         final boolean authenticated = authentication != null
                 && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken);
-        final String method = context.getRequest().getMethod();
-        final String path = getRequestPath(context);
         final List<Endpoint> endpoints = endpointRepository.findByActivoTrue().stream()
                 .filter(endpoint -> method.equalsIgnoreCase(endpoint.getHttpMethod())
                         || "ANY".equalsIgnoreCase(endpoint.getHttpMethod()))

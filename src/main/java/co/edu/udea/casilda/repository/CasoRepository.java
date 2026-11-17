@@ -3,6 +3,8 @@ package co.edu.udea.casilda.repository;
 import co.edu.udea.casilda.model.entity.Caso;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,11 @@ public interface CasoRepository extends JpaRepository<Caso, Long> {
      * Busca un caso por su código único
      */
     Optional<Caso> findByCodigo(String codigo);
+
+    /** Bloquea el caso para serializar los cambios de estado y fecha de cierre. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Caso c where c.id = :id")
+    Optional<Caso> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
     
     /**
      * Verifica si existe un caso con el código dado
