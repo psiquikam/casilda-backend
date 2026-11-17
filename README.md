@@ -195,6 +195,18 @@ La creación y toma registran eventos; la auditoría JPA registra escrituras, no
 lectura. La limitación de tasa y la notificación de remisiones están pendientes;
 no exponer la bandeja fuera de un entorno autorizado sin resolver esos controles.
 
+Las rutas externas de atenciones APH se activan y consultan en `/alma/rutas-externas`
+y se actualizan con `PATCH /alma/rutas-externas/{idRuta}`. Solo pueden gestionarlas
+el técnico propietario y `ADMIN`; los demás roles no reciben rutas en el detalle.
+Las rutas sobre casos y el acceso de Psicología quedan pendientes. La excepción sin
+consentimiento por peligro inminente aplica solo a `LINEA_123`. Por decisión de
+negocio, la versión del texto es opcional en estas rutas; si se envía, debe estar
+activa. Sin versión no se puede acreditar qué texto se aceptó.
+
+Para una base existente, iniciar esta versión para crear `rutaexternaalma` y ejecutar
+`database/update_permisos_rutas_externas_aph.sql` en el entorno autorizado. El cierre
+de atención y la comprobación de rutas pendientes aún no están implementados.
+
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
 confiable para calcularla; el frontend debe tolerar ese valor. Cierre y consulta
 de auditoría todavía no están implementados en el nuevo módulo: no habilitar el flujo completo

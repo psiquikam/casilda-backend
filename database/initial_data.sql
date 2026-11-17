@@ -59,6 +59,9 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/alma/remisiones-aph', 'POST', true, false),
     ('/alma/bandeja/aph', 'GET', true, false),
     ('/alma/bandeja/aph/{idAtencion}/tomar', 'POST', true, false),
+    ('/alma/rutas-externas', 'POST', true, false),
+    ('/alma/rutas-externas', 'GET', true, false),
+    ('/alma/rutas-externas/{idRuta}', 'PATCH', true, false),
     ('/personas/**', 'GET', true, false),
     ('/parametros/**', 'GET', true, false),
     ('/parametros/**', 'PUT', true, false),
@@ -173,6 +176,13 @@ JOIN rol r ON (e.path = '/alma/remisiones-aph' AND e.http_method = 'POST'
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 -- Consulta de solicitudes y reparto para todo el equipo de atención.
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'TECNICO_APH')
+WHERE (e.path = '/alma/rutas-externas' AND e.http_method IN ('GET', 'POST'))
+   OR (e.path = '/alma/rutas-externas/{idRuta}' AND e.http_method = 'PATCH')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id
 FROM endpoint e

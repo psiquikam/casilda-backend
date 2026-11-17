@@ -98,7 +98,7 @@ public class BandejaAphService {
         atenciones.saveAndFlush(atencion);
         atencionService.registrarEvento(atencion, usuario, "CREACION", ahora);
         log.info("Remisión APH {} recibida de {}", atencion.getCodigo(), origen);
-        return atencionService.respuesta(atencion);
+        return atencionService.respuesta(atencion, auth);
     }
 
     @Transactional
@@ -126,7 +126,7 @@ public class BandejaAphService {
         atencion.setFechaActualizacion(ahora);
         atencionService.registrarEvento(atencion, usuario, "CAMBIO_ESTADO", ahora);
         log.info("Tomada remisión APH {}", codigo);
-        return atencionService.respuesta(atencion);
+        return atencionService.respuesta(atencion, auth);
     }
 
     @Transactional(readOnly = true)
@@ -157,7 +157,7 @@ public class BandejaAphService {
                 """ + filtro + " ORDER BY " + orden + " LIMIT :limit OFFSET :offset",
                 params, (rs, row) -> {
                     AtencionAlmaAph atencion = atenciones.findByCodigo(rs.getString("codigo")).orElseThrow();
-                    ObjectNode salida = atencionService.respuesta(atencion);
+                    ObjectNode salida = atencionService.respuesta(atencion, auth);
                     ObjectNode item = objectMapper.createObjectNode();
                     for (String campo : List.of("idAtencion", "version", "canalIngreso", "origenRemision",
                             "estado", "tomadaPor", "triaje", "sla")) {

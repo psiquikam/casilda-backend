@@ -1,6 +1,7 @@
 package co.edu.udea.casilda.service;
 
 import co.edu.udea.casilda.dto.request.AtencionAlmaDatos;
+import co.edu.udea.casilda.dto.response.RutaExternaAlmaResponse;
 import co.edu.udea.casilda.exception.AtencionAlmaException;
 import co.edu.udea.casilda.model.entity.AtencionAlmaAph;
 import co.edu.udea.casilda.model.entity.EventoAtencionAlma;
@@ -8,6 +9,7 @@ import co.edu.udea.casilda.model.entity.Usuario;
 import co.edu.udea.casilda.repository.AtencionAlmaAphRepository;
 import co.edu.udea.casilda.repository.CatalogoAlmaItemRepository;
 import co.edu.udea.casilda.repository.EventoAtencionAlmaRepository;
+import co.edu.udea.casilda.repository.RutaExternaAlmaRepository;
 import co.edu.udea.casilda.repository.TipoIdentificacionRepository;
 import co.edu.udea.casilda.repository.UsuarioRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -50,6 +52,7 @@ public class AtencionAlmaService {
     private final UsuarioRepository usuarios;
     private final TipoIdentificacionRepository tiposIdentificacion;
     private final CatalogoAlmaItemRepository catalogos;
+    private final RutaExternaAlmaRepository rutasExternas;
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final Validator validator;
@@ -74,7 +77,7 @@ public class AtencionAlmaService {
         atenciones.saveAndFlush(atencion);
         registrarEvento(atencion, usuario, "CREACION", ahora);
         log.info("Creada atención APH {}", codigo(atencion));
-        return respuesta(atencion);
+        return respuesta(atencion, auth);
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +85,7 @@ public class AtencionAlmaService {
         verificarRol(auth, Set.of("ADMIN", "COORDINADOR", "PROFESIONAL", "REVISOR", "TECNICO_APH"));
         AtencionAlmaAph atencion = buscar(codigo, false);
         verificarPropiedad(atencion, auth);
-        return respuesta(atencion);
+        return respuesta(atencion, auth);
     }
 
     @Transactional
@@ -119,7 +122,7 @@ public class AtencionAlmaService {
         atencion.setFechaActualizacion(ahora);
         registrarEvento(atencion, usuario, "ACTUALIZACION", ahora);
         log.info("Actualizada atención APH {}", codigo(atencion));
-        return respuesta(atencion);
+        return respuesta(atencion, auth);
     }
 
     @Transactional
@@ -162,7 +165,7 @@ public class AtencionAlmaService {
         atencion.setFechaActualizacion(ahora);
         registrarEvento(atencion, usuario(auth), cambioEstado ? "CAMBIO_ESTADO" : "ACTUALIZACION", ahora);
         log.info("Registrado triaje de atención APH {}", codigo(atencion));
-        return respuesta(atencion);
+        return respuesta(atencion, auth);
     }
 
     @Transactional
@@ -205,6 +208,10 @@ public class AtencionAlmaService {
     }
 
     ObjectNode validarConsentimiento(JsonNode consentimientoNode, Instant ahora) {
+        return validarConsentimiento(consentimientoNode, ahora, true);
+    }
+
+    ObjectNode validarConsentimiento(JsonNode consentimientoNode, Instant ahora, boolean versionObligatoria) {
         if (consentimientoNode == null || consentimientoNode.isNull()) {
             throw consentimientoRequerido();
         }
@@ -223,9 +230,10 @@ public class AtencionAlmaService {
             throw validacion(Map.of("consentimiento.medio", "Seleccione un medio de consentimiento válido."));
         }
         String versionTexto = consentimiento.path("versionTexto").asText(null);
-        if (!StringUtils.hasText(versionTexto)
-                || catalogos.findByCatalogoAndCodigoAndActivoTrue("textos-consentimiento", versionTexto)
-                .filter(item -> StringUtils.hasText(item.getEtiqueta())).isEmpty()) {
+        if ((versionObligatoria && !StringUtils.hasText(versionTexto))
+                || (StringUtils.hasText(versionTexto)
+                && catalogos.findByCatalogoAndCodigoAndActivoTrue("textos-consentimiento", versionTexto)
+                .filter(item -> StringUtils.hasText(item.getEtiqueta())).isEmpty())) {
             throw validacion(Map.of("consentimiento.versionTexto",
                     "Seleccione una versión activa del texto oficial de consentimiento."));
         }
@@ -356,7 +364,7 @@ public class AtencionAlmaService {
                 .orElseThrow(this::noEncontrada);
     }
 
-    private void verificarPropiedad(AtencionAlmaAph atencion, Authentication auth) {
+    void verificarPropiedad(AtencionAlmaAph atencion, Authentication auth) {
         boolean tecnico = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_TECNICO_APH"));
         if (tecnico && (atencion.getTomadaPor() == null
@@ -399,7 +407,7 @@ public class AtencionAlmaService {
         eventos.save(evento);
     }
 
-    ObjectNode respuesta(AtencionAlmaAph atencion) {
+    ObjectNode respuesta(AtencionAlmaAph atencion, Authentication auth) {
         ObjectNode salida = ((ObjectNode) atencion.getDatos()).deepCopy();
         salida.put("idAtencion", codigo(atencion));
         salida.put("version", atencion.getVersion());
@@ -456,8 +464,22 @@ public class AtencionAlmaService {
             nota.put("autor", atencion.getAutorNota().getNombre());
         }
         salida.putArray("derivaciones");
-        salida.putArray("rutasExternas");
+        var rutas = salida.putArray("rutasExternas");
+        if (puedeConsultarRutas(atencion, auth)) {
+            rutasExternas.findByAtencionIdOrderByIdAsc(atencion.getId()).stream()
+                    .map(RutaExternaAlmaResponse::desde)
+                    .forEach(ruta -> rutas.add(objectMapper.valueToTree(ruta)));
+        }
         return salida;
+    }
+
+    boolean puedeConsultarRutas(AtencionAlmaAph atencion, Authentication auth) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return true;
+        }
+        return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_TECNICO_APH"))
+                && atencion.getTomadaPor() != null
+                && atencion.getTomadaPor().getId().equals(usuario(auth).getId());
     }
 
     private String codigo(AtencionAlmaAph atencion) {
