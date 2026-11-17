@@ -56,6 +56,9 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/alma/atenciones-aph/{idAtencion}/triaje', 'PUT', true, false),
     ('/alma/atenciones-aph/{idAtencion}/derivaciones/psicologia', 'POST', true, false),
     ('/alma/bandeja/psicologia', 'GET', true, false),
+    ('/alma/remisiones-aph', 'POST', true, false),
+    ('/alma/bandeja/aph', 'GET', true, false),
+    ('/alma/bandeja/aph/{idAtencion}/tomar', 'POST', true, false),
     ('/personas/**', 'GET', true, false),
     ('/parametros/**', 'GET', true, false),
     ('/parametros/**', 'PUT', true, false),
@@ -156,6 +159,17 @@ FROM endpoint e
 JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR')
 WHERE e.path = '/solicitudes/**'
   AND e.http_method IN ('GET', 'POST', 'PUT', 'DELETE')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e
+JOIN rol r ON (e.path = '/alma/remisiones-aph' AND e.http_method = 'POST'
+    AND r.codigo IN ('ADMIN', 'EA_COORDINACION', 'PROFESIONAL', 'COORDINADOR',
+                     'SPB_ANALISTA', 'UAD_COORDINACION', 'UAD_EQUIPO_3', 'UAD_EQUIPO_4'))
+    OR (e.path = '/alma/bandeja/aph' AND e.http_method = 'GET'
+    AND r.codigo IN ('ADMIN', 'COORDINADOR', 'REVISOR', 'TECNICO_APH'))
+    OR (e.path = '/alma/bandeja/aph/{idAtencion}/tomar' AND e.http_method = 'POST'
+    AND r.codigo = 'TECNICO_APH')
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 -- Consulta de solicitudes y reparto para todo el equipo de atención.

@@ -59,7 +59,7 @@ public class AtencionAlmaService {
         verificarRol(auth, Set.of("ADMIN", "COORDINADOR", "TECNICO_APH"));
         ObjectNode datos = comprobarObjeto(request, "", CAMPOS);
         validarTipos(datos);
-        validarDatos(datos);
+        validarDatos(datos, false);
         Usuario usuario = usuario(auth);
         Instant ahora = Instant.now();
         AtencionAlmaAph atencion = new AtencionAlmaAph();
@@ -110,7 +110,7 @@ public class AtencionAlmaService {
                 datos.set(entry.getKey(), entry.getValue());
             }
         });
-        validarDatos(datos);
+        validarDatos(datos, atencion.getDatos().path("canalIngreso").asText().startsWith("REMISION_"));
         Usuario usuario = usuario(auth);
         Instant ahora = Instant.now();
         actualizarNota(atencion, atencion.getDatos(), datos, usuario, ahora);
@@ -176,7 +176,35 @@ public class AtencionAlmaService {
             throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "TRIAJE_REQUERIDO",
                     "Registre el triaje antes de derivar a Psicología.", Map.of());
         }
-        JsonNode consentimientoNode = datos.get("consentimiento");
+        Instant ahora = Instant.now();
+        ObjectNode consentimiento = validarConsentimiento(datos.get("consentimiento"), ahora);
+        String medio = consentimiento.path("medio").asText();
+        String versionTexto = consentimiento.path("versionTexto").asText();
+        Instant fechaConsentimiento = OffsetDateTime.parse(consentimiento.path("fechaRegistro").asText()).toInstant();
+        atencion.setConsentimientoMedio(medio);
+        atencion.setConsentimientoFecha(fechaConsentimiento);
+        atencion.setConsentimientoVersion(versionTexto);
+        atencion.setConsentimientoRecibido(ahora);
+        atencion.setFechaDerivacion(ahora);
+        atencion.setEstado("PENDIENTE_PSICOLOGIA");
+        atencion.setVersion(atencion.getVersion() + 1);
+        atencion.setFechaActualizacion(ahora);
+        ObjectNode datosAtencion = ((ObjectNode) atencion.getDatos()).deepCopy();
+        datosAtencion.put("aceptaPsicologia", true);
+        atencion.setDatos(datosAtencion);
+        registrarEvento(atencion, usuario(auth), "DERIVACION", ahora);
+        ObjectNode resultado = objectMapper.createObjectNode();
+        resultado.put("idAtencion", codigo);
+        resultado.put("version", atencion.getVersion());
+        resultado.put("estado", atencion.getEstado());
+        resultado.put("triaje", atencion.getTriaje());
+        resultado.put("fechaDerivacion", ahora.toString());
+        resultado.set("sla", objectMapper.valueToTree(SlaPsicologia.calcular(atencion.getTriaje(), ahora, ahora)));
+        log.info("Derivada atención APH {} a Psicología", codigo);
+        return resultado;
+    }
+
+    ObjectNode validarConsentimiento(JsonNode consentimientoNode, Instant ahora) {
         if (consentimientoNode == null || consentimientoNode.isNull()) {
             throw consentimientoRequerido();
         }
@@ -207,36 +235,15 @@ public class AtencionAlmaService {
         } catch (DateTimeParseException ex) {
             throw validacion(Map.of("consentimiento.fechaRegistro", "Ingrese una fecha válida con zona horaria."));
         }
-        Instant ahora = Instant.now();
         if (fechaConsentimiento.isAfter(ahora)) {
             throw validacion(Map.of("consentimiento.fechaRegistro", "La fecha no puede estar en el futuro."));
         }
-        atencion.setConsentimientoMedio(medio);
-        atencion.setConsentimientoFecha(fechaConsentimiento);
-        atencion.setConsentimientoVersion(versionTexto);
-        atencion.setConsentimientoRecibido(ahora);
-        atencion.setFechaDerivacion(ahora);
-        atencion.setEstado("PENDIENTE_PSICOLOGIA");
-        atencion.setVersion(atencion.getVersion() + 1);
-        atencion.setFechaActualizacion(ahora);
-        ObjectNode datosAtencion = ((ObjectNode) atencion.getDatos()).deepCopy();
-        datosAtencion.put("aceptaPsicologia", true);
-        atencion.setDatos(datosAtencion);
-        registrarEvento(atencion, usuario(auth), "DERIVACION", ahora);
-        ObjectNode resultado = objectMapper.createObjectNode();
-        resultado.put("idAtencion", codigo);
-        resultado.put("version", atencion.getVersion());
-        resultado.put("estado", atencion.getEstado());
-        resultado.put("triaje", atencion.getTriaje());
-        resultado.put("fechaDerivacion", ahora.toString());
-        resultado.set("sla", objectMapper.valueToTree(SlaPsicologia.calcular(atencion.getTriaje(), ahora, ahora)));
-        log.info("Derivada atención APH {} a Psicología", codigo);
-        return resultado;
+        return consentimiento;
     }
 
     private AtencionAlmaException consentimientoRequerido() {
         return new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "CONSENTIMIENTO_REQUERIDO",
-                "Se requiere consentimiento para derivar a Psicología.", Map.of());
+                "Se requiere consentimiento para realizar esta operación.", Map.of());
     }
 
     private void verificarVersionYEstado(AtencionAlmaAph atencion, JsonNode version) {
@@ -252,7 +259,7 @@ public class AtencionAlmaService {
         }
     }
 
-    private void validarTipos(ObjectNode datos) {
+    void validarTipos(ObjectNode datos) {
         validarTipo(datos, "canalIngreso", JsonNode::isTextual, "");
         validarTipo(datos, "motivoConsulta", JsonNode::isTextual, "");
         validarTipo(datos, "notaAph", JsonNode::isTextual, "");
@@ -273,7 +280,7 @@ public class AtencionAlmaService {
         }
     }
 
-    private void validarDatos(ObjectNode datos) {
+    void validarDatos(ObjectNode datos, boolean remision) {
         AtencionAlmaDatos dto;
         try {
             dto = objectMapper.treeToValue(datos, AtencionAlmaDatos.class);
@@ -285,7 +292,8 @@ public class AtencionAlmaService {
             errores.put(violation.getPropertyPath().toString(), violation.getMessage());
         }
         if (StringUtils.hasText(dto.getCanalIngreso())
-                && !Set.of("LLAMADA", "WHATSAPP").contains(dto.getCanalIngreso())) {
+                && !(remision ? Set.of("REMISION_EA", "REMISION_SPYB", "REMISION_UAD")
+                              : Set.of("LLAMADA", "WHATSAPP")).contains(dto.getCanalIngreso())) {
             errores.put("canalIngreso", "Seleccione un canal de ingreso válido.");
         }
         if (dto.getPersona() != null) {
@@ -315,7 +323,7 @@ public class AtencionAlmaService {
         }
     }
 
-    private ObjectNode comprobarObjeto(JsonNode node, String campo, Set<String> permitidos) {
+    ObjectNode comprobarObjeto(JsonNode node, String campo, Set<String> permitidos) {
         if (!(node instanceof ObjectNode objeto)) {
             throw validacion(Map.of(campo.isEmpty() ? "request" : campo, "Se esperaba un objeto."));
         }
@@ -327,7 +335,7 @@ public class AtencionAlmaService {
         return objeto;
     }
 
-    private void validarTipo(ObjectNode objeto, String campo, java.util.function.Predicate<JsonNode> tipo, String prefijo) {
+    void validarTipo(ObjectNode objeto, String campo, java.util.function.Predicate<JsonNode> tipo, String prefijo) {
         JsonNode valor = objeto.get(campo);
         if (valor != null && !valor.isNull() && !tipo.test(valor)) {
             throw validacion(Map.of(prefijo + campo, "El valor no tiene el formato esperado."));
@@ -340,7 +348,7 @@ public class AtencionAlmaService {
         return resultado;
     }
 
-    private AtencionAlmaAph buscar(String codigo, boolean bloquear) {
+    AtencionAlmaAph buscar(String codigo, boolean bloquear) {
         if (!codigo.matches("ALMA-\\d{4}-\\d{6}")) {
             throw noEncontrada();
         }
@@ -351,13 +359,14 @@ public class AtencionAlmaService {
     private void verificarPropiedad(AtencionAlmaAph atencion, Authentication auth) {
         boolean tecnico = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_TECNICO_APH"));
-        if (tecnico && !atencion.getTomadaPor().getId().equals(usuario(auth).getId())) {
+        if (tecnico && (atencion.getTomadaPor() == null
+                || !atencion.getTomadaPor().getId().equals(usuario(auth).getId()))) {
             throw new AtencionAlmaException(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
                     "No tiene acceso a esta atención.", Map.of());
         }
     }
 
-    private void verificarRol(Authentication auth, Set<String> roles) {
+    void verificarRol(Authentication auth, Set<String> roles) {
         boolean permitido = auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> roles.stream().anyMatch(rol -> a.getAuthority().equals("ROLE_" + rol)));
         if (!permitido) {
@@ -366,7 +375,7 @@ public class AtencionAlmaService {
         }
     }
 
-    private Usuario usuario(Authentication auth) {
+    Usuario usuario(Authentication auth) {
         return usuarios.findByEmailIgnoreCase(auth.getName())
                 .orElseThrow(() -> new IllegalStateException("No se encontró el usuario autenticado"));
     }
@@ -381,7 +390,7 @@ public class AtencionAlmaService {
         }
     }
 
-    private void registrarEvento(AtencionAlmaAph atencion, Usuario usuario, String accion, Instant fecha) {
+    void registrarEvento(AtencionAlmaAph atencion, Usuario usuario, String accion, Instant fecha) {
         EventoAtencionAlma evento = new EventoAtencionAlma();
         evento.setAtencion(atencion);
         evento.setUsuario(usuario);
@@ -390,12 +399,17 @@ public class AtencionAlmaService {
         eventos.save(evento);
     }
 
-    private ObjectNode respuesta(AtencionAlmaAph atencion) {
+    ObjectNode respuesta(AtencionAlmaAph atencion) {
         ObjectNode salida = ((ObjectNode) atencion.getDatos()).deepCopy();
         salida.put("idAtencion", codigo(atencion));
         salida.put("version", atencion.getVersion());
         salida.put("estado", atencion.getEstado());
-        salida.putNull("origenRemision");
+        String canal = salida.path("canalIngreso").asText();
+        if (canal.startsWith("REMISION_")) {
+            salida.put("origenRemision", canal.substring("REMISION_".length()));
+        } else {
+            salida.putNull("origenRemision");
+        }
         if (atencion.getTriaje() == null) {
             salida.putNull("triaje");
         } else {
@@ -422,7 +436,11 @@ public class AtencionAlmaService {
             salida.set("sla", objectMapper.valueToTree(SlaPsicologia.calcular(
                     atencion.getTriaje(), atencion.getFechaDerivacion(), Instant.now())));
         }
-        salida.put("tomadaPor", atencion.getTomadaPor().getNombre());
+        if (atencion.getTomadaPor() == null) {
+            salida.putNull("tomadaPor");
+        } else {
+            salida.put("tomadaPor", atencion.getTomadaPor().getNombre());
+        }
         salida.putNull("cierre");
         salida.putNull("numeroCaso");
         salida.putNull("gestionSimultanea");
@@ -446,7 +464,7 @@ public class AtencionAlmaService {
         return atencion.getCodigo();
     }
 
-    private String generarCodigo(Instant fecha) {
+    String generarCodigo(Instant fecha) {
         int anio = fecha.atZone(ZoneOffset.UTC).getYear();
         var numeros = jdbc.queryForList("""
                 INSERT INTO consecutivoatencionalma (anio, ultimo) VALUES (?, 1)
@@ -465,7 +483,7 @@ public class AtencionAlmaService {
                 "No se encontró la atención.", Map.of());
     }
 
-    private AtencionAlmaException validacion(Map<String, String> detalles) {
+    AtencionAlmaException validacion(Map<String, String> detalles) {
         return new AtencionAlmaException(HttpStatus.BAD_REQUEST, "VALIDACION",
                 "Revise los datos marcados e intente de nuevo.", detalles);
     }

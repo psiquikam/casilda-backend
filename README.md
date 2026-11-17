@@ -173,8 +173,30 @@ Los permisos de la bandeja son **provisionales**: `PROFESIONAL` puede incluir us
 el acceso a los profesionales de Psicología y validar el alcance de los demás roles.
 No insertar textos ficticios de consentimiento en bases compartidas o reales.
 
+Las remisiones entrantes usan `POST /alma/remisiones-aph`; la bandeja y la toma usan
+`GET /alma/bandeja/aph` y `POST /alma/bandeja/aph/{idAtencion}/tomar`. Una remisión
+nace sin técnico asignado; la toma se bloquea por fila y solo un técnico puede ganarla.
+«Mis atenciones» incluye únicamente las tomadas por el usuario autenticado. Se permiten
+remisiones repetidas. El consentimiento con texto oficial activo es obligatorio salvo
+peligro inminente; se conserva la evidencia de consentimiento o de la excepción.
+
+Para bases existentes, iniciar esta versión para crear `datosremision` y ejecutar
+`database/update_permisos_bandeja_aph.sql` antes de usar las rutas. El script permite
+que el técnico asignado sea nulo en remisiones pendientes y concede permisos a los
+roles existentes, sin crearlos; debe repetirse al crear nuevos roles autorizados.
+EA admite `EA_COORDINACION`, `PROFESIONAL`, `COORDINADOR` y `ADMIN`; SPyB admite
+`SPB_ANALISTA` y `ADMIN`; UAD admite `UAD_EQUIPO_3`, `UAD_EQUIPO_4`,
+`UAD_COORDINACION` y `ADMIN`. `PROFESIONAL` y `COORDINADOR` no distinguen área:
+se autorizó su uso para EA, pero deben restringirse por dependencia antes de
+compartirlos con otras áreas. Central de Monitoreo queda pendiente de un código de rol
+y una regla de autorización para emergencias.
+
+La creación y toma registran eventos; la auditoría JPA registra escrituras, no cada
+lectura. La limitación de tasa y la notificación de remisiones están pendientes;
+no exponer la bandeja fuera de un entorno autorizado sin resolver esos controles.
+
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
-confiable para calcularla; el frontend debe tolerar ese valor. Remisiones, cierre y consulta
+confiable para calcularla; el frontend debe tolerar ese valor. Cierre y consulta
 de auditoría todavía no están implementados en el nuevo módulo: no habilitar el flujo completo
 ni desactivar los mocks de `atencionesAph` y `bandejaPsicologia` hasta implementar sus acciones.
 

@@ -50,13 +50,17 @@ public class AtencionAlmaAph {
     @Column(name = "consentimientorecibido")
     private Instant consentimientoRecibido;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "idusuariotomador", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "idusuariotomador")
     private Usuario tomadaPor;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private JsonNode datos;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "datosremision", columnDefinition = "jsonb")
+    private JsonNode datosRemision;
 
     @Column(nullable = false, updatable = false)
     private Instant fechaCreacion;
