@@ -72,6 +72,8 @@ public class ReporteCasoService {
     private final VinculoUdeARepository vinculoUdeARepository;
     private final VinculoAgresorVictimaRepository vinculoAgresorVictimaRepository;
     private final ReporteEvidenciaStorageService evidenciaStorageService;
+    /** Avisa a la UAD de cada reporte guardado; la UAD decide si crea una NDI (después del commit). */
+    private final org.springframework.context.ApplicationEventPublisher eventos;
 
     @Transactional
     public ReporteCasoResponse crear(final ReporteCasoRequest request) {
@@ -125,6 +127,7 @@ public class ReporteCasoService {
             }
             final ReporteCaso guardado = reporteCasoRepository.saveAndFlush(reporte);
             log.info("Reporte de caso creado con id {}", guardado.getId());
+            eventos.publishEvent(new co.edu.udea.casilda.service.uad.UadRadicacionService.ReporteCasoRegistradoEvent(guardado.getId()));
             return toResponse(guardado);
         } catch (RuntimeException ex) {
             archivosAlmacenados.forEach(evidenciaStorageService::eliminar);

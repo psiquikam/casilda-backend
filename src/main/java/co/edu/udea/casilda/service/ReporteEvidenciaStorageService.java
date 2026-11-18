@@ -56,6 +56,22 @@ public class ReporteEvidenciaStorageService {
         }
     }
 
+    /**
+     * Abre una evidencia almacenada para su descarga autorizada (UAD-PRU-03). Rechaza nombres con rutas:
+     * solo se sirven archivos del directorio base, con el nombre que generó el servidor.
+     */
+    public org.springframework.core.io.Resource cargar(final String nombreAlmacenado) {
+        if (nombreAlmacenado == null || nombreAlmacenado.contains("/") || nombreAlmacenado.contains("\\")
+                || nombreAlmacenado.contains("..")) {
+            throw new IllegalArgumentException("Nombre de evidencia inválido");
+        }
+        final Path archivo = directorioBase().resolve(nombreAlmacenado).normalize();
+        if (!archivo.startsWith(directorioBase()) || !Files.isRegularFile(archivo)) {
+            throw new java.util.NoSuchElementException("Evidencia no disponible");
+        }
+        return new org.springframework.core.io.FileSystemResource(archivo);
+    }
+
     public void eliminar(final String nombreAlmacenado) {
         if (nombreAlmacenado == null || nombreAlmacenado.contains("/")
                 || nombreAlmacenado.contains("\\")) {
