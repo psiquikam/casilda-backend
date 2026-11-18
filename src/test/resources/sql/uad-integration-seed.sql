@@ -1,4 +1,4 @@
--- Fixture UAD para pruebas de integración. Reproduce los permisos de database/uad_modulo_entrega1.sql con
+-- Fixture UAD para pruebas de integración. Reproduce los permisos de database/uad_modulo_entrega1.sql y entrega2.sql con
 -- ids explícitos, porque integration-seed.sql inserta rutas con id fijo sin ajustar la secuencia.
 -- Se ejecuta después de integration-seed.sql (ambas se declaran en el @Sql de UadIntegrationTest).
 
@@ -32,12 +32,21 @@ INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
     (908, '/maestros/uad-causales-inhibitorio', 'GET', true, false),
     (909, '/maestros/uad-entidades-remision', 'GET', true, false),
     (910, '/maestros/uad-tipos-solicitud-informacion', 'GET', true, false),
-    (911, '/uad/noticias-anonimas', 'POST', true, true)
+    (911, '/uad/noticias-anonimas', 'POST', true, true),
+    (912, '/uad/casos', 'GET', true, false),
+    (913, '/uad/casos/*', 'GET', true, false),
+    (914, '/uad/casos/*/expediente', 'PATCH', true, false),
+    (915, '/uad/casos/*/actuaciones/catalogo', 'GET', true, false),
+    (916, '/uad/casos/*/actuaciones', 'POST', true, false),
+    (917, '/uad/casos/*/historial', 'GET', true, false),
+    (918, '/uad/casos/*/traslado-decision', 'POST', true, false),
+    (919, '/uad/casos/*/remisiones-competencia', 'POST', true, false),
+    (920, '/uad/casos/*/evidencias', 'GET', true, false)
 ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method, activo = true, publico = EXCLUDED.publico;
 
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('UAD_EQUIPO_3', 'UAD_EQUIPO_4')
-WHERE e.id BETWEEN 900 AND 910
+WHERE e.id BETWEEN 900 AND 910 OR e.id BETWEEN 912 AND 920
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)
