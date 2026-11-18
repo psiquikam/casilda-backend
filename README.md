@@ -233,7 +233,26 @@ La corrección se realiza con
 `{"fechaCierre":"2026-01-01T10:00:00Z"}`. Solo se permite en casos cerrados de la
 solicitud indicada, a usuarios autorizados a asignar esa solicitud; la autorización
 se evalúa contra la configuración vigente de `POST /solicitudes/acompanamiento/{id}/asignar`.
-La consulta previa APH y el tratamiento del orden de cierres históricos siguen pendientes.
+
+La consulta previa `GET /alma/personas/consulta` está **deshabilitada por defecto** y
+es exclusivamente para pruebas autorizadas: no implementa la auditoría de cada
+consulta exigida por el contrato, por lo que no debe habilitarse para uso real.
+Para probarla, ejecutar `database/update_consulta_previa_aph.sql` y configurar
+`app.alma.consulta-previa.habilitada=true`. Pueden acceder `ADMIN`, `TECNICO_APH`
+y `REVISOR`, sujetos también a los permisos dinámicos. No devuelve notas clínicas.
+El límite predeterminado es de 30 solicitudes por usuario en una ventana fija de
+10 minutos (`app.alma.consulta-previa.limite` y
+`app.alma.consulta-previa.ventana-minutos`); al cambiar de ventana pueden admitirse
+más de 30 solicitudes en un intervalo móvil de 10 minutos. Se guarda únicamente
+el contador y el inicio de la ventana por usuario, sin documento consultado.
+Evitar registrar la cadena de consulta en logs del servidor y los proxies.
+
+La consulta selecciona el seguimiento psicológico abierto futuro más cercano; si
+todos están vencidos, el vencido más reciente. El responsable es el grupo de la
+asignación vigente, si existe. Para casos cerrados prioriza la fecha de cierre
+conocida más reciente; si todas son desconocidas, el caso creado más recientemente,
+con fecha de cierre nula. En ambos casos puede no ser el último cierre real. No
+envía notificaciones a Psicología ni vincula una atención nueva.
 
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
 confiable para calcularla; el frontend debe tolerar ese valor. La consulta de auditoría
