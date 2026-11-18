@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 public class FechaCierreCasoService {
     private final CasoRepository casos;
     private final UsuarioRepository usuarios;
+    private final AuditoriaCasoService auditoriaCasoService;
 
     @Transactional
     public FechaCierreCasoResponse actualizar(Long solicitudId, Long casoId, FechaCierreCasoRequest request,
@@ -38,6 +39,7 @@ public class FechaCierreCasoService {
         caso.setFechaCierre(request.getFechaCierre());
         caso.setUsuarioActualizacion(usuario);
         caso.setFechaActualizacion(LocalDateTime.now());
+        auditoriaCasoService.registrar(caso, usuario, "ACTUALIZACION", "Se actualizó la fecha de cierre del caso.");
         log.info("Actualizada fecha de cierre del caso {}", casoId);
         return new FechaCierreCasoResponse(caso.getId(), caso.getFechaCierre());
     }

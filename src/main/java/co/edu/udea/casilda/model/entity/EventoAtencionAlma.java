@@ -28,6 +28,9 @@ public class EventoAtencionAlma {
     @Column(nullable = false, length = 30)
     private String accion;
 
+    @Column(length = 500)
+    private String detalle;
+
     @Column(nullable = false)
     private Instant fecha;
 }

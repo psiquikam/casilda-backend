@@ -27,6 +27,7 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
         jdbc.execute("SELECT setval(pg_get_serial_sequence('endpoint', 'id'), (SELECT MAX(id) FROM endpoint))");
         ResourceDatabasePopulator scripts = new ResourceDatabasePopulator(
                 new FileSystemResource("database/update_add_rol_tecnico_aph.sql"),
+                new FileSystemResource("database/update_auditoria_recursos.sql"),
                 new FileSystemResource("database/update_consulta_previa_aph.sql"));
         scripts.execute(dataSource);
         scripts.execute(dataSource);
@@ -70,6 +71,7 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
     @AfterEach
     void limpiar() {
         jdbc.update("DELETE FROM limiteconsultapreviaaph WHERE idusuario IN (1,2,3,4,5,6,8701)");
+        jdbc.update("DELETE FROM auditoriarecursos WHERE idusuario IN (1,2,3,4,5,6,8701)");
         jdbc.update("DELETE FROM usuariorol WHERE idusuario=8701");
         jdbc.update("DELETE FROM usuario WHERE id=8701");
         jdbc.update("DELETE FROM seguimientoatencion WHERE id IN (8701,8702,8703)");
@@ -113,6 +115,15 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
                 java.time.LocalDateTime.class);
         assertEquals(esperada, fecha.toLocalDateTime());
         assertEquals(5, objectMapper.readTree(body).size());
+        assertEquals(1, jdbc.queryForObject("""
+                SELECT count(*) FROM auditoriarecursos
+                WHERE idusuario=1 AND accion='CONSULTA_PREVIA' AND recurso='PERSONA'
+                  AND idrecurso='101' AND tablafectada='persona' AND idregistro='101'
+                """, Integer.class));
+        assertEquals(0, jdbc.queryForObject("""
+                SELECT count(*) FROM auditoriarecursos WHERE usuario LIKE '%100000002%'
+                   OR idrecurso LIKE '%100000002%' OR idregistro LIKE '%100000002%'
+                """, Integer.class));
         mockMvc.perform(consulta("100000001", auth)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.persona.idPersona").value(100))
                 .andExpect(jsonPath("$.seguimientoActivo.activo").value(false))
@@ -120,6 +131,11 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(consulta("inexistente", auth)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.existe").value(false))
                 .andExpect(jsonPath("$.persona").value(nullValue()));
+        assertEquals(1, jdbc.queryForObject("""
+                SELECT count(*) FROM auditoriarecursos
+                WHERE idusuario=1 AND accion='CONSULTA_PREVIA_SIN_COINCIDENCIA'
+                  AND recurso='PERSONA' AND idrecurso IS NULL AND idregistro IS NULL
+                """, Integer.class));
     }
 
     @Test

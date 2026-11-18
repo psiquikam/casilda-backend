@@ -3,6 +3,7 @@ package co.edu.udea.casilda.controller;
 import co.edu.udea.casilda.dto.response.ConsultaPreviaAlmaResponse;
 import co.edu.udea.casilda.exception.AtencionAlmaException;
 import co.edu.udea.casilda.repository.UsuarioRepository;
+import co.edu.udea.casilda.service.AuditoriaRecursosService;
 import co.edu.udea.casilda.service.ConsultaPreviaAlmaService;
 import co.edu.udea.casilda.service.LimiteConsultaPreviaAlmaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +30,7 @@ public class ConsultaPreviaAlmaController {
     private final ConsultaPreviaAlmaService service;
     private final LimiteConsultaPreviaAlmaService limite;
     private final UsuarioRepository usuarios;
+    private final AuditoriaRecursosService auditoria;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TECNICO_APH', 'REVISOR')")
@@ -40,8 +42,10 @@ public class ConsultaPreviaAlmaController {
         Long usuarioId = usuarios.findByEmail(autenticacion.getName())
                 .orElseThrow(() -> new IllegalStateException("Usuario autenticado no encontrado.")).getId();
         limite.consumir(usuarioId);
-        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore())
-                .body(service.consultar(tipoIdentificacion, numeroIdentificacion));
+        ConsultaPreviaAlmaResponse resultado = service.consultar(tipoIdentificacion, numeroIdentificacion);
+        auditoria.registrarConsultaPreviaPersona(autenticacion.getName(),
+                resultado.persona() == null ? null : resultado.persona().idPersona());
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(resultado);
     }
 
     @ExceptionHandler(AtencionAlmaException.class)

@@ -462,8 +462,33 @@ public class AtencionAlmaService {
         evento.setAtencion(atencion);
         evento.setUsuario(usuario);
         evento.setAccion(accion);
+        evento.setDetalle(detalleSeguro(atencion, accion));
         evento.setFecha(fecha);
         eventos.save(evento);
+    }
+
+    private String detalleSeguro(AtencionAlmaAph atencion, String accion) {
+        return switch (accion) {
+            case "CREACION" -> {
+                if ("PENDIENTE_APH".equals(atencion.getEstado())) {
+                    String origen = atencion.getDatosRemision() == null
+                            ? null : atencion.getDatosRemision().path("origen").asText(null);
+                    yield StringUtils.hasText(origen)
+                            ? "Se recibió una remisión APH de origen " + origen + "."
+                            : "Se recibió una remisión APH.";
+                }
+                yield "Se creó la atención APH en estado borrador.";
+            }
+            case "CAMBIO_ESTADO" -> "La atención cambió al estado " + atencion.getEstado() + ".";
+            case "DERIVACION" -> {
+                if ("PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())) {
+                    yield "La atención fue derivada a Psicología; triaje: " + atencion.getTriaje() + ".";
+                }
+                yield "Se registró una derivación relacionada con la atención APH.";
+            }
+            case "ACTUALIZACION" -> "Se actualizaron datos de la atención APH.";
+            default -> "Se registró una acción en la atención APH.";
+        };
     }
 
     ObjectNode respuesta(AtencionAlmaAph atencion, Authentication auth) {

@@ -6,4 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface EventoAtencionAlmaRepository extends JpaRepository<EventoAtencionAlma, Long> {
+
+    /** Lista eventos de una atención APH en orden cronológico ascendente. */
+    java.util.List<EventoAtencionAlma> findByAtencionCodigoOrderByFechaAscIdAsc(String codigo);
 }

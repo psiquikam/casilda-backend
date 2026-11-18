@@ -27,6 +27,7 @@ public class AtencionService {
     private final AtencionRepository atencionRepository;
     private final SeguimientoAtencionRepository seguimientoAtencionRepository;
     private final CompromisoService compromisoService;
+    private final AuditoriaCasoService auditoriaCasoService;
 
     // Repositories de entidades relacionadas
     private final PersonaRepository personaRepository;
@@ -321,6 +322,9 @@ public class AtencionService {
             EstadoCaso nuevoEstado = estadoCasoRepository.findById(request.getIdEstadoCaso())
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Estado de caso no encontrado con ID: " + request.getIdEstadoCaso()));
+            boolean cambioEstado = !java.util.Objects.equals(
+                    caso.getEstadoCaso() == null ? null : caso.getEstadoCaso().getId(),
+                    nuevoEstado.getId());
             boolean cerradoAntes = caso.getEstadoCaso() != null
                     && "Cerrado".equalsIgnoreCase(caso.getEstadoCaso().getNombre());
             boolean cerradoAhora = "Cerrado".equalsIgnoreCase(nuevoEstado.getNombre());
@@ -333,6 +337,9 @@ public class AtencionService {
             caso.setUsuarioActualizacion(usuario);
             caso.setFechaActualizacion(LocalDateTime.now());
             casoRepository.save(caso);
+            if (cambioEstado) {
+                auditoriaCasoService.registrar(caso, usuario, "CAMBIO_ESTADO", "Se cambió el estado del caso.");
+            }
         }
 
         Atencion atencion = atencionRepository.findByCasoId(caso.getId()).orElse(null);

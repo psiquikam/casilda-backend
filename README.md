@@ -122,6 +122,14 @@ conozca su contraseña antes de ejecutarlo; el nuevo usuario tendrá la misma. E
 no cambia cuentas existentes y falla si la cuenta sintética ya existe. No usarlo en QA
 ni producción, y no reutilizar la contraseña de prueba fuera del entorno local.
 
+Para probar la auditoría con el rol dedicado, ejecutar primero
+`database/update_add_rol_coordinacion_alma.sql` y luego
+`database/insert_usuario_prueba_coordinacion_alma.sql`. La segunda crea
+`coordinacion.alma@casilda.test` y copia el hash de `revisor1@udea.edu.co`, por lo que
+usa la misma contraseña de prueba. El alta falla si la fuente no está activa o si la
+cuenta de destino ya existe; no modifica usuarios existentes. Limitar ambos scripts
+a bases locales de prueba.
+
 El nuevo módulo expone `GET /alma/catalogos/{nombre}` a cualquier usuario
 autenticado, sin modificar los permisos del módulo anterior. Después de iniciar
 esta versión para crear `catalogoalmaitem`, ejecutar
@@ -136,8 +144,8 @@ Reglas confirmadas para los siguientes endpoints de APH:
 
 - Un seguimiento psicológico está activo cuando la persona tiene un caso en curso con Psicología y una fecha para el próximo control.
 - «Mis atenciones» lista las atenciones o casos asignados o tomados por el usuario autenticado.
-- La auditoría solo estará disponible para `ADMIN` y las coordinaciones `EA_COORDINACION`,
-  `ALMA_COORDINACION`, `UAD_COORDINACION` y `SPB_COORDINACION`, limitada al tramo de cada rol.
+- La auditoría de Línea Alma solo estará disponible para `ADMIN` y `ALMA_COORDINACION`.
+  Por decisión explícita, ambos pueden consultar los contextos APH y `CASO`.
 - Las remisiones entrantes podrán originarse en `SPB_ANALISTA` (y traslados puntuales de emergencia
   desde Central de Monitoreo), `UAD_EQUIPO_3`, `UAD_EQUIPO_4` y la coordinación UAD. Estos roles
   son adicionales; no reemplazan ni modifican roles existentes.
@@ -235,11 +243,24 @@ solicitud indicada, a usuarios autorizados a asignar esa solicitud; la autorizac
 se evalúa contra la configuración vigente de `POST /solicitudes/acompanamiento/{id}/asignar`.
 
 La consulta previa `GET /alma/personas/consulta` está **deshabilitada por defecto** y
-es exclusivamente para pruebas autorizadas: no implementa la auditoría de cada
-consulta exigida por el contrato, por lo que no debe habilitarse para uso real.
-Para probarla, ejecutar `database/update_consulta_previa_aph.sql` y configurar
+es exclusivamente para pruebas autorizadas. Registra cada consulta válida en
+`auditoriarecursos`, sin guardar el documento consultado; los campos que cambien
+en futuras auditorías de escritura se limitarán a sus nombres, nunca sus valores.
+El historial inmutable se consulta con
+`GET /alma/auditoria?tipoContexto=ATENCION_APH&idContexto=ALMA-AAAA-NNNNNN` o
+`GET /alma/auditoria?tipoContexto=CASO&idContexto={id|codigo}`. Registra creación,
+actualizaciones y cambios de estado en ambos contextos; las derivaciones APH también
+quedan registradas. Los eventos se devuelven en orden cronológico y las descripciones no
+incluyen contenido clínico ni notas. Acceso restringido a `ADMIN` y
+`ALMA_COORDINACION`; aplica límite de 30 consultas por usuario cada 10 minutos.
+No existe actualmente una operación de derivación sobre `CASO` ni de vinculación
+manual que permita generar los eventos `DERIVACION` y `VINCULACION` para ese contexto;
+quedan pendientes hasta definir esos flujos. Para probar estos endpoints, ejecutar
+`database/update_auditoria_recursos.sql`, `database/update_consulta_previa_aph.sql`,
+`database/update_historial_auditoria_aph.sql` y configurar
 `app.alma.consulta-previa.habilitada=true`. Pueden acceder `ADMIN`, `TECNICO_APH`
-y `REVISOR`, sujetos también a los permisos dinámicos. No devuelve notas clínicas.
+y `REVISOR` a la consulta previa, sujetos también a los permisos dinámicos. Ningún
+endpoint devuelve notas clínicas en la bitácora.
 El límite predeterminado es de 30 solicitudes por usuario en una ventana fija de
 10 minutos (`app.alma.consulta-previa.limite` y
 `app.alma.consulta-previa.ventana-minutos`); al cambiar de ventana pueden admitirse

@@ -18,7 +18,9 @@ class ConsultaPreviaAlmaDeshabilitadaIntegrationTest extends IntegrationTestBase
     @BeforeEach
     void preparar() {
         jdbc.execute("SELECT setval(pg_get_serial_sequence('endpoint', 'id'), (SELECT MAX(id) FROM endpoint))");
-        new ResourceDatabasePopulator(new FileSystemResource("database/update_consulta_previa_aph.sql"))
+        new ResourceDatabasePopulator(
+                new FileSystemResource("database/update_auditoria_recursos.sql"),
+                new FileSystemResource("database/update_consulta_previa_aph.sql"))
                 .execute(dataSource);
     }
 

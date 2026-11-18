@@ -1,4 +1,4 @@
--- Solo para pruebas autorizadas. La auditoría de consultas aún no está implementada.
+-- Solo para pruebas autorizadas mientras la consulta previa permanezca bajo el feature flag.
 CREATE TABLE IF NOT EXISTS limiteconsultapreviaaph (
     idusuario BIGINT PRIMARY KEY REFERENCES usuario(id),
     inicio TIMESTAMP WITH TIME ZONE NOT NULL,
