@@ -1,5 +1,6 @@
 package co.edu.udea.casilda.model.entity.uad;
 
+import co.edu.udea.casilda.model.entity.Auditable;
 import co.edu.udea.casilda.model.enums.uad.CatalogoUad;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,7 +26,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UadCatalogoItem {
+public class UadCatalogoItem extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

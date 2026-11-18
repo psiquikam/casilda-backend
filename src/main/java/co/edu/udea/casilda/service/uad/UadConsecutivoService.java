@@ -30,7 +30,8 @@ public class UadConsecutivoService {
     public String siguiente(final TipoNoticia tipo) {
         final int anio = Year.now(BOGOTA).getValue();
         final String clave = tipo.name() + "-" + anio;
-        entityManager.createNativeQuery("INSERT INTO uad_consecutivo (clave, ultimo) VALUES (:clave, 0) ON CONFLICT (clave) DO NOTHING")
+        entityManager.createNativeQuery("INSERT INTO uad_consecutivo (clave, ultimo, created_at, created_by) VALUES (:clave, 0, CURRENT_TIMESTAMP, 'SYSTEM') "
+                        + "ON CONFLICT (clave) DO NOTHING")
                 .setParameter("clave", clave)
                 .executeUpdate();
         final UadConsecutivo contador = repository.findForUpdate(clave)

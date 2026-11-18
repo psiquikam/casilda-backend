@@ -1,5 +1,6 @@
 package co.edu.udea.casilda.model.entity.uad;
 
+import co.edu.udea.casilda.model.entity.Auditable;
 import co.edu.udea.casilda.model.enums.uad.EquipoUad;
 import co.edu.udea.casilda.model.enums.uad.FaseUad;
 import co.edu.udea.casilda.model.enums.uad.TipoEventoUad;
@@ -36,7 +37,7 @@ import java.time.Instant;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UadEvento {
+public class UadEvento extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

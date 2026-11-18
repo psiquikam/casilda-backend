@@ -27,9 +27,9 @@ import java.time.Instant;
  * Entrada de noticias a la UAD.
  *
  * <ul>
- *   <li><strong>NDA</strong> (queja anónima, UAD-FOR-12): no lee el {@code SecurityContext}, no guarda IP,
- *       user-agent ni autor, y la entidad no extiende {@code Auditable}. Aunque llegue un token válido, la
- *       noticia no queda asociada a nadie (UAD-NOT-04, UAD-SEG-06).</li>
+ *   <li><strong>NDA</strong> (queja anónima, UAD-FOR-12): no lee el {@code SecurityContext} ni guarda IP,
+ *       user-agent o autor. El controlador la invoca dentro de {@link UadSinIdentidad}, así que la auditoría
+ *       de {@code Auditable} registra {@code ANONYMOUS} aunque llegue un token válido (UAD-NOT-04, UAD-SEG-06).</li>
  *   <li><strong>NDI</strong> desde {@code POST /reportes} (UAD-NOT-02/03): escucha
  *       {@link ReporteCasoRegistradoEvent} <em>después</em> del commit del reporte. Si la creación de la
  *       noticia falla, el reporte ya quedó guardado y el error se registra en el log: el reporte de la

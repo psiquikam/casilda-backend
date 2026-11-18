@@ -1,5 +1,6 @@
 package co.edu.udea.casilda.model.entity.uad;
 
+import co.edu.udea.casilda.model.entity.Auditable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -27,7 +28,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UadSolicitudInformacion {
+public class UadSolicitudInformacion extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

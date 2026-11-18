@@ -1,5 +1,6 @@
 package co.edu.udea.casilda.model.entity.uad;
 
+import co.edu.udea.casilda.model.entity.Auditable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -18,7 +19,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UadConsecutivo {
+public class UadConsecutivo extends Auditable {
 
     @Id
     @Column(name = "clave", length = 10)

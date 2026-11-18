@@ -1,5 +1,6 @@
 package co.edu.udea.casilda.model.entity.uad;
 
+import co.edu.udea.casilda.model.entity.Auditable;
 import co.edu.udea.casilda.model.entity.ReporteCaso;
 import co.edu.udea.casilda.model.enums.uad.ActorRuta;
 import co.edu.udea.casilda.model.enums.uad.EstadoNoticia;
@@ -34,9 +35,8 @@ import java.util.UUID;
  * la decisión «Continuar trámite» (UAD-EVA-03). El consecutivo lo asigna {@code UadConsecutivoService}
  * con secuencias separadas por tipo y año.</p>
  *
- * <p><strong>No extiende {@code Auditable}</strong> a propósito: la auditoría JPA guarda el email de la
- * sesión en {@code created_by}, y una NDA no debe asociar identidad aunque llegue un token
- * (UAD-NOT-04, UAD-SEG-06). La trazabilidad va en {@link UadEvento}.</p>
+ * <p>Extiende {@code Auditable}. Una NDA se radica en un contexto anónimo ({@code UadSinIdentidad}), así que
+ * su {@code created_by} queda en {@code ANONYMOUS} aunque llegue un token (UAD-NOT-04, UAD-SEG-06).</p>
  */
 @Entity
 @Table(name = "uad_noticia",
@@ -48,7 +48,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UadNoticia {
+public class UadNoticia extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

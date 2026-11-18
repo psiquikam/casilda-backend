@@ -1,6 +1,8 @@
 package co.edu.udea.casilda.integration;
 
 import co.edu.udea.casilda.model.entity.uad.UadEvento;
+import co.edu.udea.casilda.repository.uad.UadCasoRepository;
+import co.edu.udea.casilda.repository.uad.UadConsecutivoRepository;
 import co.edu.udea.casilda.repository.uad.UadEventoRepository;
 import co.edu.udea.casilda.repository.uad.UadNoticiaRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,6 +40,12 @@ class UadIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private UadEventoRepository eventos;
+
+    @Autowired
+    private UadConsecutivoRepository contadores;
+
+    @Autowired
+    private UadCasoRepository casosUad;
 
     private String radicarNda(final String authorization) throws Exception {
         var peticion = post("/uad/noticias-anonimas").contentType(APPLICATION_JSON)
@@ -91,6 +99,12 @@ class UadIntegrationTest extends IntegrationTestBase {
         final List<UadEvento> historial = eventos.findByNoticiaIdOrderByFechaAscIdAsc(noticia.getId());
         assertEquals(1, historial.size());
         assertNull(historial.get(0).getProfesional());
+        // Auditable: ni la noticia, ni su evento, ni el contador guardan el email de la sesión.
+        assertEquals("ANONYMOUS", noticia.getCreatedBy());
+        assertEquals("ANONYMOUS", noticia.getModifiedBy());
+        assertEquals("ANONYMOUS", historial.get(0).getCreatedBy());
+        final String clave = consecutivo.substring(0, 8);
+        assertEquals("ANONYMOUS", contadores.findById(clave).orElseThrow().getModifiedBy());
     }
 
     @Test
@@ -121,6 +135,11 @@ class UadIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.noticia.estado").value("PROCEDE_TRAMITE"))
                 .andExpect(jsonPath("$.noticia.casoId", matchesPattern("CAS-[A-Z2-9]{10}")))
                 .andExpect(jsonPath("$.casoUad.equipoResponsable").value("EQUIPO_3"));
+
+        // Auditable: la decisión queda a nombre de quien la tomó.
+        final var decidida = noticias.findById(id).orElseThrow();
+        assertEquals(E3, decidida.getModifiedBy());
+        assertEquals(E3, casosUad.findById(decidida.getCasoUad().getId()).orElseThrow().getCreatedBy());
 
         mockMvc.perform(post("/uad/noticias/" + id + "/decisiones").header("Authorization", bearer(E3)).contentType(APPLICATION_JSON).content(decision))
                 .andExpect(status().isConflict())

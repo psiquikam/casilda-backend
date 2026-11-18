@@ -30,7 +30,8 @@
   - `uad_solicitud_informacion`.
   - `uad_consecutivo` (contador por tipo y año, con bloqueo pesimista).
   - `uad_catalogo`.
-- **Privacidad:** las entidades UAD **no** extienden `Auditable`. La auditoría JPA guarda el email de la sesión en `created_by`, y una NDA no debe asociar identidad aunque llegue un token. La radicación NDA no lee el `SecurityContext` y su evento de historial no tiene profesional.
+- **Auditoría:** todas las entidades UAD extienden `Auditable` (`created_at`, `created_by`, `modified_at`, `modified_by`).
+- **Privacidad de la NDA:** `Auditable` guarda el email de la sesión, y una NDA no debe asociar identidad aunque llegue un token. Por eso el controlador radica la NDA dentro de `UadSinIdentidad`, que pone una sesión anónima mientras dura la transacción. La noticia, su evento y el contador de consecutivos quedan con `ANONYMOUS`. El evento de historial tampoco tiene profesional.
 - **Autorización en dos capas:**
   - La tabla `endpoint` autoriza el rol.
   - `UadNoticiaService` autoriza cada registro: equipo del JWT (`ROLE_UAD_EQUIPO_3/4`), visibilidad de la noticia y estado. Ver `UadCompetencia`.

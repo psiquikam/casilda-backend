@@ -110,6 +110,29 @@ class UadControllersTest {
     }
 
     @Test
+    void radicarNdaCorreConSesionAnonimaYRestauraLaOriginal() throws Exception {
+        final var sesion = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "persona@example.org", null, org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_USUARIO"));
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(sesion);
+        final java.util.concurrent.atomic.AtomicReference<Object> vista = new java.util.concurrent.atomic.AtomicReference<>();
+        when(radicacion.radicarNda(any())).thenAnswer(inv -> {
+            vista.set(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
+            return new UadResponses.RadicacionNda("NDA-2026-000002", Instant.parse("2026-11-15T20:00:00Z"));
+        });
+        try {
+            mvc.perform(post("/uad/noticias-anonimas").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"descripcionHechos\":\"Relato ficticio con detalle suficiente.\"}"))
+                    .andExpect(status().isCreated());
+            org.junit.jupiter.api.Assertions.assertInstanceOf(
+                    org.springframework.security.authentication.AnonymousAuthenticationToken.class, vista.get());
+            org.junit.jupiter.api.Assertions.assertSame(sesion,
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     void radicarNdaConRelatoCortoResponde400() throws Exception {
         mvc.perform(post("/uad/noticias-anonimas").contentType(MediaType.APPLICATION_JSON).content("{\"descripcionHechos\":\"corto\"}"))
                 .andExpect(status().isBadRequest())
