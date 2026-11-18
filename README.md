@@ -98,22 +98,22 @@ externas), pendiente de confirmación como catálogo oficial. El script valida l
 tipos 1: Interna y 2: Externa y falla si los IDs de instancia ya tienen datos
 diferentes; no modifica ni elimina otras instancias.
 
-Para habilitar el rol `TECNICO_APH` en una base existente, ejecutar
-`database/update_add_rol_tecnico_aph.sql` después de crear las tablas de seguridad.
-El script es idempotente y solo concede acceso a `GET /maestros/roles`; los permisos
-de las nuevas rutas APH se asignarán de forma específica al implementarlas.
+### Migración consolidada del feature APH
 
-Para ampliar la lectura de maestros en bases existentes, ejecutar
-`database/update_permisos_get_maestros_equipo.sql`. Concede `GET /maestros/**` a los
-roles de atención existentes (`ADMIN`, `COORDINADOR`, `PROFESIONAL`, `REVISOR`,
-`TECNICO_APH`), las coordinaciones `EA_COORDINACION`, `ALMA_COORDINACION`,
-`UAD_COORDINACION`, `SPB_COORDINACION` y los remitentes `SPB_ANALISTA`,
-`UAD_EQUIPO_3`, `UAD_EQUIPO_4` que ya existan. El script es idempotente y no crea
-roles; debe ejecutarse de nuevo después de crear cualquiera de esos roles. Central de
-Monitoreo no se incluye porque todavía no hay un código de rol confirmado.
-El patrón incluye todos los GET actuales y futuros bajo `/maestros/`, incluso
-catálogos paginados; no agrega permisos de escritura ni de otras rutas. Los GET de
-maestros ya configurados como públicos seguirán siendo públicos.
+Para desplegar el feature APH actual en una base existente, ejecutar únicamente
+`database/migration_alma_aph.sql`, después de iniciar la versión que crea las tablas
+JPA del módulo. El archivo reúne las migraciones de esquema y permisos del feature.
+No incluye los hotfixes HF1/HF2 ya desplegados, la carga de catálogos ni cuentas o
+datos sintéticos; esos recursos permanecen separados.
+
+Los scripts granulares `update_*_aph.sql` se conservan como fixtures para las pruebas
+de integración que validan cada permiso o cambio por separado. No ejecutarlos uno a
+uno como migración de despliegue ni junto con el archivo consolidado.
+
+La migración consolidada crea el rol `TECNICO_APH` y los permisos vigentes de lectura
+de maestros para los roles que ya existan. El patrón `/maestros/**` cubre los GET
+actuales y futuros bajo ese prefijo, incluidos catálogos paginados; no agrega permisos
+de escritura ni de otras rutas.
 
 Para pruebas exclusivamente locales, `database/insert_usuario_prueba_tecnico_aph.sql`
 crea una cuenta sintética con el rol `TECNICO_APH`, copiando el hash de la cuenta
@@ -122,13 +122,14 @@ conozca su contraseña antes de ejecutarlo; el nuevo usuario tendrá la misma. E
 no cambia cuentas existentes y falla si la cuenta sintética ya existe. No usarlo en QA
 ni producción, y no reutilizar la contraseña de prueba fuera del entorno local.
 
-Para probar la auditoría con el rol dedicado, ejecutar primero
-`database/update_add_rol_coordinacion_alma.sql` y luego
+Para probar la auditoría con el rol dedicado, la migración consolidada crea
+`ALMA_COORDINACION`; después puede ejecutarse
 `database/insert_usuario_prueba_coordinacion_alma.sql`. La segunda crea
 `coordinacion.alma@casilda.test` y copia el hash de `revisor1@udea.edu.co`, por lo que
 usa la misma contraseña de prueba. El alta falla si la fuente no está activa o si la
-cuenta de destino ya existe; no modifica usuarios existentes. Limitar ambos scripts
-a bases locales de prueba.
+cuenta de destino ya existe; no modifica usuarios existentes. Ejecutar este script de
+cuenta solo en bases locales de prueba; la cuenta sintética no se incluye en la
+migración consolidada.
 
 El nuevo módulo expone `GET /alma/catalogos/{nombre}` a cualquier usuario
 autenticado, sin modificar los permisos del módulo anterior. Después de iniciar
@@ -136,7 +137,8 @@ esta versión para crear `catalogoalmaitem`, ejecutar
 `database/insert_catalogos_aph.sql`: carga y activa los catálogos de APH, actualizando
 etiqueta y estado activo si el código ya existe.
 `tipos-identificacion` reutiliza el catálogo vigente; `textos-consentimiento`
-estará vacío hasta cargar el texto oficial. Los cambios futuros de códigos o etiquetas
+estará vacío hasta cargar texto. Se permite un texto de prueba, claramente marcado
+como no oficial, solo en QA; producción requiere el texto aprobado. Los cambios futuros de códigos o etiquetas
 deben aplicarse también mediante una modificación versionada de la base de datos.
 El catálogo de tipos de identificación conserva los códigos maestros existentes.
 
@@ -146,15 +148,14 @@ Reglas confirmadas para los siguientes endpoints de APH:
 - «Mis atenciones» lista las atenciones o casos asignados o tomados por el usuario autenticado.
 - La auditoría de Línea Alma solo estará disponible para `ADMIN` y `ALMA_COORDINACION`.
   Por decisión explícita, ambos pueden consultar los contextos APH y `CASO`.
-- Las remisiones entrantes podrán originarse en `SPB_ANALISTA` (y traslados puntuales de emergencia
-  desde Central de Monitoreo), `UAD_EQUIPO_3`, `UAD_EQUIPO_4` y la coordinación UAD. Estos roles
-  son adicionales; no reemplazan ni modifican roles existentes.
+- La matriz técnica de roles remitentes se documenta más abajo; no constituye por sí misma
+  aprobación de la política institucional de gobernanza de datos. Se conserva para esta
+  entrega la matriz que ya aplica el backend.
 
 El primer bloque de atenciones nuevas permite crear, consultar y editar borradores mediante
 `POST /alma/atenciones-aph`, `GET /alma/atenciones-aph/{idAtencion}` y
 `PATCH /alma/atenciones-aph/{idAtencion}`. Requiere iniciar esta versión para crear sus
-tablas y ejecutar `database/update_permisos_borrador_alma_aph.sql` después de crear el rol
-`TECNICO_APH`. El consecutivo es anual y usa el año UTC; las escrituras exigen la versión
+tablas y aplicar `database/migration_alma_aph.sql`. El consecutivo es anual y usa el año UTC; las escrituras exigen la versión
 vigente. Cada técnico puede consultar y editar únicamente sus atenciones; `REVISOR` tiene
 acceso de lectura conforme al contrato. La creación y edición registran eventos sin el
 contenido de la atención.
@@ -162,46 +163,50 @@ contenido de la atención.
 El triaje manual o su omisión justificada se registra con
 `PUT /alma/atenciones-aph/{idAtencion}/triaje`. Es exclusivo del técnico asignado;
 requiere motivo de consulta y versión vigente. Cambia la atención a `EN_GESTION_APH`.
-Tras reiniciar esta versión para añadir las columnas, ejecutar
-`database/update_permisos_triaje_alma_aph.sql` en la base correspondiente.
+Las columnas y permisos de este flujo quedan incluidos en
+`database/migration_alma_aph.sql`.
 
 La derivación a Psicología y la consulta de su bandeja usan
 `POST /alma/atenciones-aph/{idAtencion}/derivaciones/psicologia` y
 `GET /alma/bandeja/psicologia`. La derivación exige triaje y consentimiento con una versión
 activa del catálogo `textos-consentimiento`; no se incluye texto oficial en este cambio.
-Sin ese texto no se puede derivar. El SLA se calcula desde la recepción en el servidor.
+En producción requiere el texto oficial; en QA se admite texto de prueba rotulado como
+no oficial. El SLA se calcula desde la recepción en el servidor.
 Para recontacto se usa la persona resuelta por el módulo vigente y los estados «Abierto activo»
 y «Abierto en transición». El primer bloque de bandeja es de consulta: toma, intentos,
 resolución de recontactos y primer contacto aún no están implementados.
 
-Tras iniciar esta versión para crear las columnas, ejecutar
-`database/update_permisos_derivacion_psicologia.sql` solo en un entorno autorizado.
-Los permisos de la bandeja son **provisionales**: `PROFESIONAL` puede incluir usuarios de otras
-áreas y permite ver datos personales. Antes de usarlos fuera de pruebas se debe restringir
-el acceso a los profesionales de Psicología y validar el alcance de los demás roles.
-No insertar textos ficticios de consentimiento en bases compartidas o reales.
+Los permisos de estas rutas quedan incluidos en
+`database/migration_alma_aph.sql`.
+Se mantienen los permisos actuales durante esta entrega; podrán ajustarse después mediante
+la base de datos. El permiso de `PROFESIONAL` es amplio y se conserva como condición vigente,
+no como aprobación definitiva de gobernanza. El texto ficticio de consentimiento solo se permite
+en QA, rotulado como no oficial; no usarlo en producción.
 
 Las remisiones entrantes usan `POST /alma/remisiones-aph`; la bandeja y la toma usan
 `GET /alma/bandeja/aph` y `POST /alma/bandeja/aph/{idAtencion}/tomar`. Una remisión
 nace sin técnico asignado; la toma se bloquea por fila y solo un técnico puede ganarla.
 «Mis atenciones» incluye únicamente las tomadas por el usuario autenticado. Se permiten
-remisiones repetidas. El consentimiento con texto oficial activo es obligatorio salvo
-peligro inminente; se conserva la evidencia de consentimiento o de la excepción.
+remisiones únicas mientras exista una del mismo origen y persona en estado abierto;
+el intento repetido responde `409 REMISION_DUPLICADA` con el `idAtencion` existente.
+El consentimiento es obligatorio salvo peligro inminente declarado; se conserva la
+evidencia de consentimiento o de la excepción. Para QA puede usarse texto de prueba
+claramente rotulado como no oficial; en producción debe usarse el texto aprobado.
+La validación de teléfono obligatorio y el conflicto por duplicados son decisiones
+del contrato aún pendientes de implementación/verificación en backend.
 
-Para bases existentes, iniciar esta versión para crear `datosremision` y ejecutar
-`database/update_permisos_bandeja_aph.sql` antes de usar las rutas. El script permite
-que el técnico asignado sea nulo en remisiones pendientes y concede permisos a los
-roles existentes, sin crearlos; debe repetirse al crear nuevos roles autorizados.
+Las columnas y permisos de remisiones quedan incluidos en
+`database/migration_alma_aph.sql`. El script de despliegue no crea usuarios de prueba.
 EA admite `EA_COORDINACION`, `PROFESIONAL`, `COORDINADOR` y `ADMIN`; SPyB admite
 `SPB_ANALISTA` y `ADMIN`; UAD admite `UAD_EQUIPO_3`, `UAD_EQUIPO_4`,
-`UAD_COORDINACION` y `ADMIN`. `PROFESIONAL` y `COORDINADOR` no distinguen área:
-se autorizó su uso para EA, pero deben restringirse por dependencia antes de
-compartirlos con otras áreas. Central de Monitoreo queda pendiente de un código de rol
-y una regla de autorización para emergencias.
+`UAD_COORDINACION` y `ADMIN`. Esta es la matriz técnica vigente; la política de
+gobernanza y su ratificación institucional siguen en discusión. Central de Monitoreo
+queda pendiente de un código de rol y una regla de autorización para emergencias.
 
 La creación y toma registran eventos; la auditoría JPA registra escrituras, no cada
-lectura. La limitación de tasa y la notificación de remisiones están pendientes;
-no exponer la bandeja fuera de un entorno autorizado sin resolver esos controles.
+lectura. No hay notificador en esta entrega. Una solución futura deberá considerar
+creación (`PENDIENTE_APH`) y toma (`EN_GESTION_APH`), sin datos personales ni el motivo.
+El límite de tasa sigue pendiente.
 
 Las rutas externas de atenciones APH se activan y consultan en `/alma/rutas-externas`
 y se actualizan con `PATCH /alma/rutas-externas/{idRuta}`. Solo pueden gestionarlas
@@ -211,8 +216,8 @@ consentimiento por peligro inminente aplica solo a `LINEA_123`. Por decisión de
 negocio, la versión del texto es opcional en estas rutas; si se envía, debe estar
 activa. Sin versión no se puede acreditar qué texto se aceptó.
 
-Para una base existente, iniciar esta versión para crear `rutaexternaalma` y ejecutar
-`database/update_permisos_rutas_externas_aph.sql` en el entorno autorizado.
+Las columnas y permisos de rutas externas quedan incluidos en
+`database/migration_alma_aph.sql`.
 
 Las derivaciones internas de atenciones APH se registran y consultan en
 `/alma/derivaciones/internas` por el técnico propietario o `ADMIN`. Son solo registros:
@@ -223,19 +228,19 @@ Los demás roles no reciben derivaciones en el detalle. Los casos y el acceso de
 Psicología quedan pendientes. Se requiere consentimiento salvo peligro inminente
 hacia `SPYB`; la versión del texto es opcional, pero si se envía debe estar activa.
 Sin versión no se puede acreditar qué texto se aceptó.
-Para una base existente, iniciar esta versión para crear `derivacioninternaalma` y
-ejecutar `database/update_permisos_derivaciones_internas_aph.sql`.
+Los permisos de derivaciones internas quedan incluidos en
+`database/migration_alma_aph.sql`.
 
 El cierre APH (`POST /alma/atenciones-aph/{idAtencion}/cierre`) corresponde al técnico
 propietario o `ADMIN`, solo en `EN_GESTION_APH` y con versión vigente. No se cierran
 borradores, atenciones con Psicología pendiente o aceptada, ni con rutas externas
 abiertas. El motivo debe estar activo en `motivos-cierre-aph`; la observación admite
-hasta 1000 caracteres. Para una base existente ejecutar
-`database/update_permisos_cierre_alma_aph.sql`.
+hasta 1000 caracteres. El permiso queda incluido en
+`database/migration_alma_aph.sql`.
 
 En el módulo de casos vigente, la transición a `Cerrado` registra `fechacierre`;
 reabrir el caso la limpia. Los casos históricos conservan fecha desconocida hasta
-corregirla: ejecutar `database/update_fecha_cierre_caso.sql` antes de usar la versión.
+corregirla; la columna queda incluida en `database/migration_alma_aph.sql`.
 La corrección se realiza con
 `PATCH /solicitudes/acompanamiento/{solicitudId}/casos/{casoId}/fecha-cierre` y
 `{"fechaCierre":"2026-01-01T10:00:00Z"}`. Solo se permite en casos cerrados de la
@@ -255,9 +260,8 @@ incluyen contenido clínico ni notas. Acceso restringido a `ADMIN` y
 `ALMA_COORDINACION`; aplica límite de 30 consultas por usuario cada 10 minutos.
 No existe actualmente una operación de derivación sobre `CASO` ni de vinculación
 manual que permita generar los eventos `DERIVACION` y `VINCULACION` para ese contexto;
-quedan pendientes hasta definir esos flujos. Para probar estos endpoints, ejecutar
-`database/update_auditoria_recursos.sql`, `database/update_consulta_previa_aph.sql`,
-`database/update_historial_auditoria_aph.sql` y configurar
+quedan pendientes hasta definir esos flujos. El esquema y permisos quedan incluidos en
+`database/migration_alma_aph.sql`; configurar
 `app.alma.consulta-previa.habilitada=true`. Pueden acceder `ADMIN`, `TECNICO_APH`
 y `REVISOR` a la consulta previa, sujetos también a los permisos dinámicos. Ningún
 endpoint devuelve notas clínicas en la bitácora.
@@ -266,10 +270,16 @@ endpoint devuelve notas clínicas en la bitácora.
 para un caso cerrado de la misma persona, sin reabrirlo ni modificar el estado de
 la atención. Las notas aparecen en el detalle de la atención y la auditoría registra
 el evento sin incluir su contenido. Hibernate crea la tabla `contencionpostcierre`;
-en bases existentes aplicar también `database/update_permisos_contencion_post_cierre.sql`.
+el permiso queda incluido en `database/migration_alma_aph.sql`.
 Pueden registrar contenciones el técnico responsable y usuarios `PROFESIONAL` cuya
 persona tenga un registro individual en `profesional` con cargo `Psicóloga`. No se
 infiere la profesión por la pertenencia a una dupla o grupo profesional.
+Para preparar identidades sintéticas de Psicología y Jurídico, con membresía tanto
+en grupos especializados como en una dupla, ejecutar
+`database/insert_usuarios_prueba_profesionales_aph.sql` únicamente en local o QA
+autorizado, después de cumplir sus prerrequisitos. El script copia el hash de una
+cuenta de prueba existente, no cambia credenciales de cuentas previas y valida el
+cargo y tipo de servicio de los grupos antes de crear las relaciones.
 El límite predeterminado es de 30 solicitudes por usuario en una ventana fija de
 10 minutos (`app.alma.consulta-previa.limite` y
 `app.alma.consulta-previa.ventana-minutos`); al cambiar de ventana pueden admitirse
