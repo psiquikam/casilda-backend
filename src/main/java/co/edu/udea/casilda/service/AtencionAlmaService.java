@@ -9,6 +9,7 @@ import co.edu.udea.casilda.model.entity.EventoAtencionAlma;
 import co.edu.udea.casilda.model.entity.Usuario;
 import co.edu.udea.casilda.repository.AtencionAlmaAphRepository;
 import co.edu.udea.casilda.repository.CatalogoAlmaItemRepository;
+import co.edu.udea.casilda.repository.ContencionPostCierreRepository;
 import co.edu.udea.casilda.repository.DerivacionInternaAlmaRepository;
 import co.edu.udea.casilda.repository.EventoAtencionAlmaRepository;
 import co.edu.udea.casilda.repository.RutaExternaAlmaRepository;
@@ -56,6 +57,7 @@ public class AtencionAlmaService {
     private final CatalogoAlmaItemRepository catalogos;
     private final RutaExternaAlmaRepository rutasExternas;
     private final DerivacionInternaAlmaRepository derivacionesInternas;
+    private final ContencionPostCierreRepository contenciones;
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final Validator validator;
@@ -487,6 +489,7 @@ public class AtencionAlmaService {
                 yield "Se registró una derivación relacionada con la atención APH.";
             }
             case "ACTUALIZACION" -> "Se actualizaron datos de la atención APH.";
+            case "NOTA" -> "Se registró una nota de contención post-cierre.";
             default -> "Se registró una acción en la atención APH.";
         };
     }
@@ -549,6 +552,14 @@ public class AtencionAlmaService {
             nota.put("fechaRegistro", atencion.getFechaNota().toString());
             nota.put("autor", atencion.getAutorNota().getNombre());
         }
+        contenciones.findByAtencionIdOrderByFechaRegistroAscIdAsc(atencion.getId()).forEach(contencion -> {
+            ObjectNode nota = notas.addObject();
+            nota.put("idNota", "CON-%04d".formatted(contencion.getId()));
+            nota.put("tipoOrigen", "POST_CIERRE");
+            nota.put("contenido", contencion.getNota());
+            nota.put("fechaRegistro", contencion.getFechaRegistro().toString());
+            nota.put("autor", contencion.getAutor().getNombre());
+        });
         var derivaciones = salida.putArray("derivaciones");
         var rutas = salida.putArray("rutasExternas");
         if (puedeConsultarRutas(atencion, auth)) {

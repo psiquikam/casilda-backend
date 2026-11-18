@@ -25,6 +25,11 @@ public interface CasoRepository extends JpaRepository<Caso, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Caso c where c.id = :id")
     Optional<Caso> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
+
+    /** Bloquea el caso identificado por código antes de validar su estado. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Caso c where c.codigo = :codigo")
+    Optional<Caso> findByCodigoForUpdate(@org.springframework.data.repository.query.Param("codigo") String codigo);
     
     /**
      * Verifica si existe un caso con el código dado

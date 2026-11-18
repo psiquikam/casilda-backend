@@ -261,6 +261,15 @@ quedan pendientes hasta definir esos flujos. Para probar estos endpoints, ejecut
 `app.alma.consulta-previa.habilitada=true`. Pueden acceder `ADMIN`, `TECNICO_APH`
 y `REVISOR` a la consulta previa, sujetos también a los permisos dinámicos. Ningún
 endpoint devuelve notas clínicas en la bitácora.
+
+`POST /alma/contenciones-post-cierre` registra una nota en una atención APH nueva
+para un caso cerrado de la misma persona, sin reabrirlo ni modificar el estado de
+la atención. Las notas aparecen en el detalle de la atención y la auditoría registra
+el evento sin incluir su contenido. Hibernate crea la tabla `contencionpostcierre`;
+en bases existentes aplicar también `database/update_permisos_contencion_post_cierre.sql`.
+Pueden registrar contenciones el técnico responsable y usuarios `PROFESIONAL` cuya
+persona tenga un registro individual en `profesional` con cargo `Psicóloga`. No se
+infiere la profesión por la pertenencia a una dupla o grupo profesional.
 El límite predeterminado es de 30 solicitudes por usuario en una ventana fija de
 10 minutos (`app.alma.consulta-previa.limite` y
 `app.alma.consulta-previa.ventana-minutos`); al cambiar de ventana pueden admitirse
@@ -276,8 +285,7 @@ con fecha de cierre nula. En ambos casos puede no ser el último cierre real. No
 envía notificaciones a Psicología ni vincula una atención nueva.
 
 En este bloque `gestionSimultanea` se devuelve como `null` mientras no exista una fuente
-confiable para calcularla; el frontend debe tolerar ese valor. La consulta de auditoría
-todavía no está implementada en el nuevo módulo: no habilitar el flujo completo
+confiable para calcularla; el frontend debe tolerar ese valor. No habilitar el flujo completo
 ni desactivar los mocks de `atencionesAph` y `bandejaPsicologia` hasta implementar sus acciones.
 
 Para una base existente, coordinar una ventana de mantenimiento con el frontend:
