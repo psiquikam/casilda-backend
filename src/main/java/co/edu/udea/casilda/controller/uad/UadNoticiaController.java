@@ -45,7 +45,7 @@ import java.util.UUID;
 public class UadNoticiaController {
 
     private static final int TAMANO_MAXIMO = 50;
-    private static final CacheControl SIN_CACHE = CacheControl.noStore().cachePrivate();
+    static final CacheControl SIN_CACHE = CacheControl.noStore().cachePrivate();
 
     private final UadNoticiaService service;
 
@@ -123,7 +123,7 @@ public class UadNoticiaController {
     }
 
     /** Un ID mal formado responde 404 igual que uno inexistente. */
-    private static UUID uuid(final String valor) {
+    static UUID uuid(final String valor) {
         try {
             return UUID.fromString(valor);
         } catch (IllegalArgumentException ex) {

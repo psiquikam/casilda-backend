@@ -3,6 +3,7 @@ package co.edu.udea.casilda.dto.response.uad;
 import co.edu.udea.casilda.model.enums.uad.AccionNoticia;
 import co.edu.udea.casilda.model.enums.uad.ActorRuta;
 import co.edu.udea.casilda.model.enums.uad.CapacidadUad;
+import co.edu.udea.casilda.model.enums.uad.CodigoActuacion;
 import co.edu.udea.casilda.model.enums.uad.EquipoUad;
 import co.edu.udea.casilda.model.enums.uad.EstadoGestionUad;
 import co.edu.udea.casilda.model.enums.uad.EstadoNoticia;
@@ -152,6 +153,45 @@ public final class UadResponses {
             String estadoAnterior,
             String estadoNuevo,
             String observaciones
+    ) {
+    }
+
+    /** Detalle para «Gestionar caso»: los campos de {@link CasoUadResumen} más los de la gestión. */
+    public record CasoUadDetalle(
+            String casoUadId,
+            String casoId,
+            String expedienteUad,
+            List<String> consecutivosNoticia,
+            String victimaNombre,
+            VinculacionInvestigado vinculacionInvestigado,
+            Instant fechaAdmision,
+            FaseUad faseActual,
+            EquipoUad equipoResponsable,
+            EstadoGestionUad estadoGestion,
+            Long version,
+            String motivoFinGestion,
+            Instant fechaUltimoTraslado,
+            EquipoUad equipoInstructor,
+            EquipoUad equipoDecisor
+    ) {
+    }
+
+    public record ActuacionDisponible(
+            CodigoActuacion codigo,
+            String nombre,
+            boolean permanente,
+            boolean ejecutable,
+            String motivoNoEjecutable,
+            boolean pendienteValidacion
+    ) {
+    }
+
+    /** {@code caso} es nulo cuando {@code visibleParaUsuario} es {@code false} (p. ej. tras el traslado). */
+    public record ResultadoAccionCaso(
+            boolean visibleParaUsuario,
+            CasoUadDetalle caso,
+            List<EventoHistorial> eventos,
+            List<NotificacionEstado> notificaciones
     ) {
     }
 
