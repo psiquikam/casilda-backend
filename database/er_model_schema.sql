@@ -549,6 +549,7 @@ CREATE TABLE atencion (
     id bigserial NOT NULL,
     idestadoatencion int not null,
     idcaso bigint not null,
+    idcita bigint,
     idtiposervicio int not null,
     idlugarentrevista int not null,
     logroacuerdo boolean NOT NULL,
@@ -558,12 +559,17 @@ CREATE TABLE atencion (
     idusuarioactualizacion bigint,
     constraint atencion_pkey PRIMARY KEY (id),
     constraint atencion_idcaso_fkey FOREIGN KEY (idcaso) REFERENCES caso(id) ON DELETE NO ACTION,
+    constraint atencion_idcita_fkey FOREIGN KEY (idcita) REFERENCES cita(id) ON DELETE NO ACTION,
     constraint atencion_idestadoatencion_fkey FOREIGN KEY (idestadoatencion) REFERENCES estadoatencion(id) ON DELETE NO ACTION,
     constraint atencion_idtiposervicio_fkey FOREIGN KEY (idtiposervicio) REFERENCES tiposervicio(id) ON DELETE NO ACTION,
     constraint atencion_idlugarentrevista_fkey FOREIGN KEY (idlugarentrevista) REFERENCES lugarentrevista(id) ON DELETE NO ACTION,   
     constraint atencion_idusuariocreacion_fkey FOREIGN KEY (idusuariocreacion) REFERENCES usuario(id) ON DELETE NO ACTION,
     constraint atencion_idusuarioactualizacion_fkey FOREIGN KEY (idusuarioactualizacion) REFERENCES usuario(id) ON DELETE NO ACTION
 );
+
+CREATE UNIQUE INDEX atencion_cita_unique_idx
+    ON atencion (idcita)
+    WHERE idcita IS NOT NULL;
 
 CREATE TABLE apreciacionatencion (
     idatencion INT not null,

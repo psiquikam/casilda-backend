@@ -29,6 +29,10 @@ public class Atencion extends Auditable {
     private Caso caso;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "idcita")
+    private Cita cita;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "idtiposervicio")
     private TipoServicio tipoServicio;
 

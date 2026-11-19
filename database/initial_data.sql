@@ -39,12 +39,14 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/solicitudes/**', 'GET', true, false),
     ('/solicitudes/**', 'POST', true, false),
     ('/solicitudes/acompanamiento', 'POST', true, false),
+    ('/solicitudes/acompanamiento/{id}/contacto', 'POST', true, false),
     ('/solicitudes/**', 'PUT', true, false),
     ('/solicitudes/**', 'DELETE', true, false),
     ('/atenciones/**', 'GET', true, false),
     ('/atenciones/**', 'POST', true, false),
     ('/citas/**', 'GET', true, false),
     ('/citas/**', 'PUT', true, false),
+    ('/citas/caso/{casoId}/seguimientos', 'POST', true, false),
     ('/compromisos/**', 'GET', true, false),
     ('/compromisos/**', 'POST', true, false),
     ('/compromisos/**', 'DELETE', true, false),
@@ -201,6 +203,29 @@ FROM endpoint e
 JOIN rol r ON r.codigo IN ('PROFESIONAL', 'REVISOR')
 WHERE e.path = '/solicitudes/**'
   AND e.http_method = 'GET'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+-- La radicación está disponible para todos los roles del equipo.
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL', 'REVISOR')
+WHERE e.path = '/solicitudes/acompanamiento' AND e.http_method = 'POST'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+-- El profesional puede registrar contactos, sin obtener permisos de reparto.
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL')
+WHERE e.path = '/solicitudes/acompanamiento/{id}/contacto' AND e.http_method = 'POST'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL')
+WHERE e.path = '/citas/caso/{casoId}/seguimientos' AND e.http_method = 'POST'
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)

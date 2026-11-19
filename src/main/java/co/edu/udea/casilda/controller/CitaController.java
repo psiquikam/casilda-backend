@@ -1,7 +1,9 @@
 package co.edu.udea.casilda.controller;
 
 import co.edu.udea.casilda.dto.request.CancelarCitaRequest;
+import co.edu.udea.casilda.dto.request.ProgramarCitaSeguimientoRequest;
 import co.edu.udea.casilda.dto.request.ReprogramarCitaRequest;
+import co.edu.udea.casilda.dto.request.RegistrarResultadoCitaRequest;
 import co.edu.udea.casilda.dto.response.CitaResponse;
 import co.edu.udea.casilda.service.CitaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,6 +53,50 @@ public class CitaController {
             @RequestParam(required = false) Integer idEstadoCita,
             @RequestParam(required = false) Integer excluirEstadoCitaId) {
         return ResponseEntity.ok(citaService.listarCitasPaginadas(page, size, idEstadoCita, excluirEstadoCitaId));
+    }
+
+    @GetMapping("/pendientes-caso/paginado")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Listar citas iniciales pendientes de caso")
+    public ResponseEntity<Page<CitaResponse>> listarCitasPendientesDeCaso(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(citaService.listarCitasPendientesDeCaso(page, size));
+    }
+
+    @GetMapping("/caso/{casoId}/historial")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Listar citas asociadas al historial de un caso")
+    public ResponseEntity<List<CitaResponse>> listarHistorialAtenciones(@PathVariable Long casoId) {
+        return ResponseEntity.ok(citaService.listarHistorialAtenciones(casoId));
+    }
+
+    @PostMapping("/caso/{casoId}/seguimientos")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Programar una cita de seguimiento para un caso")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Cita de seguimiento programada"),
+            @ApiResponse(responseCode = "400", description = "Fecha u hora inválida"),
+            @ApiResponse(responseCode = "404", description = "Caso no encontrado")
+    })
+    public ResponseEntity<CitaResponse> programarSeguimiento(
+            @PathVariable Long casoId,
+            @Valid @RequestBody ProgramarCitaSeguimientoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(citaService.programarSeguimiento(casoId, request));
+    }
+
+    @PutMapping("/{id}/resultado")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Registrar el resultado de una cita")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Resultado de cita actualizado"),
+            @ApiResponse(responseCode = "400", description = "Resultado inválido"),
+            @ApiResponse(responseCode = "404", description = "Cita o estado no encontrado")
+    })
+    public ResponseEntity<CitaResponse> registrarResultado(
+            @PathVariable Long id,
+            @Valid @RequestBody RegistrarResultadoCitaRequest request) {
+        return ResponseEntity.ok(citaService.registrarResultado(id, request));
     }
 
     @PutMapping("/{id}/reprogramar")

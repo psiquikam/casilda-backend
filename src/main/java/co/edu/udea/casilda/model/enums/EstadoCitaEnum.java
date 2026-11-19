@@ -7,9 +7,11 @@ import lombok.Getter;
  */
 @Getter
 public enum EstadoCitaEnum {
-    CREADA(1, "Creada"),
+    PROGRAMADA(1, "Programada"),
     CANCELADA(2, "Cancelada"),
-    REPROGRAMADA(3, "Reprogramada");
+    REPROGRAMADA(3, "Reprogramada"),
+    ATENDIDA(4, "Atendida"),
+    INASISTENCIA(5, "Inasistencia");
 
     private final Integer id;
     private final String nombre;

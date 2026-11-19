@@ -3,6 +3,9 @@
 -- las tablas JPA del módulo. No incluye hotfixes ya desplegados, catálogos ni
 -- usuarios/datos sintéticos. Los scripts granulares se conservan para pruebas
 -- de integración; no ejecutarlos además de esta migración en el despliegue.
+-- Los permisos de roles de otros módulos se insertan solo si el rol ya existe.
+-- Si se despliega UAD, ejecutar primero database/uad_modulo_entrega1.sql;
+-- si sus roles se crean después, volver a ejecutar esta migración idempotente.
 
 BEGIN;
 

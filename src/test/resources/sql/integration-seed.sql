@@ -62,7 +62,9 @@ INSERT INTO endpoint (id, path, http_method, activo, publico) VALUES
     (46, '/maestros/cargos', 'GET', true, true),
     (47, '/maestros/medio-solicitud', 'GET', true, true),
     (48, '/maestros/vinculos-udea', 'GET', true, true),
-    (49, '/maestros/vinculos-agresor-victima', 'GET', true, true)
+    (49, '/maestros/vinculos-agresor-victima', 'GET', true, true),
+    (50, '/solicitudes/acompanamiento/{id}/contacto', 'POST', true, false),
+    (51, '/citas/caso/{casoId}/seguimientos', 'POST', true, false)
 ON CONFLICT (id) DO UPDATE SET path = EXCLUDED.path, http_method = EXCLUDED.http_method,
     activo = true, publico = EXCLUDED.publico;
 
@@ -88,7 +90,11 @@ SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','COORDINADO
 WHERE e.id IN (11, 12, 13)
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 INSERT INTO endpointrole (idendpoint, idrol)
-SELECT 37, r.id FROM rol r WHERE r.codigo = 'USUARIO'
+SELECT 37, r.id FROM rol r WHERE r.codigo IN ('ADMIN','COORDINADOR','PROFESIONAL','REVISOR','USUARIO')
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e JOIN rol r ON r.codigo IN ('ADMIN','COORDINADOR','PROFESIONAL')
+WHERE e.id IN (50, 51)
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 -- User administration and parameter/catalog writes are ADMIN-only.

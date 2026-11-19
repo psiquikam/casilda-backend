@@ -30,6 +30,9 @@ public interface CasoRepository extends JpaRepository<Caso, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Caso c where c.codigo = :codigo")
     Optional<Caso> findByCodigoForUpdate(@org.springframework.data.repository.query.Param("codigo") String codigo);
+
+    /** Casos del Equipo de Atención de una persona por su documento (consulta de casos asociados UAD, D-UAD-18). */
+    List<Caso> findByCitaSolicitudAtencionSolicitanteNumeroDocumento(String numeroDocumento);
     
     /**
      * Verifica si existe un caso con el código dado
@@ -54,6 +57,8 @@ public interface CasoRepository extends JpaRepository<Caso, Long> {
      * Lista los casos asociados a una solicitud (a través de la cita).
      */
     List<Caso> findByCitaSolicitudAtencionIdOrderByFechaCreacionDesc(Long solicitudId);
+
+    Optional<Caso> findFirstByCitaSolicitudAtencionIdOrderByFechaCreacionAsc(Long solicitudId);
 
     /**
      * Lista los casos asociados a una cita.

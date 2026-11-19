@@ -48,6 +48,10 @@ class DynamicEndpointAuthorizationIntegrationTest extends IntegrationTestBase {
                 Arguments.of("coordinador@udea.edu.co", "POST", "/compromisos/persona"),
                 Arguments.of("admin@udea.edu.co", "POST", "/linea-alma/registros/pestana/0"),
                 Arguments.of("coordinador@udea.edu.co", "POST", "/solicitudes/acompanamiento"),
+                Arguments.of("profesional@udea.edu.co", "POST", "/solicitudes/acompanamiento"),
+                Arguments.of("revisor@udea.edu.co", "POST", "/solicitudes/acompanamiento"),
+                Arguments.of("profesional@udea.edu.co", "POST", "/solicitudes/acompanamiento/1/contacto"),
+                Arguments.of("profesional@udea.edu.co", "POST", "/citas/caso/1/seguimientos"),
                 Arguments.of("admin@udea.edu.co", "DELETE", "/solicitudes/acompanamiento/100")
         );
     }
@@ -80,6 +84,18 @@ class DynamicEndpointAuthorizationIntegrationTest extends IntegrationTestBase {
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andReturn().getResponse().getStatus();
         assertNotEquals(403, response);
+    }
+
+    @ParameterizedTest
+    @MethodSource("deniedWritePaths")
+    void professionalCannotWriteOutsideAssignedCapabilities(String path) throws Exception {
+        mockMvc.perform(post(path).header("Authorization", bearer("profesional@udea.edu.co"))
+                        .contentType(APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    static Stream<String> deniedWritePaths() {
+        return Stream.of("/solicitudes/acompanamiento/1/asignar", "/citas/1/no-autorizado");
     }
 
     @ParameterizedTest

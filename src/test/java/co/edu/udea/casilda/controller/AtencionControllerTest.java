@@ -1,5 +1,7 @@
 package co.edu.udea.casilda.controller;
 
+import co.edu.udea.casilda.dto.request.PestanaRegistroAtencionRequest;
+import co.edu.udea.casilda.dto.response.AtencionResponse;
 import co.edu.udea.casilda.repository.ParametroSistemaRepository;
 import co.edu.udea.casilda.service.*;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,11 +37,29 @@ class AtencionControllerTest {
     void atencionEndpoints() throws Exception {
         AtencionService service = mock(AtencionService.class);
         MockMvc m = mvc(new AtencionController(service));
+        m.perform(get("/atenciones/cita/15")).andExpect(status().isOk());
         m.perform(post("/atenciones/pestana/5").contentType("application/json").content(JSON)).andExpect(status().isCreated());
         for (int i : new int[]{6, 7, 8, 10, 11}) {
             m.perform(post("/atenciones/pestana/" + i).contentType("application/json").content(JSON))
                     .andExpect(status().isOk());
         }
         m.perform(post("/atenciones/pestana/9").contentType("application/json").content(JSON)).andExpect(status().isCreated());
+    }
+
+    @Test
+    void recibeElCasoYLaCitaEnElRegistroDeAtencion() throws Exception {
+        AtencionService service = mock(AtencionService.class);
+        when(service.registrarPestanaAtencion(any())).thenReturn(AtencionResponse.builder().id(33L).build());
+        MockMvc m = mvc(new AtencionController(service));
+
+        m.perform(post("/atenciones/pestana/5")
+                        .contentType("application/json")
+                        .content("{\"casoId\":7,\"citaId\":15}"))
+                .andExpect(status().isCreated());
+
+        var request = forClass(PestanaRegistroAtencionRequest.class);
+        verify(service).registrarPestanaAtencion(request.capture());
+        assertEquals(7L, request.getValue().getCasoId());
+        assertEquals(15L, request.getValue().getCitaId());
     }
 }
