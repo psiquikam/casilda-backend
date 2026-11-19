@@ -475,9 +475,15 @@ public class AtencionAlmaService {
                 if ("PENDIENTE_APH".equals(atencion.getEstado())) {
                     String origen = atencion.getDatosRemision() == null
                             ? null : atencion.getDatosRemision().path("origen").asText(null);
-                    yield StringUtils.hasText(origen)
+                    String detalle = StringUtils.hasText(origen)
                             ? "Se recibió una remisión APH de origen " + origen + "."
                             : "Se recibió una remisión APH.";
+                    if (atencion.getDatosRemision() != null
+                            && atencion.getDatosRemision().path("peligroInminente").asBoolean(false)
+                            && !atencion.getDatosRemision().hasNonNull("consentimiento")) {
+                        detalle += " Se aplicó la excepción de consentimiento por peligro inminente.";
+                    }
+                    yield detalle;
                 }
                 yield "Se creó la atención APH en estado borrador.";
             }

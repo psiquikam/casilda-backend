@@ -23,6 +23,51 @@ class BandejaAphConcurrencyIntegrationTest extends IntegrationTestBase {
     @Autowired private DataSource dataSource;
 
     @Test
+    void remisionesSimultaneasNoCreanDuplicados() throws Exception {
+        jdbc.execute("SELECT setval(pg_get_serial_sequence('endpoint', 'id'), (SELECT MAX(id) FROM endpoint))");
+        new ResourceDatabasePopulator(new FileSystemResource("database/update_permisos_bandeja_aph.sql"))
+                .execute(dataSource);
+        String documento = "9912345678";
+        String auth = bearer("admin@udea.edu.co");
+        String solicitud = """
+                {"origenRemision":"EA","persona":{"tipoIdentificacion":"CC",
+                "numeroIdentificacion":"9912345678","telefonoPrincipal":"3000000000"},
+                "motivo":"Remisión de prueba","peligroInminente":true}
+                """;
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch listos = new CountDownLatch(2);
+            CountDownLatch inicio = new CountDownLatch(1);
+            var tareas = java.util.stream.IntStream.range(0, 2).mapToObj(i -> executor.submit(() -> {
+                listos.countDown();
+                if (!inicio.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("No se pudo iniciar la prueba concurrente");
+                }
+                return mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", auth)
+                        .contentType(APPLICATION_JSON).content(solicitud)).andReturn().getResponse();
+            })).toList();
+            assertTrue(listos.await(10, TimeUnit.SECONDS));
+            inicio.countDown();
+            var respuestas = List.of(tareas.get(0).get(20, TimeUnit.SECONDS), tareas.get(1).get(20, TimeUnit.SECONDS));
+            assertEquals(List.of(201, 409), respuestas.stream().map(r -> r.getStatus()).sorted().toList());
+            var creada = respuestas.stream().filter(r -> r.getStatus() == 201).findFirst().orElseThrow();
+            var conflicto = respuestas.stream().filter(r -> r.getStatus() == 409).findFirst().orElseThrow();
+            var datosConflicto = objectMapper.readTree(conflicto.getContentAsString());
+            assertEquals("REMISION_DUPLICADA", datosConflicto.path("codigo").asText());
+            assertEquals(objectMapper.readTree(creada.getContentAsString()).path("idAtencion").asText(),
+                    datosConflicto.path("detalles").path("idAtencion").asText());
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(20, TimeUnit.SECONDS);
+            jdbc.update("""
+                    DELETE FROM eventoatencionalma WHERE idatencion IN
+                    (SELECT id FROM atencionalmaaph WHERE datos->'persona'->>'numeroIdentificacion'=?)
+                    """, documento);
+            jdbc.update("DELETE FROM atencionalmaaph WHERE datos->'persona'->>'numeroIdentificacion'=?", documento);
+        }
+    }
+
+    @Test
     void soloUnaTomaSimultaneaTieneExito() throws Exception {
         jdbc.execute("SELECT setval(pg_get_serial_sequence('endpoint', 'id'), (SELECT MAX(id) FROM endpoint))");
         new ResourceDatabasePopulator(
@@ -44,7 +89,7 @@ class BandejaAphConcurrencyIntegrationTest extends IntegrationTestBase {
                             .header("Authorization", bearer("admin@udea.edu.co")).contentType(APPLICATION_JSON)
                             .content("""
                                     {"origenRemision":"EA","persona":{"tipoIdentificacion":"CC",
-                                    "numeroIdentificacion":"1000000001"},"motivo":"Remisión de prueba",
+                                    "numeroIdentificacion":"1000000001","telefonoPrincipal":"3000000000"},"motivo":"Remisión de prueba",
                                     "peligroInminente":true}
                                     """))
                     .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();

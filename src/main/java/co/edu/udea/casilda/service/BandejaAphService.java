@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,6 +40,7 @@ public class BandejaAphService {
     private final AtencionAlmaAphRepository atenciones;
     private final NamedParameterJdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
+    private final LimiteBandejaAphService limiteBandeja;
 
     @Transactional
     public JsonNode remitir(JsonNode request, Authentication auth) {
@@ -75,6 +77,33 @@ public class BandejaAphService {
         datos.put("motivoConsulta", motivo);
         atencionService.validarTipos(datos);
         atencionService.validarDatos(datos, true);
+        JsonNode persona = datos.path("persona");
+        if (!persona.path("telefonoPrincipal").isTextual()
+                || !StringUtils.hasText(persona.path("telefonoPrincipal").asText())) {
+            throw atencionService.validacion(Map.of("persona.telefonoPrincipal", "Indique un teléfono."));
+        }
+
+        String tipo = persona.path("tipoIdentificacion").asText();
+        String numero = persona.path("numeroIdentificacion").asText().toUpperCase(Locale.ROOT);
+        MapSqlParameterSource identidad = new MapSqlParameterSource()
+                .addValue("origen", origen).addValue("tipo", tipo).addValue("numero", numero);
+        jdbc.queryForObject("""
+                SELECT pg_advisory_xact_lock(hashtextextended(
+                    'remision-aph:' || :origen || ':' || :tipo || ':' || :numero, 0))
+                """, identidad, (rs, row) -> Boolean.TRUE);
+        List<String> duplicadas = jdbc.query("""
+                SELECT codigo FROM atencionalmaaph
+                WHERE datosremision->>'origen' = :origen
+                  AND datos->'persona'->>'tipoIdentificacion' = :tipo
+                  AND upper(datos->'persona'->>'numeroIdentificacion') = :numero
+                  AND estado IN ('PENDIENTE_APH', 'EN_GESTION_APH')
+                ORDER BY id LIMIT 1
+                """, identidad, (rs, row) -> rs.getString("codigo"));
+        if (!duplicadas.isEmpty()) {
+            throw new AtencionAlmaException(HttpStatus.CONFLICT, "REMISION_DUPLICADA",
+                    "Ya existe una remisión abierta para esta persona y origen.",
+                    Map.of("idAtencion", duplicadas.getFirst()));
+        }
 
         ObjectNode evidencia = objectMapper.createObjectNode();
         evidencia.put("origen", origen);
@@ -138,6 +167,7 @@ public class BandejaAphService {
                 || (estado != null && (!"mias".equals(vista) || !ESTADOS.contains(estado)))) {
             throw atencionService.validacion(Map.of("filtros", "Seleccione filtros y paginación válidos."));
         }
+        limiteBandeja.consumir(atencionService.usuario(auth).getId());
         String filtro = "remisiones".equals(vista)
                 ? "a.estado = 'PENDIENTE_APH' AND a.datos->>'canalIngreso' LIKE 'REMISION_%' "
                     + "AND (:origen = '' OR a.datos->>'canalIngreso' = :canal)"

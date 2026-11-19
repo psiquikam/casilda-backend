@@ -66,6 +66,12 @@ CREATE TABLE IF NOT EXISTS limiteauditoriaaph (
     cantidad INTEGER NOT NULL CHECK (cantidad > 0)
 );
 
+CREATE TABLE IF NOT EXISTS limitebandejaaph (
+    idusuario BIGINT PRIMARY KEY REFERENCES usuario(id),
+    inicio TIMESTAMP WITH TIME ZONE NOT NULL,
+    cantidad INTEGER NOT NULL CHECK (cantidad > 0)
+);
+
 CREATE TABLE IF NOT EXISTS eventocaso (
     id BIGSERIAL PRIMARY KEY,
     idcaso BIGINT NOT NULL REFERENCES caso(id),

@@ -187,13 +187,16 @@ Las remisiones entrantes usan `POST /alma/remisiones-aph`; la bandeja y la toma 
 `GET /alma/bandeja/aph` y `POST /alma/bandeja/aph/{idAtencion}/tomar`. Una remisión
 nace sin técnico asignado; la toma se bloquea por fila y solo un técnico puede ganarla.
 «Mis atenciones» incluye únicamente las tomadas por el usuario autenticado. Se permiten
-remisiones únicas mientras exista una del mismo origen y persona en estado abierto;
+remisiones únicas mientras exista una del mismo origen y persona en `PENDIENTE_APH`
+o `EN_GESTION_APH`; se compara tipo y número de documento sin distinguir mayúsculas;
 el intento repetido responde `409 REMISION_DUPLICADA` con el `idAtencion` existente.
+El teléfono de la persona es obligatorio y debe cumplir `^\+?\d{7,15}$`.
 El consentimiento es obligatorio salvo peligro inminente declarado; se conserva la
 evidencia de consentimiento o de la excepción. Para QA puede usarse texto de prueba
 claramente rotulado como no oficial; en producción debe usarse el texto aprobado.
-La validación de teléfono obligatorio y el conflicto por duplicados son decisiones
-del contrato aún pendientes de implementación/verificación en backend.
+La bandeja limita a 60 consultas por minuto por usuario, sin distinguir la red de origen;
+se puede configurar con `app.alma.bandeja.limite` y
+`app.alma.bandeja.ventana-minutos`. Al superar el límite responde `429 LIMITE_CONSULTAS`.
 
 Las columnas y permisos de remisiones quedan incluidos en
 `database/migration_alma_aph.sql`. El script de despliegue no crea usuarios de prueba.

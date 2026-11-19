@@ -8,11 +8,14 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import co.edu.udea.casilda.service.LimiteBandejaAphService;
 
 import javax.sql.DataSource;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -23,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BandejaAphIntegrationTest extends IntegrationTestBase {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private DataSource dataSource;
+    @MockBean private LimiteBandejaAphService limiteBandeja;
 
     @BeforeEach
     void preparar() {
@@ -48,7 +52,7 @@ class BandejaAphIntegrationTest extends IntegrationTestBase {
         return """
                 {"origenRemision":"%s","referenciaOrigen":"REF-1",
                  "persona":{"tipoIdentificacion":"CC","numeroIdentificacion":"1000000001",
-                            "nombres":"Persona","apellidos":"Prueba"},
+                            "nombres":"Persona","apellidos":"Prueba","telefonoPrincipal":"3000000000"},
                  "motivo":"Remisión de prueba","peligroInminente":%s}
                 """.formatted(origen, peligro);
     }
@@ -67,9 +71,10 @@ class BandejaAphIntegrationTest extends IntegrationTestBase {
         String id = creada.path("idAtencion").asText();
         mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", profesional)
                         .contentType(APPLICATION_JSON).content(solicitud("EA", true)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("REMISION_DUPLICADA"))
+                .andExpect(jsonPath("$.detalles.idAtencion").value(id));
         mockMvc.perform(get("/alma/bandeja/aph").header("Authorization", tecnico).param("origen", "EA"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.items[0].persona.nombreCompleto").value("Persona Prueba"));
         mockMvc.perform(get("/alma/atenciones-aph/{id}", id).header("Authorization", tecnico))
                 .andExpect(status().isForbidden());
@@ -93,6 +98,11 @@ class BandejaAphIntegrationTest extends IntegrationTestBase {
                 """, Integer.class, id));
         assertEquals("true", jdbc.queryForObject(
                 "SELECT datosremision->>'peligroInminente' FROM atencionalmaaph WHERE codigo=?", String.class, id));
+        String detalle = jdbc.queryForObject("""
+                SELECT e.detalle FROM eventoatencionalma e JOIN atencionalmaaph a ON a.id=e.idatencion
+                WHERE a.codigo=? AND e.accion='CREACION'
+                """, String.class, id);
+        assertTrue(detalle.contains("excepción de consentimiento por peligro inminente"));
     }
 
     @Test
@@ -190,9 +200,69 @@ class BandejaAphIntegrationTest extends IntegrationTestBase {
             String auth = bearer(rol.toLowerCase() + "@example.edu.co");
             for (String origen : new String[]{"EA", "SPYB", "UAD"}) {
                 mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", auth)
-                                .contentType(APPLICATION_JSON).content(solicitud(origen, true)))
+                                .contentType(APPLICATION_JSON).content(solicitud(origen, true)
+                                        .replace("1000000001", "100000" + (9300 + java.util.List.of(
+                                                "EA_COORDINACION", "SPB_ANALISTA", "UAD_COORDINACION",
+                                                "UAD_EQUIPO_3", "UAD_EQUIPO_4").indexOf(rol)))))
                         .andExpect(status().is(origen.equals(esperado) ? 201 : 403));
             }
         }
+    }
+
+    @Test
+    @Transactional
+    void remisionExigeTelefonoYDetectaDuplicadosSegunOrigenYEstado() throws Exception {
+        String admin = bearer("admin@udea.edu.co");
+        String valido = solicitud("EA", true);
+        for (String telefono : new String[]{"", "123", "300 000 0000"}) {
+            mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                            .contentType(APPLICATION_JSON).content(valido.replace("3000000000", telefono)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detalles['persona.telefonoPrincipal']").exists());
+        }
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON)
+                        .content(valido.replace(",\"telefonoPrincipal\":\"3000000000\"", "")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalles['persona.telefonoPrincipal']").exists());
+        String creada = mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(valido))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(creada).path("idAtencion").asText();
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(valido.replace("1000000001", "1000000002")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(valido.replace("\"CC\"", "\"TI\"")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(solicitud("UAD", true)))
+                .andExpect(status().isCreated());
+        jdbc.update("UPDATE atencionalmaaph SET estado='EN_GESTION_APH' WHERE codigo=?", id);
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(valido))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detalles.idAtencion").value(id));
+        jdbc.update("UPDATE atencionalmaaph SET estado='CERRADO' WHERE codigo=?", id);
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(valido))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @Transactional
+    void documentoAlfanumericoIgnoraMayusculasAlDetectarDuplicados() throws Exception {
+        jdbc.update("INSERT INTO tipoidentificacion (id,codigo,nombre,activo) VALUES (9300,'CE','Extranjería',true)");
+        String admin = bearer("admin@udea.edu.co");
+        String solicitud = solicitud("EA", true).replace("\"CC\"", "\"CE\"")
+                .replace("1000000001", "ab1234");
+        String creada = mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(solicitud))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(creada).path("idAtencion").asText();
+        mockMvc.perform(post("/alma/remisiones-aph").header("Authorization", admin)
+                        .contentType(APPLICATION_JSON).content(solicitud.replace("ab1234", "AB1234")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("REMISION_DUPLICADA"))
+                .andExpect(jsonPath("$.detalles.idAtencion").value(id));
     }
 }

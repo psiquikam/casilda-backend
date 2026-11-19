@@ -2,6 +2,12 @@
 -- Las remisiones pendientes no tienen técnico asignado.
 ALTER TABLE atencionalmaaph ALTER COLUMN idusuariotomador DROP NOT NULL;
 
+CREATE TABLE IF NOT EXISTS limitebandejaaph (
+    idusuario BIGINT PRIMARY KEY REFERENCES usuario(id),
+    inicio TIMESTAMP WITH TIME ZONE NOT NULL,
+    cantidad INTEGER NOT NULL CHECK (cantidad > 0)
+);
+
 INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/alma/remisiones-aph', 'POST', true, false),
     ('/alma/bandeja/aph', 'GET', true, false),

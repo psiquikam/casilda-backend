@@ -74,6 +74,8 @@ class MigracionesModulosIntegrationTest {
         assertEquals(1, permisos("/citas/caso/{casoId}/seguimientos", "POST", "PROFESIONAL"));
         assertEquals(0, permisos("/solicitudes/**", "POST", "PROFESIONAL"));
         assertEquals(1, permisos("/alma/auditoria", "GET", "ALMA_COORDINACION"));
+        assertEquals(1, contar("SELECT COUNT(*) FROM information_schema.tables "
+                + "WHERE table_schema=current_schema() AND table_name='limitebandejaaph'"));
         assertEquals(1, contar("SELECT COUNT(*) FROM pg_indexes WHERE indexname = 'atencion_cita_unique_idx'"));
         assertEquals(1, contar("SELECT COUNT(*) FROM estadocita WHERE id = 4 AND nombre = 'Atendida'"));
     }
