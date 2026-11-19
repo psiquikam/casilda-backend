@@ -46,6 +46,8 @@ public interface CasoRepository extends JpaRepository<Caso, Long> {
      */
     List<Caso> findByCitaSolicitudAtencionIdOrderByFechaCreacionDesc(Long solicitudId);
 
+    Optional<Caso> findFirstByCitaSolicitudAtencionIdOrderByFechaCreacionAsc(Long solicitudId);
+
     /**
      * Lista los casos asociados a una cita.
      */
