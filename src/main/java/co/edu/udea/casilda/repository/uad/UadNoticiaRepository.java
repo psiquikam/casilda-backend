@@ -1,6 +1,8 @@
 package co.edu.udea.casilda.repository.uad;
 
 import co.edu.udea.casilda.model.entity.uad.UadNoticia;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -12,6 +14,11 @@ import java.util.UUID;
 public interface UadNoticiaRepository extends JpaRepository<UadNoticia, UUID>, JpaSpecificationExecutor<UadNoticia> {
 
     Optional<UadNoticia> findByReporteCasoId(Long reporteCasoId);
+
+    /** «Mis reportes»: noticias cuyo reporte de origen radicó este usuario. El dueño se filtra en la consulta. */
+    Page<UadNoticia> findByReporteCasoUsuarioId(Long usuarioId, Pageable pageable);
+
+    Optional<UadNoticia> findByReporteCasoCodigoAndReporteCasoUsuarioId(String codigo, Long usuarioId);
 
     /** Noticias admitidas cuyo reporte de origen tiene el documento dado (consulta de casos asociados). */
     List<UadNoticia> findByReporteCasoNumeroDocumentoAndCasoIdIsNotNull(String numeroDocumento);

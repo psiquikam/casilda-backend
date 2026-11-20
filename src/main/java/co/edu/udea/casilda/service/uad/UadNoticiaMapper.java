@@ -76,17 +76,25 @@ public class UadNoticiaMapper {
                         .map(e -> new UadResponses.EvidenciaMetadato(
                                 e.getId().toString(), e.getNombreOriginal(), e.getTipoContenido(), e.getTamanoBytes(), e.getFechaRegistro()))
                         .toList(),
-                solicitud == null ? null : new UadResponses.SolicitudInformacionVigente(
-                        solicitud.getId().toString(),
-                        solicitud.getTipoSolicitudCodigo(),
-                        solicitud.getInformacionRequerida(),
-                        solicitud.getFechaSolicitud(),
-                        solicitud.getFechaLimite(),
-                        !solicitud.isRespondida() && solicitud.getFechaLimite().isBefore(hoy),
-                        solicitud.isRespondida()),
+                solicitud(solicitud, hoy),
                 null,
                 acciones,
                 motivos);
+    }
+
+    /** Solicitud de información con su respuesta, si la hay. La misma forma para la UAD y para el reportante. */
+    public UadResponses.SolicitudInformacionVigente solicitud(final UadSolicitudInformacion s, final LocalDate hoy) {
+        if (s == null) return null;
+        return new UadResponses.SolicitudInformacionVigente(
+                s.getId().toString(),
+                s.getTipoSolicitudCodigo(),
+                s.getInformacionRequerida(),
+                s.getFechaSolicitud(),
+                s.getFechaLimite(),
+                !s.isRespondida() && s.getFechaLimite().isBefore(hoy),
+                s.isRespondida(),
+                s.getRespuesta(),
+                s.getFechaRespuesta());
     }
 
     public UadResponses.EventoHistorial evento(final UadEvento e) {
