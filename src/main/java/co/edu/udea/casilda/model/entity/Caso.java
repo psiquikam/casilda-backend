@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +41,9 @@ public class Caso extends Auditable {
 
     @Column(name = "fechaactualizacion")
     private LocalDateTime fechaActualizacion;
+
+    @Column(name = "fechacierre")
+    private Instant fechaCierre;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "idusuarioactualizacion")

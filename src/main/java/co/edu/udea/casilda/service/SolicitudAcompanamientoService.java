@@ -50,6 +50,7 @@ public class SolicitudAcompanamientoService {
     private final PersonaRepository personaRepository;
     private final CasoRepository casoRepository;
     private final RemisionRepository remisionRepository;
+    private final AuditoriaCasoService auditoriaCasoService;
     private final SolicitudAtencionRepository solicitudAtencionRepository;
     private final EntityManager entityManager;
 
@@ -831,6 +832,8 @@ public class SolicitudAcompanamientoService {
                     .ifPresent(caso -> {
                         caso.setUsuarioActualizacion(usuarioAutenticado);
                         casoRepository.save(caso);
+                        auditoriaCasoService.registrar(
+                                caso, usuarioAutenticado, "ACTUALIZACION", "Se actualizaron datos del caso.");
                     });
         }
 

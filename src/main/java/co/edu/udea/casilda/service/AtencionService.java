@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -27,6 +28,7 @@ public class AtencionService {
     private final AtencionRepository atencionRepository;
     private final SeguimientoAtencionRepository seguimientoAtencionRepository;
     private final CompromisoService compromisoService;
+    private final AuditoriaCasoService auditoriaCasoService;
     private final CitaRepository citaRepository;
 
     // Repositories de entidades relacionadas
@@ -344,14 +346,31 @@ public class AtencionService {
 
         Usuario usuario = obtenerUsuarioAutenticadoRequerido();
 
-        Caso caso = casoRepository.findById(request.getIdCaso())
+        Caso caso = casoRepository.findByIdForUpdate(request.getIdCaso())
                 .orElseThrow(() -> new ResourceNotFoundException("Caso no encontrado con ID: " + request.getIdCaso()));
 
         if (request.getIdEstadoCaso() != null) {
-            caso.setEstadoCaso(estadoCasoRepository.findById(request.getIdEstadoCaso()).orElse(null));
+            EstadoCaso nuevoEstado = estadoCasoRepository.findById(request.getIdEstadoCaso())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Estado de caso no encontrado con ID: " + request.getIdEstadoCaso()));
+            boolean cambioEstado = !java.util.Objects.equals(
+                    caso.getEstadoCaso() == null ? null : caso.getEstadoCaso().getId(),
+                    nuevoEstado.getId());
+            boolean cerradoAntes = caso.getEstadoCaso() != null
+                    && "Cerrado".equalsIgnoreCase(caso.getEstadoCaso().getNombre());
+            boolean cerradoAhora = "Cerrado".equalsIgnoreCase(nuevoEstado.getNombre());
+            if (cerradoAhora && !cerradoAntes) {
+                caso.setFechaCierre(Instant.now());
+            } else if (!cerradoAhora) {
+                caso.setFechaCierre(null);
+            }
+            caso.setEstadoCaso(nuevoEstado);
             caso.setUsuarioActualizacion(usuario);
             caso.setFechaActualizacion(LocalDateTime.now());
             casoRepository.save(caso);
+            if (cambioEstado) {
+                auditoriaCasoService.registrar(caso, usuario, "CAMBIO_ESTADO", "Se cambió el estado del caso.");
+            }
         }
 
         Atencion atencion = atencionRepository.findByCasoId(caso.getId()).orElse(null);

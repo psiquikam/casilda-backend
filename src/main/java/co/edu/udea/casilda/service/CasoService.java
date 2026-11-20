@@ -36,6 +36,7 @@ public class CasoService {
     private final CasoRepository casoRepository;
     private final AtencionRepository atencionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final AuditoriaCasoService auditoriaCasoService;
     private final CorreoPersonaRepository correoPersonaRepository;
     private final TelefonoPersonaRepository telefonoPersonaRepository;
 
@@ -73,6 +74,7 @@ public class CasoService {
         Usuario usuario = obtenerUsuarioAutenticadoRequerido();
 
         Caso caso;
+        boolean esNuevo = false;
         if (request.getIdCaso() != null) {
             caso = casoRepository.findById(request.getIdCaso())
                     .orElseThrow(
@@ -84,6 +86,7 @@ public class CasoService {
                 caso = casosExistentes.get(0);
             } else {
                 // Crear un nuevo caso
+                esNuevo = true;
                 Cita cita = citaRepository.findById(request.getCitaId())
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Cita no encontrada con ID: " + request.getCitaId()));
@@ -174,6 +177,8 @@ public class CasoService {
         }
 
         caso = casoRepository.save(caso);
+        auditoriaCasoService.registrar(caso, usuario, esNuevo ? "CREACION" : "ACTUALIZACION",
+                esNuevo ? "Se creó un caso." : "Se actualizaron datos del caso.");
 
         log.info("Pestaña 0: Datos de persona y caso actualizados. Caso ID: {}", caso.getId());
 
@@ -272,6 +277,7 @@ public class CasoService {
         solicitudAtencionRepository.save(solicitud);
         personaRepository.save(persona);
         casoRepository.save(caso);
+        auditoriaCasoService.registrar(caso, usuario, "ACTUALIZACION", "Se actualizaron datos del caso.");
 
         log.info("Pestaña 1: Datos complementarios actualizados para caso ID: {}", caso.getId());
     }
@@ -333,6 +339,7 @@ public class CasoService {
         if (request.getHechos() != null) {
             guardarHechos(casoGuardado, request.getHechos());
         }
+        auditoriaCasoService.registrar(casoGuardado, usuario, "ACTUALIZACION", "Se actualizaron datos del caso.");
 
         log.info("Pestaña 2: Documentación actualizada para caso ID: {}", request.getIdCaso());
     }
@@ -401,6 +408,7 @@ public class CasoService {
                 && !request.getModalidadesViolenciaPrejuicio().isEmpty());
 
         casoRepository.save(caso);
+        auditoriaCasoService.registrar(caso, usuario, "ACTUALIZACION", "Se actualizaron datos del caso.");
         log.info("Pestaña 3: Tipos de violencia actualizados para caso ID: {}", caso.getId());
     }
 
@@ -424,6 +432,7 @@ public class CasoService {
         }
 
         casoRepository.save(caso);
+        auditoriaCasoService.registrar(caso, usuario, "ACTUALIZACION", "Se actualizaron datos del caso.");
         log.info("Pestaña 4: Datos de presunto agresor actualizados para caso ID: {}", caso.getId());
     }
 
@@ -751,6 +760,7 @@ public class CasoService {
                 .ciudadResidencia(caso.getCiudadResidencia() != null ? caso.getCiudadResidencia().getNombre() : null)
                 .direccionResidencia(caso.getDireccionResidencia())
                 .fechaCaso(caso.getFechaCreacion() != null ? caso.getFechaCreacion().format(FORMATTER) : null)
+                .fechaCierre(caso.getFechaCierre())
                 .estadoCaso(caso.getEstadoCaso() != null ? caso.getEstadoCaso().getNombre() : null)
                 .tipoSolicitud(sa != null && sa.getTipoSolicitud() != null ? sa.getTipoSolicitud().getNombre() : null)
                 .unidadAdministrativa(unidadAdministrativaNombre)

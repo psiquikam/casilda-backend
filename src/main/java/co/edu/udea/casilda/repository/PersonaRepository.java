@@ -21,6 +21,9 @@ public interface PersonaRepository extends JpaRepository<Persona, Long> {
      * Busca una persona por tipo y número de documento
      */
     Optional<Persona> findByNumeroDocumentoAndTipoIdentificacion_Id(String numeroDocumento, Integer tipoDocumentoId);
+
+    /** Busca una persona por documento y código del tipo de identificación. */
+    Optional<Persona> findByNumeroDocumentoAndTipoIdentificacion_Codigo(String numeroDocumento, String codigo);
     
     /**
      * Verifica si existe una persona con el número de documento dado

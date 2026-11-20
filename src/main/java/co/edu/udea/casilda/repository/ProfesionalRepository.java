@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface ProfesionalRepository extends JpaRepository<Profesional, Long> {
+    /** Verifica el cargo individual del profesional, sin inferirlo desde su grupo. */
+    boolean existsByIdPersonaAndCargo_NombreIgnoreCase(Long idPersona, String nombreCargo);
 }
