@@ -86,7 +86,9 @@ public final class UadResponses {
             Instant fechaSolicitud,
             LocalDate fechaLimite,
             boolean vencida,
-            boolean respondida
+            boolean respondida,
+            String respuesta,
+            Instant fechaRespuesta
     ) {
     }
 
@@ -196,6 +198,33 @@ public final class UadResponses {
     }
 
     /** Solo consecutivo y fecha: nunca datos de quien envía la NDA. */
+    /**
+     * «Mis reportes»: lo mínimo que ve quien radicó. Sin notas, decisiones internas ni datos de otros actores.
+     * {@code estado} va en lenguaje para la persona usuaria (PROVISIONAL, D-UAD-32).
+     */
+    public record MiReporteResumen(
+            String codigo,
+            String consecutivo,
+            String actor,
+            String estado,
+            Instant fechaRegistro,
+            Instant fechaUltimaActuacion,
+            boolean solicitudPendiente
+    ) {
+    }
+
+    public record MiReporteDetalle(
+            String codigo,
+            String consecutivo,
+            String actor,
+            String estado,
+            Instant fechaRegistro,
+            Instant fechaUltimaActuacion,
+            boolean solicitudPendiente,
+            SolicitudInformacionVigente solicitudInformacion
+    ) {
+    }
+
     public record RadicacionNda(String consecutivo, Instant fechaRecepcion) {
     }
 }

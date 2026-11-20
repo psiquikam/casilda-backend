@@ -20,8 +20,8 @@ import java.util.UUID;
 
 /**
  * Solicitud de información adicional al reportante identificado (UAD-EVA-04). El vencimiento es
- * informativo: <strong>no</strong> cierra la noticia (UAD-EVA-05). La respuesta desde «Mis reportes»
- * es de la Entrega 3 (bloqueada por D-UAD-16).
+ * informativo: <strong>no</strong> cierra la noticia (UAD-EVA-05). El reportante responde desde «Mis reportes»
+ * ({@code UadMisReportesService}); por ahora solo con texto (política de evidencias pendiente, D-UAD-09).
  */
 @Entity
 @Table(name = "uad_solicitud_informacion")
@@ -52,4 +52,11 @@ public class UadSolicitudInformacion extends Auditable {
 
     @Column(name = "respondida", nullable = false)
     private boolean respondida;
+
+    /** Texto con el que respondió el reportante. Nulo mientras no responda. */
+    @Column(name = "respuesta", columnDefinition = "text")
+    private String respuesta;
+
+    @Column(name = "fecha_respuesta")
+    private Instant fechaRespuesta;
 }
