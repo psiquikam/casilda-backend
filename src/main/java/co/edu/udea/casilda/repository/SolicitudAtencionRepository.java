@@ -28,4 +28,15 @@ public interface SolicitudAtencionRepository extends JpaRepository<SolicitudAten
 	 * Lista solicitudes paginadas por estado ordenadas por fecha de creación descendente.
 	 */
 	Page<SolicitudAtencion> findByEstadoSolicitudIdOrderByFechaCreacionDesc(Integer estadoSolicitudId, Pageable pageable);
+
+	/**
+	 * Solicitudes radicadas por un usuario (D-UAD-16: quien no es del equipo de atención solo ve las suyas).
+	 */
+	List<SolicitudAtencion> findByUsuarioCreacionIdOrderByFechaCreacionDesc(Long usuarioId);
+
+	List<SolicitudAtencion> findByUsuarioCreacionIdAndEstadoSolicitudIdOrderByFechaCreacionDesc(Long usuarioId, Integer estadoSolicitudId);
+
+	Page<SolicitudAtencion> findByUsuarioCreacionIdOrderByFechaCreacionDesc(Long usuarioId, Pageable pageable);
+
+	Page<SolicitudAtencion> findByUsuarioCreacionIdAndEstadoSolicitudIdOrderByFechaCreacionDesc(Long usuarioId, Integer estadoSolicitudId, Pageable pageable);
 }

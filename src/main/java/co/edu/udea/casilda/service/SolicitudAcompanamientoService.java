@@ -119,6 +119,7 @@ public class SolicitudAcompanamientoService {
         log.info("Obteniendo solicitud con ID: {}", id);
         SolicitudAtencion solicitud = solicitudAtencionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada con ID: " + id));
+        exigirAccesoLectura(solicitud);
 
         return buildResponse(solicitud, solicitud.getRemision());
     }
@@ -209,9 +210,21 @@ public class SolicitudAcompanamientoService {
     public List<SolicitudAcompanamientoResponse> listarTodas(Integer idEstadoSolicitud) {
         log.info("Listando solicitudes de acompañamiento con filtro idEstadoSolicitud={}", idEstadoSolicitud);
 
-        List<SolicitudAtencion> solicitudes = idEstadoSolicitud == null
-                ? solicitudAtencionRepository.findAll()
-                : solicitudAtencionRepository.findByEstadoSolicitudIdOrderByFechaCreacionDesc(idEstadoSolicitud);
+        final List<SolicitudAtencion> solicitudes;
+        if (SolicitudAcceso.soloPropias()) {
+            final Long usuarioId = idUsuarioAutenticado();
+            if (usuarioId == null) {
+                return List.of();
+            }
+            solicitudes = idEstadoSolicitud == null
+                    ? solicitudAtencionRepository.findByUsuarioCreacionIdOrderByFechaCreacionDesc(usuarioId)
+                    : solicitudAtencionRepository.findByUsuarioCreacionIdAndEstadoSolicitudIdOrderByFechaCreacionDesc(usuarioId,
+                            idEstadoSolicitud);
+        } else {
+            solicitudes = idEstadoSolicitud == null
+                    ? solicitudAtencionRepository.findAll()
+                    : solicitudAtencionRepository.findByEstadoSolicitudIdOrderByFechaCreacionDesc(idEstadoSolicitud);
+        }
 
         return solicitudes.stream()
                 .map(solicitud -> buildResponse(solicitud, solicitud.getRemision()))
@@ -230,10 +243,22 @@ public class SolicitudAcompanamientoService {
         int safeSize = Math.max(size, 1);
         Pageable pageable = PageRequest.of(safePage, safeSize);
 
-        Page<SolicitudAtencion> solicitudes = idEstadoSolicitud == null
-                ? solicitudAtencionRepository.findAllByOrderByFechaCreacionDesc(pageable)
-                : solicitudAtencionRepository.findByEstadoSolicitudIdOrderByFechaCreacionDesc(idEstadoSolicitud,
-                        pageable);
+        final Page<SolicitudAtencion> solicitudes;
+        if (SolicitudAcceso.soloPropias()) {
+            final Long usuarioId = idUsuarioAutenticado();
+            if (usuarioId == null) {
+                return Page.empty(pageable);
+            }
+            solicitudes = idEstadoSolicitud == null
+                    ? solicitudAtencionRepository.findByUsuarioCreacionIdOrderByFechaCreacionDesc(usuarioId, pageable)
+                    : solicitudAtencionRepository.findByUsuarioCreacionIdAndEstadoSolicitudIdOrderByFechaCreacionDesc(usuarioId,
+                            idEstadoSolicitud, pageable);
+        } else {
+            solicitudes = idEstadoSolicitud == null
+                    ? solicitudAtencionRepository.findAllByOrderByFechaCreacionDesc(pageable)
+                    : solicitudAtencionRepository.findByEstadoSolicitudIdOrderByFechaCreacionDesc(idEstadoSolicitud,
+                            pageable);
+        }
 
         return solicitudes.map(solicitud -> buildResponse(solicitud, solicitud.getRemision()));
     }
@@ -1170,9 +1195,9 @@ public class SolicitudAcompanamientoService {
      */
     @Transactional(readOnly = true)
     public List<ContactoTelefonicoResponse> listarContactos(Long solicitudId) {
-        if (!solicitudAtencionRepository.existsById(solicitudId)) {
-            throw new ResourceNotFoundException("Solicitud no encontrada con ID: " + solicitudId);
-        }
+        SolicitudAtencion solicitud = solicitudAtencionRepository.findById(solicitudId)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada con ID: " + solicitudId));
+        exigirAccesoLectura(solicitud);
         return contactoTelefonicoRepository.findBySolicitudAtencionIdOrderByFechaCreacionDesc(solicitudId).stream()
                 .map(c -> ContactoTelefonicoResponse.builder()
                         .fecha(c.getFecha() != null ? c.getFecha().toString() : "")
@@ -1229,6 +1254,26 @@ public class SolicitudAcompanamientoService {
                 return LocalDateTime.now();
             }
         }
+    }
+
+    /**
+     * D-UAD-16: quien no es del equipo de atención solo lee las solicitudes que radicó. Si no es suya responde
+     * igual que si no existiera, para no revelar que existe.
+     */
+    private void exigirAccesoLectura(SolicitudAtencion solicitud) {
+        if (!SolicitudAcceso.soloPropias()) {
+            return;
+        }
+        Long usuarioId = idUsuarioAutenticado();
+        Usuario creador = solicitud.getUsuarioCreacion();
+        if (usuarioId == null || creador == null || !usuarioId.equals(creador.getId())) {
+            throw new ResourceNotFoundException("Solicitud no encontrada con ID: " + solicitud.getId());
+        }
+    }
+
+    private Long idUsuarioAutenticado() {
+        Usuario usuario = obtenerUsuarioAutenticado();
+        return usuario == null ? null : usuario.getId();
     }
 
     private Usuario obtenerUsuarioAutenticado() {
