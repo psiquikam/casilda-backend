@@ -3,13 +3,18 @@ package co.edu.udea.casilda.controller;
 import co.edu.udea.casilda.dto.response.BandejaPsicologiaResponse;
 import co.edu.udea.casilda.exception.AtencionAlmaException;
 import co.edu.udea.casilda.service.BandejaPsicologiaService;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,8 +36,23 @@ public class BandejaPsicologiaController {
     public ResponseEntity<BandejaPsicologiaResponse> listar(
             @RequestParam(required = false) String estado, @RequestParam(required = false) String triaje,
             @RequestParam(required = false) String semaforo, @RequestParam(required = false) String documento,
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(service.listar(estado, triaje, semaforo, documento, page, size));
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
+            Authentication auth) {
+        return ResponseEntity.ok(service.listar(estado, triaje, semaforo, documento, page, size, auth));
+    }
+
+    @PostMapping("/{idAtencion}/tomar")
+    @Operation(summary = "Tomar una novedad de Psicología")
+    public ResponseEntity<JsonNode> tomar(@PathVariable String idAtencion, @RequestBody JsonNode request,
+                                          Authentication auth) {
+        return ResponseEntity.ok(service.tomar(idAtencion, request, auth));
+    }
+
+    @PostMapping("/{idAtencion}/liberar")
+    @Operation(summary = "Liberar una novedad de Psicología")
+    public ResponseEntity<JsonNode> liberar(@PathVariable String idAtencion, @RequestBody JsonNode request,
+                                            Authentication auth) {
+        return ResponseEntity.ok(service.liberar(idAtencion, request, auth));
     }
 
     @ExceptionHandler(AtencionAlmaException.class)

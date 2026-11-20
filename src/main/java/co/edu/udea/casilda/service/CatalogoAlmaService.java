@@ -19,7 +19,8 @@ public class CatalogoAlmaService {
     private static final String TIPOS_IDENTIFICACION = "tipos-identificacion";
     private static final Set<String> CATALOGOS = Set.of(
             TIPOS_IDENTIFICACION, "estratos", "parentescos-solicitante", "destinos-internos",
-            "rutas-externas", "resultados-ruta-externa", "motivos-cierre-aph", "textos-consentimiento");
+            "rutas-externas", "resultados-ruta-externa", "motivos-cierre-aph", "textos-consentimiento",
+            "resultados-intento");
 
     private final CatalogoAlmaItemRepository catalogoRepository;
     private final TipoIdentificacionRepository tipoIdentificacionRepository;

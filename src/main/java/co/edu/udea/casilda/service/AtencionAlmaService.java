@@ -487,13 +487,19 @@ public class AtencionAlmaService {
                 }
                 yield "Se creó la atención APH en estado borrador.";
             }
-            case "CAMBIO_ESTADO" -> "La atención cambió al estado " + atencion.getEstado() + ".";
+            case "CAMBIO_ESTADO" -> "CERRADO".equals(atencion.getEstado())
+                    && "NO_CONTACTO".equals(atencion.getDatos().path("cierre").path("motivo").asText())
+                    ? "La atención se cerró por agotamiento del protocolo de contacto."
+                    : "La atención cambió al estado " + atencion.getEstado() + ".";
             case "DERIVACION" -> {
                 if ("PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())) {
                     yield "La atención fue derivada a Psicología; triaje: " + atencion.getTriaje() + ".";
                 }
                 yield "Se registró una derivación relacionada con la atención APH.";
             }
+            case "TOMA_PSICOLOGIA" -> "Novedad tomada por Psicología.";
+            case "LIBERACION_PSICOLOGIA" -> "Novedad liberada en la bandeja de Psicología.";
+            case "INTENTO_PSICOLOGIA" -> "Se registró un intento de contacto en Psicología.";
             case "ACTUALIZACION" -> "Se actualizaron datos de la atención APH.";
             case "NOTA" -> "Se registró una nota de contención post-cierre.";
             default -> "Se registró una acción en la atención APH.";
