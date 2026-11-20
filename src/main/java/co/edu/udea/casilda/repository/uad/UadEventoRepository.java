@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface UadEventoRepository extends JpaRepository<UadEvento, Long> {
 
     List<UadEvento> findByNoticiaIdOrderByFechaAscIdAsc(UUID noticiaId);
+
+    List<UadEvento> findByCasoUadIdOrderByFechaAscIdAsc(UUID casoUadId);
 }

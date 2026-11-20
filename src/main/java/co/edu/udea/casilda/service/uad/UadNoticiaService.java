@@ -92,7 +92,7 @@ public class UadNoticiaService {
         final UadUsuarioActual.Actor actor = usuarioActual.actual();
         final List<CapacidadUad> capacidades = actor.equipos().isEmpty()
                 ? List.of()
-                : List.of(CapacidadUad.VER_NDI, CapacidadUad.VER_NDA, CapacidadUad.EVALUAR_NOTICIA, CapacidadUad.VER_CASOS);
+                : List.of(CapacidadUad.VER_NDI, CapacidadUad.VER_NDA, CapacidadUad.EVALUAR_NOTICIA, CapacidadUad.VER_CASOS, CapacidadUad.GESTIONAR_CASO);
         return new UadResponses.ContextoUsuario(actor.equipos(), actor.coordinacion(), capacidades);
     }
 
@@ -330,7 +330,10 @@ public class UadNoticiaService {
         final UadUsuarioActual.Actor actor = usuarioActual.conEquipo();
         final EvidenciaReporte e = evidenciaRepository.findById(evidenciaId).orElseThrow(UadException::noEncontrado);
         final UadNoticia n = noticiaRepository.findByReporteCasoId(e.getReporteCaso().getId()).orElseThrow(UadException::noEncontrado);
-        if (!UadCompetencia.esVisiblePara(actor.equipos(), n.getTipo(), n.vinculacionEfectiva())) throw UadException.noEncontrado();
+        // Visible si la noticia lo es o si su caso está en la bandeja del usuario: tras el traslado, el equipo
+        // decisor ya no ve la noticia (solo el instructor), pero las pruebas siguen con el caso (UAD-PRU-04).
+        final boolean porCaso = n.getCasoUad() != null && UadCasoService.esVisible(n.getCasoUad(), actor);
+        if (!porCaso && !UadCompetencia.esVisiblePara(actor.equipos(), n.getTipo(), n.vinculacionEfectiva())) throw UadException.noEncontrado();
         // Trazabilidad de la descarga (UAD-SEG-08) en el log del servidor, no en el historial visible.
         log.info("UAD: descarga de evidencia {} de la noticia {} por {}", evidenciaId, n.getConsecutivo(), actor.email());
         return new Descarga(storage.cargar(e.getNombreAlmacenado()), e.getNombreOriginal(), e.getTipoContenido());

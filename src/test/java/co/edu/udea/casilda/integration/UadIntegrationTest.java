@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -146,6 +147,96 @@ class UadIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.codigo").value("NOTICIA_YA_DECIDIDA"));
     }
 
+    /** Radica una NDI de un docente, la admite el Equipo 3 y devuelve el id del caso UAD. */
+    private String admitirCasoDocente() throws Exception {
+        final String consecutivo = radicarNdiDocente();
+        final UUID id = noticias.findAll().stream().filter(n -> n.getConsecutivo().equals(consecutivo)).findFirst().orElseThrow().getId();
+        final long version = objectMapper.readTree(mockMvc.perform(get("/uad/noticias/" + id).header("Authorization", bearer(E3)))
+                .andReturn().getResponse().getContentAsString()).get("version").asLong();
+        final String cuerpo = mockMvc.perform(post("/uad/noticias/" + id + "/decisiones").header("Authorization", bearer(E3)).contentType(APPLICATION_JSON)
+                        .content("""
+                                {"tipo":"CONTINUAR_TRAMITE","version":%d,"continuarTramite":{"modoCaso":"CREAR_NUEVO"}}""".formatted(version)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(cuerpo).get("casoUad").get("casoUadId").asText();
+    }
+
+    private long versionCaso(final String email, final String casoUadId) throws Exception {
+        return objectMapper.readTree(mockMvc.perform(get("/uad/casos/" + casoUadId).header("Authorization", bearer(email)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("version").asLong();
+    }
+
+    private List<String> casosEnBandeja(final String email) throws Exception {
+        final String cuerpo = mockMvc.perform(get("/uad/casos").param("size", "50").header("Authorization", bearer(email)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        final List<String> lista = new java.util.ArrayList<>();
+        objectMapper.readTree(cuerpo).get("content").forEach(n -> lista.add(n.get("casoUadId").asText()));
+        return lista;
+    }
+
+    @Test
+    void gestionDelCasoDeInstruccionADecisionYRemision() throws Exception {
+        final String caso = admitirCasoDocente();
+        final String base = "/uad/casos/" + caso;
+
+        // Instrucción: solo el Equipo 3 (instructor de personal) lo tiene en su bandeja.
+        assertTrue(casosEnBandeja(E3).contains(caso));
+        assertFalse(casosEnBandeja(E4).contains(caso));
+        mockMvc.perform(get(base).header("Authorization", bearer(E4))).andExpect(status().isNotFound());
+        mockMvc.perform(get(base + "/actuaciones/catalogo").header("Authorization", bearer(E3)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.codigo == 'INDAGACION_PREVIA')].ejecutable").value(true))
+                .andExpect(jsonPath("$[?(@.codigo == 'FALLO')]").isEmpty());
+
+        // Una actuación ordinaria no cambia la fase, pero sí la versión.
+        long version = versionCaso(E3, caso);
+        mockMvc.perform(post(base + "/actuaciones").header("Authorization", bearer(E3)).contentType(APPLICATION_JSON)
+                        .content("{\"actuaciones\":[\"PLIEGO_CARGOS\"],\"version\":%d}".formatted(version)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caso.faseActual").value("INSTRUCCION"))
+                .andExpect(jsonPath("$.caso.version").value(version + 1))
+                .andExpect(jsonPath("$.eventos[0].tipo").value("ACTUACION"));
+        // Con la versión vieja: 409.
+        mockMvc.perform(post(base + "/actuaciones").header("Authorization", bearer(E3)).contentType(APPLICATION_JSON)
+                        .content("{\"actuaciones\":[\"PRACTICA_PRUEBAS\"],\"version\":%d}".formatted(version)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CONFLICTO_VERSION"));
+
+        version = versionCaso(E3, caso);
+        mockMvc.perform(patch(base + "/expediente").header("Authorization", bearer(E3)).contentType(APPLICATION_JSON)
+                        .content("{\"expedienteUad\":\"UAD-2026-0099\",\"version\":%d}".formatted(version)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.caso.expedienteUad").value("UAD-2026-0099"));
+
+        // Traslado: el caso sale de la bandeja del Equipo 3 y llega a la del Equipo 4 con su historial.
+        version = versionCaso(E3, caso);
+        mockMvc.perform(post(base + "/traslado-decision").header("Authorization", bearer(E3)).contentType(APPLICATION_JSON)
+                        .content("{\"confirmaTraslado\":true,\"version\":%d}".formatted(version)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.visibleParaUsuario").value(false))
+                .andExpect(jsonPath("$.caso").doesNotExist())
+                .andExpect(jsonPath("$.notificaciones[0].estado").value(org.hamcrest.Matchers.not("ENVIADA")));
+        mockMvc.perform(get(base).header("Authorization", bearer(E3))).andExpect(status().isNotFound());
+        assertTrue(casosEnBandeja(E4).contains(caso));
+        mockMvc.perform(get(base).header("Authorization", bearer(E4)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.faseActual").value("DECISION"))
+                .andExpect(jsonPath("$.equipoResponsable").value("EQUIPO_4"))
+                .andExpect(jsonPath("$.expedienteUad").value("UAD-2026-0099"));
+        mockMvc.perform(get(base + "/historial").header("Authorization", bearer(E4)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].tipo", org.hamcrest.Matchers.hasItems("CASO_CREADO", "ACTUACION", "EXPEDIENTE_ACTUALIZADO", "TRASLADO_FASE")));
+        mockMvc.perform(get(base + "/evidencias").header("Authorization", bearer(E4))).andExpect(status().isOk());
+
+        // Remisión por competencia: termina la gestión UAD y el caso sale de la bandeja activa.
+        version = versionCaso(E4, caso);
+        mockMvc.perform(post(base + "/remisiones-competencia").header("Authorization", bearer(E4)).contentType(APPLICATION_JSON)
+                        .content("{\"entidadDestinatariaCodigo\":\"FISCALIA\",\"fechaRemision\":\"%s\",\"version\":%d}"
+                                .formatted(java.time.LocalDate.now(java.time.ZoneId.of("America/Bogota")), version)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caso.estadoGestion").value("FINALIZADA"))
+                .andExpect(jsonPath("$.caso.motivoFinGestion").value("REMITIDA_POR_COMPETENCIA"));
+        assertFalse(casosEnBandeja(E4).contains(caso));
+        assertEquals(E4, casosUad.findById(UUID.fromString(caso)).orElseThrow().getModifiedBy());
+    }
+
     @Test
     void autorizacionPorRol() throws Exception {
         // Profesional del Equipo de Atención: la ruta no lo autoriza.
@@ -157,7 +248,11 @@ class UadIntegrationTest extends IntegrationTestBase {
         // Coordinación sin matriz aprobada: contexto sin capacidades.
         mockMvc.perform(get("/uad/contexto").header("Authorization", bearer("uad.coord@udea.edu.co")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.coordinacion").value(true)).andExpect(jsonPath("$.capacidades").isEmpty());
+        // ADMIN y coordinación tampoco tienen la bandeja de casos.
+        mockMvc.perform(get("/uad/casos").header("Authorization", bearer("admin@udea.edu.co"))).andExpect(status().isForbidden());
+        mockMvc.perform(get("/uad/casos").header("Authorization", bearer("uad.coord@udea.edu.co"))).andExpect(status().isForbidden());
         // Sin sesión: denegado.
         mockMvc.perform(get("/uad/noticias").param("tipo", "NDA")).andExpect(status().isForbidden());
+        mockMvc.perform(get("/uad/casos")).andExpect(status().isForbidden());
     }
 }
