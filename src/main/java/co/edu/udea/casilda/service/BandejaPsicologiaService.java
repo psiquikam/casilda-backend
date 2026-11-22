@@ -79,16 +79,8 @@ public class BandejaPsicologiaService {
                        psicologia.email AS tomada_por_email,
                        (SELECT count(*) FROM intentocontactopsicologia i
                         WHERE i.idatencionalmaaph = a.id) AS intentos_realizados,
-                       EXISTS (
-                           SELECT 1 FROM caso c JOIN estadocaso ec ON ec.id=c.idestadocaso
-                           JOIN cita ci ON ci.id=c.idcita
-                           JOIN solicitudatencion s ON s.id=ci.idsolicitudatencion
-                           LEFT JOIN remision rem ON rem.id=s.idremision
-                           JOIN persona p ON p.id=COALESCE(rem.idremitente, s.idsolicitante)
-                           JOIN tipoidentificacion ti ON ti.id=p.idtipoidentificacion
-                           WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición')
-                             AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
-                             AND p.numerodocumento=a.datos->'persona'->>'numeroIdentificacion'
+                       (a.estado = 'PENDIENTE_PSICOLOGIA' AND
+                """ + CasosActivosPsicologiaService.EXISTE_PARA_ATENCION + """
                        ) AS recontacto
                 """ + FILTROS + """
                 ORDER BY a.fechaderivacion +

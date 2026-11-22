@@ -45,7 +45,8 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
                 new FileSystemResource("database/update_permisos_borrador_alma_aph.sql"),
                 new FileSystemResource("database/update_permisos_triaje_alma_aph.sql"),
                 new FileSystemResource("database/update_permisos_derivacion_psicologia.sql"),
-                new FileSystemResource("database/update_permisos_gestion_psicologia.sql"));
+                new FileSystemResource("database/update_permisos_gestion_psicologia.sql"),
+                new FileSystemResource("database/migration_primer_contacto_psicologia.sql"));
         permisos.execute(dataSource);
         permisos.execute(dataSource);
         jdbc.update("""
@@ -205,7 +206,8 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get("/alma/bandeja/psicologia").header("Authorization", psicologia))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(true));
         mockMvc.perform(get("/alma/psicologia/novedades/{id}", id).header("Authorization", psicologia))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(true));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(true))
+                .andExpect(jsonPath("$.casoActivo.numeroCaso").value("CAS-PRUEBA"));
         jdbc.update("UPDATE caso SET idestadocaso=8002 WHERE id=8001");
         mockMvc.perform(get("/alma/bandeja/psicologia").header("Authorization", psicologia))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(true));
@@ -224,6 +226,63 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
                 """, id);
         mockMvc.perform(get("/alma/bandeja/psicologia").header("Authorization", psicologia).param("semaforo","ROJO"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+    }
+
+    @Test
+    @Transactional
+    void detectaCasoPsicologiaPorDocumentoSinPersonaCentral() throws Exception {
+        jdbc.update("""
+                INSERT INTO catalogoalmaitem (catalogo,codigo,etiqueta,activo)
+                VALUES ('textos-consentimiento','prueba-v1','Texto ficticio exclusivo de prueba',true)
+                """);
+        jdbc.update("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,
+                    numerodocumento,idprofesional,fechaapertura,fechaactualizacion,proximocontrol)
+                SELECT 'CAS-2026-123456',1,'ABIERTO','MEDIA',id,'1000000001',1,
+                       now(),now(),now() + interval '2 days'
+                FROM tipoidentificacion WHERE codigo='CC'
+                """);
+        String tecnico = bearer("derivar@example.edu.co");
+        String id = crear(tecnico, "MEDIO");
+        mockMvc.perform(post("/alma/atenciones-aph/{id}/derivaciones/psicologia", id)
+                        .header("Authorization", tecnico).contentType(APPLICATION_JSON)
+                        .content("{\"version\":2,\"consentimiento\":" + CONSENTIMIENTO + "}"))
+                .andExpect(status().isCreated());
+
+        entityManager.flush();
+        String profesional = bearer("profesional@udea.edu.co");
+        mockMvc.perform(get("/alma/bandeja/psicologia").header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(true));
+        mockMvc.perform(get("/alma/psicologia/novedades/{id}", id).header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(true))
+                .andExpect(jsonPath("$.casoActivo.numeroCaso").value("CAS-2026-123456"))
+                .andExpect(jsonPath("$.casoActivo.estado").value("ABIERTO"))
+                .andExpect(jsonPath("$.casoActivo.numeroSeguimientos").value(0))
+                .andExpect(jsonPath("$.casoActivo.proximoControl").isNotEmpty())
+                .andExpect(jsonPath("$.casoActivo.valoracionRiesgo").doesNotExist());
+        mockMvc.perform(get("/alma/psicologia/notificaciones").header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontactosPendientes").value(1));
+
+        jdbc.update("UPDATE casopsicologia SET estado='CERRADO' WHERE codigo='CAS-2026-123456'");
+        mockMvc.perform(get("/alma/psicologia/novedades/{id}", id).header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(false))
+                .andExpect(jsonPath("$.casoActivo").value(org.hamcrest.Matchers.nullValue()));
+        mockMvc.perform(get("/alma/psicologia/notificaciones").header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontactosPendientes").value(0));
+
+        jdbc.update("UPDATE casopsicologia SET estado='ABIERTO' WHERE codigo='CAS-2026-123456'");
+        jdbc.update("""
+                UPDATE atencionalmaaph SET estado='CERRADO',
+                    datos=jsonb_set(datos, '{cierre}', '{"motivo":"NO_CONTACTO"}'::jsonb)
+                WHERE codigo=?
+                """, id);
+        entityManager.clear();
+        mockMvc.perform(get("/alma/bandeja/psicologia").header("Authorization", profesional)
+                        .param("estado", "CERRADO"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(false));
+        mockMvc.perform(get("/alma/psicologia/novedades/{id}", id).header("Authorization", profesional))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(false))
+                .andExpect(jsonPath("$.casoActivo").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test

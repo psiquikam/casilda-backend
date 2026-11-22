@@ -5,6 +5,7 @@ import co.edu.udea.casilda.exception.AtencionAlmaException;
 import co.edu.udea.casilda.model.entity.Persona;
 import co.edu.udea.casilda.repository.PersonaRepository;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,42 @@ public class ConsultaPreviaAlmaService {
         Persona persona = personas.findByNumeroDocumentoAndTipoIdentificacion_Codigo(numero.trim(), tipo.trim())
                 .orElse(null);
         var sinSeguimiento = new ConsultaPreviaAlmaResponse.SeguimientoActivo(false, null, null);
-        if (persona == null) return new ConsultaPreviaAlmaResponse(false, null, sinSeguimiento, false, null);
+        var casosAlma = jdbc.query("""
+                SELECT c.idpersona, u.nombre AS profesional, c.proximocontrol,
+                       a.datos->'persona'->>'primerNombre' AS primernombre,
+                       a.datos->'persona'->>'segundoNombre' AS segundonombre,
+                       a.datos->'persona'->>'primerApellido' AS primerapellido,
+                       a.datos->'persona'->>'segundoApellido' AS segundoapellido
+                FROM casopsicologia c
+                JOIN tipoidentificacion ti ON ti.id = c.idtipoidentificacion
+                JOIN usuario u ON u.id = c.idprofesional
+                JOIN LATERAL (
+                    SELECT pc.idatencion FROM primercontactopsicologia pc
+                    WHERE pc.idcasopsicologia = c.id ORDER BY pc.fecharegistro DESC, pc.id DESC LIMIT 1
+                ) contacto ON true
+                JOIN atencionalmaaph a ON a.id = contacto.idatencion
+                WHERE ti.codigo = ? AND c.numerodocumento = ?
+                  AND c.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
+                ORDER BY CASE WHEN c.proximocontrol >= current_timestamp THEN 0
+                              WHEN c.proximocontrol IS NOT NULL THEN 1 ELSE 2 END,
+                         CASE WHEN c.proximocontrol >= current_timestamp THEN c.proximocontrol END,
+                         CASE WHEN c.proximocontrol < current_timestamp THEN c.proximocontrol END DESC,
+                         c.fechaapertura DESC, c.id DESC
+                LIMIT 1
+                """, (rs, row) -> new DatosCasoAlma(
+                new ConsultaPreviaAlmaResponse.Persona(rs.getObject("idpersona", Long.class),
+                        rs.getString("primernombre"), rs.getString("segundonombre"),
+                        rs.getString("primerapellido"), rs.getString("segundoapellido")),
+                new ConsultaPreviaAlmaResponse.SeguimientoActivo(true,
+                        rs.getTimestamp("proximocontrol") == null ? null
+                                : rs.getTimestamp("proximocontrol").toInstant().atZone(ZONA).toOffsetDateTime(),
+                        rs.getString("profesional"))), tipo.trim(), numero.trim());
+        if (persona == null) {
+            var datosAlma = casosAlma.isEmpty() ? null : casosAlma.getFirst().persona();
+            return new ConsultaPreviaAlmaResponse(datosAlma != null, datosAlma,
+                    casosAlma.isEmpty() ? sinSeguimiento : casosAlma.getFirst().seguimiento(),
+                    false, null);
+        }
 
         var datos = new ConsultaPreviaAlmaResponse.Persona(persona.getId(),
                 persona.getPrimerNombre(), persona.getSegundoNombre(),
@@ -82,9 +118,28 @@ public class ConsultaPreviaAlmaService {
                 """, (rs, row) -> new ConsultaPreviaAlmaResponse.CasoCerrado(rs.getString("codigo"),
                         rs.getTimestamp("fechacierre") == null ? null : rs.getTimestamp("fechacierre").toInstant()),
                 persona.getId());
-        return new ConsultaPreviaAlmaResponse(true, datos,
-                seguimientos.isEmpty() ? sinSeguimiento : seguimientos.getFirst(),
-                !casos.isEmpty(), casos.isEmpty() ? null : casos.getFirst());
+        var seguimiento = seguimientos.isEmpty() ? sinSeguimiento : seguimientos.getFirst();
+        if (!casosAlma.isEmpty() && preferir(casosAlma.getFirst().seguimiento(), seguimiento)) {
+            seguimiento = casosAlma.getFirst().seguimiento();
+        }
+        var cerrado = casos.isEmpty() ? null : casos.getFirst();
+        return new ConsultaPreviaAlmaResponse(true, datos, seguimiento, cerrado != null, cerrado);
     }
 
+    private boolean preferir(ConsultaPreviaAlmaResponse.SeguimientoActivo candidato,
+                            ConsultaPreviaAlmaResponse.SeguimientoActivo actual) {
+        if (!actual.activo()) return true;
+        OffsetDateTime primero = candidato.proximoSeguimiento();
+        OffsetDateTime segundo = actual.proximoSeguimiento();
+        if (primero == null) return false;
+        if (segundo == null) return true;
+        OffsetDateTime ahora = OffsetDateTime.now(ZONA);
+        boolean primeroFuturo = !primero.isBefore(ahora);
+        boolean segundoFuturo = !segundo.isBefore(ahora);
+        if (primeroFuturo != segundoFuturo) return primeroFuturo;
+        return primeroFuturo ? primero.isBefore(segundo) : primero.isAfter(segundo);
+    }
+
+    private record DatosCasoAlma(ConsultaPreviaAlmaResponse.Persona persona,
+                                 ConsultaPreviaAlmaResponse.SeguimientoActivo seguimiento) {}
 }

@@ -44,6 +44,7 @@ public class NovedadPsicologiaService {
     private final CatalogoAlmaItemRepository catalogos;
     private final ObjectMapper objectMapper;
     private final NamedParameterJdbcTemplate jdbc;
+    private final CasosActivosPsicologiaService casosActivos;
 
     @Transactional(readOnly = true)
     public NotificacionesPsicologiaResponse notificaciones(Authentication auth) {
@@ -51,17 +52,9 @@ public class NovedadPsicologiaService {
         Instant ahora = Instant.now();
         String sql = """
                 SELECT count(*) AS pendientes,
-                       count(*) FILTER (WHERE EXISTS (
-                           SELECT 1 FROM caso c JOIN estadocaso ec ON ec.id=c.idestadocaso
-                           JOIN cita ci ON ci.id=c.idcita
-                           JOIN solicitudatencion s ON s.id=ci.idsolicitudatencion
-                           LEFT JOIN remision rem ON rem.id=s.idremision
-                           JOIN persona p ON p.id=COALESCE(rem.idremitente, s.idsolicitante)
-                           JOIN tipoidentificacion ti ON ti.id=p.idtipoidentificacion
-                           WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición')
-                             AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
-                             AND p.numerodocumento=a.datos->'persona'->>'numeroIdentificacion'
-                       )) AS recontactos,
+                       count(*) FILTER (WHERE
+                """ + CasosActivosPsicologiaService.EXISTE_PARA_ATENCION + """
+                       ) AS recontactos,
                        count(*) FILTER (WHERE a.fechaderivacion +
                            (CASE a.triaje WHEN 'ALTO' THEN 12 WHEN 'MEDIO' THEN 24 ELSE 48 END)
                            * interval '1 hour' <= CAST(:ahora AS timestamptz)) AS vencidos
@@ -151,8 +144,13 @@ public class NovedadPsicologiaService {
         respuesta.set("consentimientoAph", respuesta.remove("consentimiento"));
         respuesta.set("notasAph", respuesta.remove("notas"));
         respuesta.putNull("numeroCaso");
-        respuesta.putNull("casoActivo");
-        respuesta.put("recontacto", tieneCasoActivo(atencion));
+        var persona = atencion.getDatos().path("persona");
+        var activos = casosActivos.buscar(persona.path("tipoIdentificacion").asText(),
+                persona.path("numeroIdentificacion").asText());
+        boolean recontacto = "PENDIENTE_PSICOLOGIA".equals(atencion.getEstado()) && !activos.isEmpty();
+        respuesta.set("casoActivo", recontacto ? objectMapper.valueToTree(activos.getFirst())
+                : objectMapper.nullNode());
+        respuesta.put("recontacto", recontacto);
         respuesta.put("tomadaPorMi", atencion.getTomadaPorPsicologia() != null
                 && atencion.getTomadaPorPsicologia().getId().equals(atencionService.usuario(auth).getId()));
         if (atencion.getTomadaPorPsicologia() == null) {
@@ -167,28 +165,6 @@ public class NovedadPsicologiaService {
         respuesta.put("intentosRealizados", intentos.countByAtencion_Id(atencion.getId()));
         respuesta.put("gestionSimultanea", false);
         return respuesta;
-    }
-
-    private boolean tieneCasoActivo(AtencionAlmaAph atencion) {
-        String sql = """
-                SELECT EXISTS (
-                    SELECT 1 FROM caso c JOIN estadocaso ec ON ec.id=c.idestadocaso
-                    JOIN cita ci ON ci.id=c.idcita
-                    JOIN solicitudatencion s ON s.id=ci.idsolicitudatencion
-                    LEFT JOIN remision rem ON rem.id=s.idremision
-                    JOIN persona p ON p.id=COALESCE(rem.idremitente, s.idsolicitante)
-                    JOIN tipoidentificacion ti ON ti.id=p.idtipoidentificacion
-                    WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición')
-                      AND ti.codigo=:tipoIdentificacion
-                      AND p.numerodocumento=:numeroIdentificacion
-                )
-                """;
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("tipoIdentificacion", atencion.getDatos().path("persona")
-                        .path("tipoIdentificacion").asText())
-                .addValue("numeroIdentificacion", atencion.getDatos().path("persona")
-                        .path("numeroIdentificacion").asText());
-        return Boolean.TRUE.equals(jdbc.queryForObject(sql, params, Boolean.class));
     }
 
     private AtencionAlmaAph buscarNovedad(String idAtencion, boolean bloquear) {

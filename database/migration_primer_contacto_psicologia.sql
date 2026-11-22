@@ -1,5 +1,7 @@
 -- Base de persistencia del primer contacto de Línea Alma.
 -- Ejecutar después de crear las tablas de APH, usuario, persona y caso.
+-- Es obligatorio ejecutar este script antes de habilitar el backend con consultas
+-- de casos de Psicología (bandeja, novedades, notificaciones y consulta previa APH).
 -- Este script no habilita por sí solo el endpoint de primer contacto.
 
 CREATE TABLE IF NOT EXISTS consecutivocasopsicologia (

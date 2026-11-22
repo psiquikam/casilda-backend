@@ -28,7 +28,8 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
         ResourceDatabasePopulator scripts = new ResourceDatabasePopulator(
                 new FileSystemResource("database/update_add_rol_tecnico_aph.sql"),
                 new FileSystemResource("database/update_auditoria_recursos.sql"),
-                new FileSystemResource("database/update_consulta_previa_aph.sql"));
+                new FileSystemResource("database/update_consulta_previa_aph.sql"),
+                new FileSystemResource("database/migration_primer_contacto_psicologia.sql"));
         scripts.execute(dataSource);
         scripts.execute(dataSource);
         jdbc.update("""
@@ -70,6 +71,10 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
 
     @AfterEach
     void limpiar() {
+        jdbc.update("DELETE FROM primercontactopsicologia WHERE idatencion IN "
+                + "(SELECT id FROM atencionalmaaph WHERE codigo='ALMA-2026-987651')");
+        jdbc.update("DELETE FROM casopsicologia WHERE codigo='CAS-2026-987651'");
+        jdbc.update("DELETE FROM atencionalmaaph WHERE codigo='ALMA-2026-987651'");
         jdbc.update("UPDATE persona SET primernombre='Luis', segundonombre=NULL, "
                 + "primerapellido='Pérez', segundoapellido=NULL WHERE id=101");
         jdbc.update("DELETE FROM limiteconsultapreviaaph WHERE idusuario IN (1,2,3,4,5,6,8701)");
@@ -96,6 +101,70 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder consulta(String documento, String auth) {
         return get("/alma/personas/consulta").param("tipoIdentificacion", "CC")
                 .param("numeroIdentificacion", documento).header("Authorization", auth);
+    }
+
+    @Test
+    void consultaCasoAlmaSinPersonaCentralYNoExponeInformacionClinica() throws Exception {
+        Long atencion = jdbc.queryForObject("""
+                INSERT INTO atencionalmaaph (codigo,version,estado,datos,fecha_creacion,fecha_actualizacion)
+                VALUES ('ALMA-2026-987651',1,'ABIERTO_ACTIVO',
+                        '{"persona":{"primerNombre":"María del Carmen","primerApellido":"De la Cruz"}}'::jsonb,
+                        now(),now()) RETURNING id
+                """, Long.class);
+        Long caso = jdbc.queryForObject("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,
+                    numerodocumento,idprofesional,fechaapertura,fechaactualizacion,proximocontrol)
+                SELECT 'CAS-2026-987651',1,'ABIERTO','ALTA',id,'1000000999',1,now(),now(),now() + interval '2 days'
+                FROM tipoidentificacion WHERE codigo='CC' RETURNING id
+                """, Long.class);
+        jdbc.update("""
+                INSERT INTO primercontactopsicologia (idatencion,idcasopsicologia,idusuario,fecharegistro,datos)
+                VALUES (?,?,1,now(),'{"valoracionRiesgo":{"descripcion":"información clínica"}}'::jsonb)
+                """, atencion, caso);
+        String auth = bearer("consulta.aph@example.edu.co");
+        mockMvc.perform(consulta("1000000999", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.existe").value(true))
+                .andExpect(jsonPath("$.persona.idPersona").value(nullValue()))
+                .andExpect(jsonPath("$.persona.primerNombre").value("María del Carmen"))
+                .andExpect(jsonPath("$.persona.primerApellido").value("De la Cruz"))
+                .andExpect(jsonPath("$.seguimientoActivo.activo").value(true))
+                .andExpect(jsonPath("$.seguimientoActivo.proximoSeguimiento").isNotEmpty())
+                .andExpect(jsonPath("$.seguimientoActivo.profesional").isNotEmpty())
+                .andExpect(jsonPath("$.valoracionRiesgo").doesNotExist());
+        jdbc.update("UPDATE casopsicologia SET estado='CERRADO' WHERE id=?", caso);
+        mockMvc.perform(consulta("1000000999", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.existe").value(false))
+                .andExpect(jsonPath("$.seguimientoActivo.activo").value(false))
+                .andExpect(jsonPath("$.tieneCasoCerrado").value(false));
+    }
+
+    @Test
+    void combinaSeguimientosPropiosYExistentesPriorizandoElProximoControl() throws Exception {
+        Long atencion = jdbc.queryForObject("""
+                INSERT INTO atencionalmaaph (codigo,version,estado,datos,fecha_creacion,fecha_actualizacion)
+                VALUES ('ALMA-2026-987651',1,'ABIERTO_ACTIVO','{"persona":{}}'::jsonb,now(),now())
+                RETURNING id
+                """, Long.class);
+        Long caso = jdbc.queryForObject("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,
+                    numerodocumento,idpersona,idprofesional,fechaapertura,fechaactualizacion,proximocontrol)
+                SELECT 'CAS-2026-987651',1,'ABIERTO','MEDIA',id,'100000002',101,1,
+                       now(),now(),now() + interval '1 hour'
+                FROM tipoidentificacion WHERE codigo='CC' RETURNING id
+                """, Long.class);
+        jdbc.update("""
+                INSERT INTO primercontactopsicologia (idatencion,idcasopsicologia,idusuario,fecharegistro,datos)
+                VALUES (?,?,1,now(),'{}'::jsonb)
+                """, atencion, caso);
+        String auth = bearer("consulta.aph@example.edu.co");
+        mockMvc.perform(consulta("100000002", auth)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.persona.idPersona").value(101))
+                .andExpect(jsonPath("$.seguimientoActivo.profesional").value(
+                        jdbc.queryForObject("SELECT nombre FROM usuario WHERE id=1", String.class)));
+        jdbc.update("UPDATE casopsicologia SET proximocontrol=now() - interval '1 day' WHERE id=?", caso);
+        mockMvc.perform(consulta("100000002", auth)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.seguimientoActivo.profesional").value("Dupla N° 2"));
     }
 
     @Test
