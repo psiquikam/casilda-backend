@@ -65,7 +65,7 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
                         .header("Authorization", auth).contentType(APPLICATION_JSON).content("""
                                 {"canalIngreso":"LLAMADA","motivoConsulta":"Prueba",
                                  "persona":{"tipoIdentificacion":"CC","numeroIdentificacion":"1000000001",
-                                            "nombres":"Persona","apellidos":"Prueba"}}
+                                            "primerNombre":"Persona","primerApellido":"Prueba"}}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
                 .path("idAtencion").asText();

@@ -45,7 +45,8 @@ public class AtencionAlmaService {
     private static final Set<String> CAMPOS = Set.of(
             "canalIngreso", "persona", "solicitante", "motivoConsulta", "notaAph", "aceptaPsicologia");
     private static final Set<String> CAMPOS_PERSONA = Set.of("tipoIdentificacion", "numeroIdentificacion",
-            "nombres", "apellidos", "telefonoPrincipal", "correoPersonal", "ciudad", "estrato");
+            "primerNombre", "segundoNombre", "primerApellido", "segundoApellido",
+            "telefonoPrincipal", "correoPersonal", "ciudad", "estrato");
     private static final Set<String> CAMPOS_SOLICITANTE = Set.of(
             "esTercero", "nombres", "apellidos", "telefono", "parentesco");
     private static final Set<String> EDITABLES = Set.of("BORRADOR", "EN_GESTION_APH");

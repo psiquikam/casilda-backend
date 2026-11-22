@@ -38,8 +38,8 @@ public class ConsultaPreviaAlmaService {
         if (persona == null) return new ConsultaPreviaAlmaResponse(false, null, sinSeguimiento, false, null);
 
         var datos = new ConsultaPreviaAlmaResponse.Persona(persona.getId(),
-                nombre(persona.getPrimerNombre(), persona.getSegundoNombre()),
-                nombre(persona.getPrimerApellido(), persona.getSegundoApellido()));
+                persona.getPrimerNombre(), persona.getSegundoNombre(),
+                persona.getPrimerApellido(), persona.getSegundoApellido());
         LocalDateTime ahora = LocalDateTime.now(ZONA);
         List<ConsultaPreviaAlmaResponse.SeguimientoActivo> seguimientos = jdbc.query("""
                 SELECT seg.fecha, gp.nombre AS profesional
@@ -87,7 +87,4 @@ public class ConsultaPreviaAlmaService {
                 !casos.isEmpty(), casos.isEmpty() ? null : casos.getFirst());
     }
 
-    private String nombre(String primero, String segundo) {
-        return StringUtils.hasText(segundo) ? primero + " " + segundo : primero;
-    }
 }

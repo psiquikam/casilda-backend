@@ -70,6 +70,37 @@ class AtencionAlmaIntegrationTest extends IntegrationTestBase {
 
     @Test
     @Transactional
+    void conservaNombresSeparadosSinDividirNombresCompuestos() throws Exception {
+        String auth = bearer("aph1@example.edu.co");
+        String id = objectMapper.readTree(mockMvc.perform(post("/alma/atenciones-aph")
+                        .header("Authorization", auth).contentType(APPLICATION_JSON).content("""
+                                {"canalIngreso":"LLAMADA",
+                                 "persona":{"tipoIdentificacion":"CC","numeroIdentificacion":"1000000001",
+                                   "primerNombre":"María del Carmen","segundoNombre":"Lucía",
+                                   "primerApellido":"De la Cruz","segundoApellido":"López"}}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.persona.primerNombre").value("María del Carmen"))
+                .andExpect(jsonPath("$.persona.segundoNombre").value("Lucía"))
+                .andExpect(jsonPath("$.persona.primerApellido").value("De la Cruz"))
+                .andExpect(jsonPath("$.persona.segundoApellido").value("López"))
+                .andReturn().getResponse().getContentAsString()).path("idAtencion").asText();
+        mockMvc.perform(patch("/alma/atenciones-aph/{id}", id).header("Authorization", auth)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"version\":1,\"persona\":{\"segundoNombre\":null}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.persona.primerNombre").value("María del Carmen"))
+                .andExpect(jsonPath("$.persona.segundoNombre").value(nullValue()))
+                .andExpect(jsonPath("$.persona.primerApellido").value("De la Cruz"));
+        mockMvc.perform(patch("/alma/atenciones-aph/{id}", id).header("Authorization", auth)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"version\":2,\"persona\":{\"nombres\":\"Nombre antiguo\"}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalles['persona.nombres']").exists());
+    }
+
+    @Test
+    @Transactional
     void creaConsultaYActualizaUnBorradorConControlDeVersion() throws Exception {
         String auth = bearer("aph1@example.edu.co");
         JsonNode creado = objectMapper.readTree(mockMvc.perform(post("/alma/atenciones-aph")

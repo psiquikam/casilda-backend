@@ -20,7 +20,7 @@ public class CatalogoAlmaService {
     private static final Set<String> CATALOGOS = Set.of(
             TIPOS_IDENTIFICACION, "estratos", "parentescos-solicitante", "destinos-internos",
             "rutas-externas", "resultados-ruta-externa", "motivos-cierre-aph", "textos-consentimiento",
-            "resultados-intento");
+            "resultados-intento", "dimensiones-salud-mental", "vinculos-agresor");
 
     private final CatalogoAlmaItemRepository catalogoRepository;
     private final TipoIdentificacionRepository tipoIdentificacionRepository;

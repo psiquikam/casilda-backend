@@ -72,7 +72,9 @@ public class BandejaPsicologiaService {
                        a.datos->>'canalIngreso' AS canal,
                        a.datos->'persona'->>'tipoIdentificacion' AS tipo,
                        a.datos->'persona'->>'numeroIdentificacion' AS documento,
-                       concat_ws(' ', a.datos->'persona'->>'nombres', a.datos->'persona'->>'apellidos') AS nombre,
+                       concat_ws(' ', a.datos->'persona'->>'primerNombre',
+                           a.datos->'persona'->>'segundoNombre', a.datos->'persona'->>'primerApellido',
+                           a.datos->'persona'->>'segundoApellido') AS nombre,
                        psicologia.nombre AS tomada_por,
                        psicologia.email AS tomada_por_email,
                        (SELECT count(*) FROM intentocontactopsicologia i

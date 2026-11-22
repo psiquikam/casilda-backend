@@ -70,6 +70,8 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
 
     @AfterEach
     void limpiar() {
+        jdbc.update("UPDATE persona SET primernombre='Luis', segundonombre=NULL, "
+                + "primerapellido='Pérez', segundoapellido=NULL WHERE id=101");
         jdbc.update("DELETE FROM limiteconsultapreviaaph WHERE idusuario IN (1,2,3,4,5,6,8701)");
         jdbc.update("DELETE FROM auditoriarecursos WHERE idusuario IN (1,2,3,4,5,6,8701)");
         jdbc.update("DELETE FROM usuariorol WHERE idusuario=8701");
@@ -98,11 +100,17 @@ class ConsultaPreviaAlmaIntegrationTest extends IntegrationTestBase {
 
     @Test
     void entregaSoloDatosMinimosYEligeSeguimientoYFechaConocida() throws Exception {
+        jdbc.update("UPDATE persona SET primernombre=?, segundonombre=?, primerapellido=?, segundoapellido=? WHERE id=101",
+                "María del Carmen", "Lucía", "De la Cruz", "López");
         String auth = bearer("admin@udea.edu.co");
         String body = mockMvc.perform(consulta("100000002", auth)).andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.existe").value(true))
                 .andExpect(jsonPath("$.persona.idPersona").value(101))
+                .andExpect(jsonPath("$.persona.primerNombre").value("María del Carmen"))
+                .andExpect(jsonPath("$.persona.segundoNombre").value("Lucía"))
+                .andExpect(jsonPath("$.persona.primerApellido").value("De la Cruz"))
+                .andExpect(jsonPath("$.persona.segundoApellido").value("López"))
                 .andExpect(jsonPath("$.seguimientoActivo.activo").value(true))
                 .andExpect(jsonPath("$.seguimientoActivo.profesional").value("Dupla N° 2"))
                 .andExpect(jsonPath("$.ultimoCasoCerrado.numeroCaso").value("CAS-CON-FECHA"))

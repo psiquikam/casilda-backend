@@ -52,7 +52,8 @@ class BandejaAphIntegrationTest extends IntegrationTestBase {
         return """
                 {"origenRemision":"%s","referenciaOrigen":"REF-1",
                  "persona":{"tipoIdentificacion":"CC","numeroIdentificacion":"1000000001",
-                            "nombres":"Persona","apellidos":"Prueba","telefonoPrincipal":"3000000000"},
+                            "primerNombre":"María del Carmen","segundoNombre":"Lucía",
+                            "primerApellido":"De la Cruz","segundoApellido":"López","telefonoPrincipal":"3000000000"},
                  "motivo":"Remisión de prueba","peligroInminente":%s}
                 """.formatted(origen, peligro);
     }
@@ -75,7 +76,7 @@ class BandejaAphIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.detalles.idAtencion").value(id));
         mockMvc.perform(get("/alma/bandeja/aph").header("Authorization", tecnico).param("origen", "EA"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
-                .andExpect(jsonPath("$.items[0].persona.nombreCompleto").value("Persona Prueba"));
+                .andExpect(jsonPath("$.items[0].persona.nombreCompleto").value("María del Carmen Lucía De la Cruz López"));
         mockMvc.perform(get("/alma/atenciones-aph/{id}", id).header("Authorization", tecnico))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/alma/bandeja/aph/{id}/tomar", id).header("Authorization", tecnico)
