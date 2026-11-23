@@ -108,8 +108,8 @@ datos sintéticos; esos recursos permanecen separados.
 
 Para esta versión que integra la detección de casos de Psicología, ejecutar además
 `database/migration_primer_contacto_psicologia.sql` antes de habilitar el tráfico
-al backend. Las consultas de bandeja, novedades, notificaciones y consulta previa
-APH dependen de sus tablas. El script es idempotente y no habilita por sí solo el
+al backend. Las consultas de bandeja, novedades, notificaciones, auditoría de caso
+y consulta previa APH dependen de sus tablas. El script es idempotente y no habilita por sí solo el
 endpoint de primer contacto, que aún está pendiente de implementación.
 
 Los scripts granulares `update_*_aph.sql` se conservan como fixtures para las pruebas

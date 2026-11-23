@@ -38,7 +38,8 @@ class AuditoriaAlmaIntegrationTest extends IntegrationTestBase {
                 new FileSystemResource("database/update_add_rol_tecnico_aph.sql"),
                 new FileSystemResource("database/update_permisos_borrador_alma_aph.sql"),
                 new FileSystemResource("database/update_historial_auditoria_aph.sql"),
-                new FileSystemResource("database/update_consulta_previa_aph.sql"))
+                new FileSystemResource("database/update_consulta_previa_aph.sql"),
+                new FileSystemResource("database/migration_primer_contacto_psicologia.sql"))
                 .execute(dataSource);
         jdbc.update("DELETE FROM limiteauditoriaaph WHERE idusuario IN (1,4,8710)");
         Integer rolId = jdbc.queryForObject("SELECT id FROM rol WHERE codigo='ALMA_COORDINACION'", Integer.class);
@@ -61,6 +62,9 @@ class AuditoriaAlmaIntegrationTest extends IntegrationTestBase {
 
     @AfterEach
     void limpiar() {
+        jdbc.update("DELETE FROM eventocasopsicologia WHERE idcasopsicologia IN "
+                + "(SELECT id FROM casopsicologia WHERE codigo='CAS-2026-987652')");
+        jdbc.update("DELETE FROM casopsicologia WHERE codigo='CAS-2026-987652'");
         jdbc.update("DELETE FROM limiteauditoriaaph WHERE idusuario IN (1,4,8710)");
         jdbc.update("DELETE FROM usuariorol WHERE idusuario=8710");
         jdbc.update("DELETE FROM usuario WHERE id=8710");
@@ -97,6 +101,37 @@ class AuditoriaAlmaIntegrationTest extends IntegrationTestBase {
             String codigo, String token) {
         return get("/alma/auditoria").param("tipoContexto", "ATENCION_APH")
                 .param("idContexto", codigo).header("Authorization", token);
+    }
+
+    @Test
+    void consultaCasoPropioPorCodigoSinExponerDatosClinicos() throws Exception {
+        Long caso = jdbc.queryForObject("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,
+                    numerodocumento,idprofesional,fechaapertura,fechaactualizacion)
+                SELECT 'CAS-2026-987652',1,'ABIERTO','ALTA',id,'1234567890',1,now(),now()
+                FROM tipoidentificacion WHERE codigo='CC' RETURNING id
+                """, Long.class);
+        jdbc.update("""
+                INSERT INTO eventocasopsicologia (idcasopsicologia,idusuario,accion,detalle,fecha)
+                VALUES (?,1,'VINCULACION','Se vinculó una atención.',now()),
+                       (?,1,'CREACION','Se creó el caso de Psicología.',now() - interval '1 minute')
+                """, caso, caso);
+        String admin = bearer("admin@udea.edu.co");
+        mockMvc.perform(get("/alma/auditoria").param("tipoContexto", "CASO")
+                        .param("idContexto", "CAS-2026-987652").header("Authorization", admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].accion").value("CREACION"))
+                .andExpect(jsonPath("$[0].detalle").value("Se creó el caso de Psicología."))
+                .andExpect(jsonPath("$[0].usuario").value("Admin"))
+                .andExpect(jsonPath("$[1].accion").value("VINCULACION"));
+        mockMvc.perform(get("/alma/auditoria").param("tipoContexto", "CASO")
+                        .param("idContexto", "CAS-2026-987652")
+                        .header("Authorization", bearer("coordinacion.alma@example.edu.co")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].accion").value("CREACION"));
+        mockMvc.perform(get("/alma/auditoria").param("tipoContexto", "CASO")
+                        .param("idContexto", "CAS-2026-987652")
+                        .header("Authorization", bearer("revisor@udea.edu.co")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

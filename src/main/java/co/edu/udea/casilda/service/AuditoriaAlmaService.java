@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class AuditoriaAlmaService {
     private final EventoAtencionAlmaRepository eventos;
     private final CasoRepository casos;
     private final EventoCasoRepository eventosCaso;
+    private final JdbcTemplate jdbc;
 
     @Transactional(readOnly = true)
     public List<AuditoriaAlmaResponse> consultar(String tipoContexto, String idContexto,
@@ -47,12 +49,29 @@ public class AuditoriaAlmaService {
                     .toList();
         }
         if ("CASO".equals(contexto)) {
-            Caso caso = buscarCaso(id).orElseThrow(() -> new AtencionAlmaException(
+            Optional<Caso> caso = buscarCaso(id);
+            if (caso.isPresent()) {
+                return eventosCaso.findByCasoIdOrderByFechaAscIdAsc(caso.get().getId()).stream()
+                        .map(this::respuesta)
+                        .toList();
+            }
+            Long existe = jdbc.queryForObject("SELECT count(*) FROM casopsicologia WHERE codigo = ?", Long.class, id);
+            if (existe != null && existe > 0) {
+                return jdbc.query("""
+                        SELECT e.id, e.fecha, u.nombre, e.accion, e.detalle
+                        FROM eventocasopsicologia e
+                        JOIN casopsicologia c ON c.id=e.idcasopsicologia
+                        JOIN usuario u ON u.id=e.idusuario
+                        WHERE c.codigo=?
+                        ORDER BY e.fecha, e.id
+                        """, (rs, row) -> new AuditoriaAlmaResponse(
+                        "EVT-%06d".formatted(rs.getLong("id")),
+                        rs.getTimestamp("fecha").toInstant().atZone(ZONA).toOffsetDateTime(),
+                        rs.getString("nombre"), rs.getString("accion"), rs.getString("detalle")), id);
+            }
+            throw new AtencionAlmaException(
                     HttpStatus.NOT_FOUND, "CASO_NO_ENCONTRADO", "No se encontró el caso solicitado.",
-                    Map.of("idContexto", id)));
-            return eventosCaso.findByCasoIdOrderByFechaAscIdAsc(caso.getId()).stream()
-                    .map(this::respuesta)
-                    .toList();
+                    Map.of("idContexto", id));
         }
         throw validacion("tipoContexto", "Use ATENCION_APH o CASO.");
     }
