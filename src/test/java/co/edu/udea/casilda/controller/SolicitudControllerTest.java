@@ -32,7 +32,7 @@ class SolicitudControllerTest {
     @Test
     void solicitudEndpoints() throws Exception {
         SolicitudAcompanamientoService service = mock(SolicitudAcompanamientoService.class);
-        when(service.listarPaginadas(anyInt(), anyInt(), any()))
+        when(service.listarPaginadas(anyInt(), anyInt(), any(), anyBoolean()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
         MockMvc m = mvc(new SolicitudController(service));
         m.perform(post("/solicitudes/acompanamiento").contentType("application/json").content(JSON)).andExpect(status().isCreated());
@@ -40,6 +40,9 @@ class SolicitudControllerTest {
         m.perform(get("/solicitudes/acompanamiento").param("idEstadoSolicitud", "2")).andExpect(status().isOk());
         m.perform(get("/solicitudes/acompanamiento/paginado").param("page", "1").param("size", "4"))
                 .andExpect(status().isOk());
+        m.perform(get("/solicitudes/acompanamiento/paginado").param("ordenReparto", "true"))
+                .andExpect(status().isOk());
+        verify(service).listarPaginadas(0, 10, null, true);
         m.perform(delete("/solicitudes/acompanamiento/1")).andExpect(status().isNoContent());
         m.perform(put("/solicitudes/acompanamiento/1").contentType("application/json").content(JSON)).andExpect(status().isOk());
         m.perform(post("/solicitudes/acompanamiento/1/asignar").contentType("application/json").content(JSON)).andExpect(status().isOk());

@@ -223,7 +223,7 @@ public class SolicitudAcompanamientoService {
      * Lista solicitudes paginadas
      */
     @Transactional(readOnly = true)
-    public Page<SolicitudAcompanamientoResponse> listarPaginadas(int page, int size, Integer idEstadoSolicitud) {
+    public Page<SolicitudAcompanamientoResponse> listarPaginadas(int page, int size, Integer idEstadoSolicitud, boolean ordenReparto) {
         log.info("Listando solicitudes paginadas. page={}, size={}, idEstadoSolicitud={}", page, size,
                 idEstadoSolicitud);
 
@@ -231,10 +231,16 @@ public class SolicitudAcompanamientoService {
         int safeSize = Math.max(size, 1);
         Pageable pageable = PageRequest.of(safePage, safeSize);
 
-        Page<SolicitudAtencion> solicitudes = idEstadoSolicitud == null
-                ? solicitudAtencionRepository.findAllByOrderByFechaCreacionDesc(pageable)
-                : solicitudAtencionRepository.findByEstadoSolicitudIdOrderByFechaCreacionDesc(idEstadoSolicitud,
-                        pageable);
+        Page<SolicitudAtencion> solicitudes;
+        if (ordenReparto) {
+            solicitudes = solicitudAtencionRepository.findParaReparto(
+                    idEstadoSolicitud, EstadoSolicitud.SIN_ASIGNAR.getId(), pageable);
+        } else {
+            solicitudes = idEstadoSolicitud == null
+                    ? solicitudAtencionRepository.findAllByOrderByFechaCreacionDesc(pageable)
+                    : solicitudAtencionRepository.findByEstadoSolicitudIdOrderByFechaCreacionDesc(idEstadoSolicitud,
+                            pageable);
+        }
 
         return solicitudes.map(solicitud -> buildResponse(solicitud, solicitud.getRemision()));
     }

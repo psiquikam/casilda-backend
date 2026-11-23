@@ -1,7 +1,16 @@
 package co.edu.udea.casilda.integration;
 
+import co.edu.udea.casilda.model.entity.SolicitudAtencion;
+import co.edu.udea.casilda.repository.SolicitudAtencionRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,6 +20,40 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class SolicitudUpdateIntegrationTest extends IntegrationTestBase {
+
+    @Autowired
+    private SolicitudAtencionRepository solicitudes;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Test
+    @Transactional
+    void ordenaRepartoAntesDePaginar() {
+        jdbc.update("DELETE FROM asignacion WHERE idsolicitudatencion = 100");
+        jdbc.update("UPDATE solicitudatencion SET idestadosolicitud = 1, fechacreacion = '2026-01-01' WHERE id = 100");
+        jdbc.update("""
+                INSERT INTO solicitudatencion (id, idsolicitante, idtiposolicitud, idestadosolicitud, fechacreacion)
+                VALUES (101, 100, 1, 2, '2026-04-01'),
+                       (102, 100, 1, 1, '2026-03-01'),
+                       (103, 100, 1, 2, '2026-02-01'),
+                       (104, 100, 1, 1, '2026-03-01'),
+                       (105, 100, 1, 1, NULL)
+                """);
+        jdbc.update("""
+                INSERT INTO asignacion (idsolicitudatencion, idgrupoprofesional, idtipoasignacion, idtiposervicio)
+                VALUES (101, 1, 1, 2), (103, 1, 1, 2)
+                """);
+
+        assertEquals(List.of(104L, 102L), idsReparto(0));
+        assertEquals(List.of(100L, 105L), idsReparto(1));
+        assertEquals(List.of(101L, 103L), idsReparto(2));
+    }
+
+    private List<Long> idsReparto(int page) {
+        return solicitudes.findParaReparto(null, 1, PageRequest.of(page, 2))
+                .map(SolicitudAtencion::getId).getContent();
+    }
 
     @Test
     void updatesExistingSeededSolicitud() throws Exception {

@@ -100,8 +100,9 @@ public class SolicitudController {
         public ResponseEntity<Page<SolicitudAcompanamientoResponse>> listarPaginadas(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
-                        @RequestParam(required = false) Integer idEstadoSolicitud) {
-                return ResponseEntity.ok(service.listarPaginadas(page, size, idEstadoSolicitud));
+                        @RequestParam(required = false) Integer idEstadoSolicitud,
+                        @RequestParam(defaultValue = "false") boolean ordenReparto) {
+                return ResponseEntity.ok(service.listarPaginadas(page, size, idEstadoSolicitud, ordenReparto));
         }
 
     /**
