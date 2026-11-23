@@ -33,7 +33,7 @@ public class ConsultaPreviaAlmaService {
                     "Revise los datos marcados e intente de nuevo.", errores);
         }
 
-        Persona persona = personas.findByNumeroDocumentoAndTipoIdentificacion_Codigo(numero.trim(), tipo.trim())
+        Persona persona = personas.findByNumeroDocumentoIgnoreCaseAndTipoIdentificacion_Codigo(numero.trim(), tipo.trim())
                 .orElse(null);
         var sinSeguimiento = new ConsultaPreviaAlmaResponse.SeguimientoActivo(false, null, null);
         var casosAlma = jdbc.query("""
@@ -50,7 +50,7 @@ public class ConsultaPreviaAlmaService {
                     WHERE pc.idcasopsicologia = c.id ORDER BY pc.fecharegistro DESC, pc.id DESC LIMIT 1
                 ) contacto ON true
                 JOIN atencionalmaaph a ON a.id = contacto.idatencion
-                WHERE ti.codigo = ? AND c.numerodocumento = ?
+                WHERE ti.codigo = ? AND upper(c.numerodocumento) = upper(?)
                   AND c.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
                 ORDER BY CASE WHEN c.proximocontrol >= current_timestamp THEN 0
                               WHEN c.proximocontrol IS NOT NULL THEN 1 ELSE 2 END,
@@ -121,6 +121,25 @@ public class ConsultaPreviaAlmaService {
         var seguimiento = seguimientos.isEmpty() ? sinSeguimiento : seguimientos.getFirst();
         if (!casosAlma.isEmpty() && preferir(casosAlma.getFirst().seguimiento(), seguimiento)) {
             seguimiento = casosAlma.getFirst().seguimiento();
+        }
+        List<ConsultaPreviaAlmaResponse.SeguimientoActivo> contactosExistentes = jdbc.query("""
+                SELECT DISTINCT ON (c.id) pc.datos->>'proximoControl' AS control, u.nombre AS profesional
+                FROM primercontactopsicologia pc
+                JOIN caso c ON c.id=pc.idcaso
+                JOIN estadocaso ec ON ec.id=c.idestadocaso
+                JOIN cita ci ON ci.id=c.idcita
+                JOIN solicitudatencion s ON s.id=ci.idsolicitudatencion
+                LEFT JOIN remision rem ON rem.id=s.idremision
+                JOIN usuario u ON u.id=pc.idusuario
+                WHERE COALESCE(rem.idremitente,s.idsolicitante)=?
+                  AND ec.nombre IN ('Abierto activo','Abierto en transición')
+                  AND pc.datos->>'proximoControl' IS NOT NULL
+                ORDER BY c.id, pc.fecharegistro DESC, pc.id DESC
+                """, (rs, row) -> new ConsultaPreviaAlmaResponse.SeguimientoActivo(true,
+                OffsetDateTime.parse(rs.getString("control")).atZoneSameInstant(ZONA).toOffsetDateTime(),
+                rs.getString("profesional")), persona.getId());
+        for (var contacto : contactosExistentes) {
+            if (preferir(contacto, seguimiento)) seguimiento = contacto;
         }
         var cerrado = casos.isEmpty() ? null : casos.getFirst();
         return new ConsultaPreviaAlmaResponse(true, datos, seguimiento, cerrado != null, cerrado);

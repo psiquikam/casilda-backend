@@ -1,8 +1,10 @@
 package co.edu.udea.casilda.controller;
 
 import co.edu.udea.casilda.dto.response.IntentoContactoPsicologiaResponse;
+import co.edu.udea.casilda.dto.response.PrimerContactoPsicologiaResponse;
 import co.edu.udea.casilda.exception.AtencionAlmaException;
 import co.edu.udea.casilda.service.NovedadPsicologiaService;
+import co.edu.udea.casilda.service.PrimerContactoPsicologiaService;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -24,6 +26,7 @@ import java.util.Map;
 @SecurityRequirement(name = "bearerAuth")
 public class NovedadPsicologiaController {
     private final NovedadPsicologiaService service;
+    private final PrimerContactoPsicologiaService primerContacto;
 
     @GetMapping("/{idAtencion}")
     @Operation(summary = "Consultar el detalle de una novedad de Psicología")
@@ -44,6 +47,13 @@ public class NovedadPsicologiaController {
                                                      @RequestBody JsonNode request,
                                                      Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.registrarIntento(idAtencion, request, auth));
+    }
+
+    @PostMapping("/{idAtencion}/primer-contacto")
+    @Operation(summary = "Registrar el primer contacto y crear o vincular un caso")
+    public ResponseEntity<PrimerContactoPsicologiaResponse> registrarPrimerContacto(
+            @PathVariable String idAtencion, @RequestBody JsonNode request, Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(primerContacto.registrar(idAtencion, request, auth));
     }
 
     @ExceptionHandler(AtencionAlmaException.class)

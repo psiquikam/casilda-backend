@@ -19,7 +19,7 @@ public class CasosActivosPsicologiaService {
                 JOIN tipoidentificacion ti ON ti.id=cp.idtipoidentificacion
                 WHERE cp.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
                   AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
-                  AND cp.numerodocumento=a.datos->'persona'->>'numeroIdentificacion'
+                  AND upper(cp.numerodocumento)=upper(a.datos->'persona'->>'numeroIdentificacion')
             ) OR EXISTS (
                 SELECT 1 FROM caso c JOIN estadocaso ec ON ec.id=c.idestadocaso
                 JOIN cita ci ON ci.id=c.idcita
@@ -29,7 +29,7 @@ public class CasosActivosPsicologiaService {
                 JOIN tipoidentificacion ti ON ti.id=p.idtipoidentificacion
                 WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición')
                   AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
-                  AND p.numerodocumento=a.datos->'persona'->>'numeroIdentificacion'
+                  AND upper(p.numerodocumento)=upper(a.datos->'persona'->>'numeroIdentificacion')
             ))
             """;
     private final JdbcTemplate jdbc;
@@ -48,7 +48,7 @@ public class CasosActivosPsicologiaService {
                     FROM casopsicologia c
                     JOIN tipoidentificacion ti ON ti.id = c.idtipoidentificacion
                     JOIN usuario u ON u.id = c.idprofesional
-                    WHERE ti.codigo = ? AND c.numerodocumento = ?
+                    WHERE ti.codigo = ? AND upper(c.numerodocumento) = upper(?)
                       AND c.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
                     UNION ALL
                     SELECT c.codigo, 'ACTIVO' AS estado,
@@ -58,14 +58,14 @@ public class CasosActivosPsicologiaService {
                             JOIN atencion at ON at.id = seg.idatencion
                             JOIN accion ac ON ac.id = seg.idaccion
                             WHERE at.idcaso = c.id AND ac.nombre = 'Seguimiento por psicología') AS seguimientos,
-                           (SELECT min(seg.fecha) AT TIME ZONE 'America/Bogota'
+                           LEAST(ultimo_contacto.proximocontrol, (SELECT min(seg.fecha) AT TIME ZONE 'America/Bogota'
                             FROM seguimientoatencion seg
                             JOIN atencion at ON at.id = seg.idatencion
                             JOIN accion ac ON ac.id = seg.idaccion
                             JOIN estadoseguimiento es ON es.id = seg.idestadoseguimiento
                             WHERE at.idcaso = c.id AND ac.nombre = 'Seguimiento por psicología'
                               AND es.nombre IN ('En Proceso', 'Pendiente')
-                              AND seg.fecha >= (current_timestamp AT TIME ZONE 'America/Bogota'))
+                              AND seg.fecha >= (current_timestamp AT TIME ZONE 'America/Bogota')))
                                AS proximocontrol
                     FROM caso c
                     JOIN estadocaso ec ON ec.id = c.idestadocaso
@@ -80,7 +80,13 @@ public class CasosActivosPsicologiaService {
                         ORDER BY asign.fechacreacion DESC NULLS LAST, asign.id DESC LIMIT 1
                     ) vigente ON true
                     LEFT JOIN grupoprofesional gp ON gp.id = vigente.idgrupoprofesional
-                    WHERE ti.codigo = ? AND p.numerodocumento = ?
+                    LEFT JOIN LATERAL (
+                        SELECT CAST(pc.datos->>'proximoControl' AS timestamptz) AS proximocontrol
+                        FROM primercontactopsicologia pc
+                        WHERE pc.idcaso=c.id AND pc.datos->>'proximoControl' IS NOT NULL
+                        ORDER BY pc.fecharegistro DESC, pc.id DESC LIMIT 1
+                    ) ultimo_contacto ON true
+                    WHERE ti.codigo = ? AND upper(p.numerodocumento) = upper(?)
                       AND ec.nombre IN ('Abierto activo', 'Abierto en transición')
                 ) resultado
                 ORDER BY resultado.apertura DESC NULLS LAST, resultado.codigo

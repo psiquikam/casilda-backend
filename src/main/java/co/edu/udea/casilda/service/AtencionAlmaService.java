@@ -552,7 +552,19 @@ public class AtencionAlmaService {
         if (!salida.has("cierre")) {
             salida.putNull("cierre");
         }
-        salida.putNull("numeroCaso");
+        if (Set.of("ABIERTO_ACTIVO", "EN_SEGUIMIENTO").contains(atencion.getEstado())) {
+            var numeros = jdbc.query("""
+                    SELECT COALESCE(cp.codigo, c.codigo) AS codigo
+                    FROM primercontactopsicologia pc
+                    LEFT JOIN casopsicologia cp ON cp.id=pc.idcasopsicologia
+                    LEFT JOIN caso c ON c.id=pc.idcaso
+                    WHERE pc.idatencion=?
+                    """, (rs, row) -> rs.getString("codigo"), atencion.getId());
+            if (numeros.isEmpty()) salida.putNull("numeroCaso");
+            else salida.put("numeroCaso", numeros.getFirst());
+        } else {
+            salida.putNull("numeroCaso");
+        }
         salida.putNull("gestionSimultanea");
         salida.put("fechaCreacion", atencion.getFechaCreacion().toString());
         salida.put("fechaActualizacion", atencion.getFechaActualizacion().toString());

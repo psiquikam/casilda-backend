@@ -143,7 +143,6 @@ public class NovedadPsicologiaService {
         respuesta.remove("aceptaPsicologia");
         respuesta.set("consentimientoAph", respuesta.remove("consentimiento"));
         respuesta.set("notasAph", respuesta.remove("notas"));
-        respuesta.putNull("numeroCaso");
         var persona = atencion.getDatos().path("persona");
         var activos = casosActivos.buscar(persona.path("tipoIdentificacion").asText(),
                 persona.path("numeroIdentificacion").asText());
@@ -167,7 +166,7 @@ public class NovedadPsicologiaService {
         return respuesta;
     }
 
-    private AtencionAlmaAph buscarNovedad(String idAtencion, boolean bloquear) {
+    AtencionAlmaAph buscarNovedad(String idAtencion, boolean bloquear) {
         AtencionAlmaAph atencion = atencionService.buscar(idAtencion, bloquear);
         if (atencion.getFechaDerivacion() == null) {
             throw new AtencionAlmaException(HttpStatus.NOT_FOUND, "NOVEDAD_NO_ENCONTRADA",
@@ -176,7 +175,7 @@ public class NovedadPsicologiaService {
         return atencion;
     }
 
-    private void verificarGestion(AtencionAlmaAph atencion, JsonNode version, Usuario actor) {
+    void verificarGestion(AtencionAlmaAph atencion, JsonNode version, Usuario actor) {
         if (!"PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())) {
             throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "NOVEDAD_CERRADA",
                     "La novedad ya no está pendiente.", Map.of("estado", atencion.getEstado()));

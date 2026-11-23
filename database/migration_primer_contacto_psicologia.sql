@@ -2,7 +2,7 @@
 -- Ejecutar después de crear las tablas de APH, usuario, persona y caso.
 -- Es obligatorio ejecutar este script antes de habilitar el backend con consultas
 -- de casos de Psicología (bandeja, novedades, notificaciones y consulta previa APH).
--- Este script no habilita por sí solo el endpoint de primer contacto.
+-- Requiere que las tablas de permisos ya existan.
 
 CREATE TABLE IF NOT EXISTS consecutivocasopsicologia (
     anio INTEGER PRIMARY KEY,
@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS casopsicologia (
 
 CREATE INDEX IF NOT EXISTS idx_casopsicologia_persona_estado
     ON casopsicologia (idtipoidentificacion, numerodocumento, estado);
+CREATE INDEX IF NOT EXISTS idx_casopsicologia_documento_normalizado_estado
+    ON casopsicologia (idtipoidentificacion, upper(numerodocumento), estado);
 
 -- Una atención puede vincularse a un caso propio o a un caso existente, nunca a ambos.
 -- El contenido clínico se mantiene separado de los datos visibles para APH.
@@ -57,3 +59,13 @@ CREATE TABLE IF NOT EXISTS eventocasopsicologia (
 
 CREATE INDEX IF NOT EXISTS idx_eventocasopsicologia_historial
     ON eventocasopsicologia (idcasopsicologia, fecha, id);
+
+INSERT INTO endpoint (path, http_method, activo, publico)
+VALUES ('/alma/psicologia/novedades/{idAtencion}/primer-contacto', 'POST', true, false)
+ON CONFLICT (path, http_method) DO UPDATE SET activo=true, publico=false;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL')
+WHERE e.path='/alma/psicologia/novedades/{idAtencion}/primer-contacto' AND e.http_method='POST'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
