@@ -20,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -82,6 +84,54 @@ class CitaServiceTest {
 
         assertEquals(5, service.registrarResultado(1L, resultado).getIdEstadoCita());
         verify(citaRepository).save(cita);
+    }
+
+    @Test
+    void reprogramaCitaVencidaSiLaNuevaFechaEsFutura() {
+        Cita cita = cita(1L);
+        cita.setEstadoCita(new EstadoCita(1, "Programada"));
+        cita.setFecha(LocalDateTime.now().minusDays(1));
+        when(citaRepository.findById(1L)).thenReturn(Optional.of(cita));
+        when(estadoCitaRepository.findById(3)).thenReturn(Optional.of(new EstadoCita(3, "Reprogramada")));
+        when(citaRepository.save(cita)).thenReturn(cita);
+        ReprogramarCitaRequest request = new ReprogramarCitaRequest();
+        request.setFechaCita(LocalDateTime.now().plusDays(2).toLocalDate().toString());
+        request.setHoraCita("10:30");
+
+        CitaResponse respuesta = service.reprogramar(1L, request);
+
+        assertEquals(3, respuesta.getIdEstadoCita());
+        assertTrue(cita.getFecha().isAfter(LocalDateTime.now()));
+        verify(citaRepository).save(cita);
+    }
+
+    @Test
+    void noPermiteReprogramarSiLaNuevaFechaNoEsFutura() {
+        Cita cita = cita(1L);
+        cita.setEstadoCita(new EstadoCita(3, "Reprogramada"));
+        when(citaRepository.findById(1L)).thenReturn(Optional.of(cita));
+        ReprogramarCitaRequest request = new ReprogramarCitaRequest();
+        request.setFechaCita(LocalDateTime.now().minusDays(1).toLocalDate().toString());
+        request.setHoraCita("10:30");
+
+        assertThrows(IllegalArgumentException.class, () -> service.reprogramar(1L, request));
+        verify(citaRepository, never()).save(any());
+    }
+
+    @Test
+    void solicitaAlRepositorioElOrdenDeBandejaDeCitas() {
+        when(citaRepository.findParaTabla(
+                isNull(), isNull(), anyList(), eq(EstadoCitaEnum.ATENDIDA.getId()), any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        service.listarCitasPaginadas(0, 10, null, null);
+
+        verify(citaRepository).findParaTabla(
+                isNull(),
+                isNull(),
+                eq(List.of(EstadoCitaEnum.PROGRAMADA.getId(), EstadoCitaEnum.REPROGRAMADA.getId())),
+                eq(EstadoCitaEnum.ATENDIDA.getId()),
+                any(Pageable.class));
     }
 
     @Test

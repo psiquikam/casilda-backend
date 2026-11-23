@@ -21,20 +21,22 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
      */
     List<Cita> findBySolicitudAtencionIdOrderByFechaDesc(Long solicitudId);
 
-    /**
-     * Lista citas paginadas ordenadas por fecha descendente.
-     */
-    Page<Cita> findAllByOrderByFechaDesc(Pageable pageable);
-
-    /**
-     * Lista citas paginadas filtradas por estado.
-     */
-    Page<Cita> findByEstadoCitaIdOrderByFechaDesc(Integer estadoCitaId, Pageable pageable);
-
-    /**
-     * Lista citas paginadas excluyendo un estado.
-     */
-    Page<Cita> findByEstadoCitaIdNotOrderByFechaDesc(Integer estadoCitaId, Pageable pageable);
+    @Query("""
+            SELECT c FROM Cita c
+            WHERE (:estadoId IS NULL OR c.estadoCita.id = :estadoId)
+              AND (:estadoExcluidoId IS NULL OR c.estadoCita.id <> :estadoExcluidoId)
+            ORDER BY CASE
+                WHEN c.estadoCita.id IN :estadosPrioritarios THEN 0
+                WHEN c.estadoCita.id = :estadoAtendida THEN 2
+                ELSE 1
+            END, c.fecha ASC, c.id ASC
+            """)
+    Page<Cita> findParaTabla(
+            @Param("estadoId") Integer estadoId,
+            @Param("estadoExcluidoId") Integer estadoExcluidoId,
+            @Param("estadosPrioritarios") List<Integer> estadosPrioritarios,
+            @Param("estadoAtendida") Integer estadoAtendida,
+            Pageable pageable);
 
     @Query("""
             SELECT c FROM Cita c
