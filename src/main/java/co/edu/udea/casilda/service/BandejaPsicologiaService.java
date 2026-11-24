@@ -2,10 +2,15 @@ package co.edu.udea.casilda.service;
 
 import co.edu.udea.casilda.dto.response.BandejaPsicologiaResponse;
 import co.edu.udea.casilda.exception.AtencionAlmaException;
+import co.edu.udea.casilda.model.entity.AtencionAlmaAph;
+import co.edu.udea.casilda.model.entity.Usuario;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -21,6 +26,7 @@ import java.util.Set;
 public class BandejaPsicologiaService {
     private static final String FILTROS = """
             FROM atencionalmaaph a
+            LEFT JOIN usuario psicologia ON psicologia.id = a.idusuariotomadorpsicologia
             WHERE a.estado = :estado AND a.fechaderivacion IS NOT NULL
               AND (:estado <> 'CERRADO' OR a.datos->'cierre'->>'motivo' = 'NO_CONTACTO')
               AND (:triaje = '' OR a.triaje = :triaje)
@@ -40,10 +46,12 @@ public class BandejaPsicologiaService {
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final AtencionAlmaService atencionService;
+    private final NovedadPsicologiaService novedadService;
 
     @Transactional(readOnly = true)
     public BandejaPsicologiaResponse listar(String estado, String triaje, String semaforo,
-                                             String documento, int page, int size) {
+                                             String documento, int page, int size, Authentication auth) {
         validar("estado", estado, Set.of("PENDIENTE_PSICOLOGIA", "CERRADO"));
         validar("triaje", triaje, Set.of("ALTO", "MEDIO", "BAJO"));
         validar("semaforo", semaforo, Set.of("VERDE", "AMARILLO", "ROJO"));
@@ -64,17 +72,15 @@ public class BandejaPsicologiaService {
                        a.datos->>'canalIngreso' AS canal,
                        a.datos->'persona'->>'tipoIdentificacion' AS tipo,
                        a.datos->'persona'->>'numeroIdentificacion' AS documento,
-                       concat_ws(' ', a.datos->'persona'->>'nombres', a.datos->'persona'->>'apellidos') AS nombre,
-                       EXISTS (
-                           SELECT 1 FROM caso c JOIN estadocaso ec ON ec.id=c.idestadocaso
-                           JOIN cita ci ON ci.id=c.idcita
-                           JOIN solicitudatencion s ON s.id=ci.idsolicitudatencion
-                           LEFT JOIN remision rem ON rem.id=s.idremision
-                           JOIN persona p ON p.id=COALESCE(rem.idremitente, s.idsolicitante)
-                           JOIN tipoidentificacion ti ON ti.id=p.idtipoidentificacion
-                           WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición')
-                             AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
-                             AND p.numerodocumento=a.datos->'persona'->>'numeroIdentificacion'
+                       concat_ws(' ', a.datos->'persona'->>'primerNombre',
+                           a.datos->'persona'->>'segundoNombre', a.datos->'persona'->>'primerApellido',
+                           a.datos->'persona'->>'segundoApellido') AS nombre,
+                       psicologia.nombre AS tomada_por,
+                       psicologia.email AS tomada_por_email,
+                       (SELECT count(*) FROM intentocontactopsicologia i
+                        WHERE i.idatencionalmaaph = a.id) AS intentos_realizados,
+                       (a.estado = 'PENDIENTE_PSICOLOGIA' AND
+                """ + CasosActivosPsicologiaService.EXISTE_PARA_ATENCION + """
                        ) AS recontacto
                 """ + FILTROS + """
                 ORDER BY a.fechaderivacion +
@@ -88,9 +94,105 @@ public class BandejaPsicologiaService {
             return new BandejaPsicologiaResponse.Item(rs.getString("codigo"), rs.getInt("version"),
                     new BandejaPsicologiaResponse.Persona(rs.getString("tipo"), rs.getString("documento"),
                             rs.getString("nombre").trim()), nivel, rs.getString("canal"), rs.getString("estado"),
-                    fecha, null, false, rs.getBoolean("recontacto"), 0, SlaPsicologia.calcular(nivel, fecha, ahora));
+                            fecha, rs.getString("tomada_por"),
+                            auth != null && auth.getName().equalsIgnoreCase(rs.getString("tomada_por_email")),
+                            rs.getBoolean("recontacto"), rs.getInt("intentos_realizados"),
+                            SlaPsicologia.calcular(nivel, fecha, ahora));
         });
         return new BandejaPsicologiaResponse(items, page, size, Objects.requireNonNull(total));
+    }
+
+    @Transactional
+    public JsonNode tomar(String idAtencion, JsonNode request, Authentication auth) {
+        atencionService.verificarRol(auth, Set.of("PROFESIONAL", "COORDINADOR", "ADMIN"));
+        ObjectNode cuerpo = atencionService.comprobarObjeto(request, "", Set.of("version"));
+        validarVersionFormato(cuerpo.get("version"));
+        AtencionAlmaAph atencion = atencionService.buscar(idAtencion, true);
+        verificarNovedadPsicologia(atencion);
+        if (!"PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())) {
+            throw novedadCerrada();
+        }
+
+        Usuario actor = atencionService.usuario(auth);
+        if (atencion.getTomadaPorPsicologia() != null) {
+            if (atencion.getTomadaPorPsicologia().getId().equals(actor.getId())) {
+                return respuestaPsicologia(atencion, auth);
+            }
+            throw new AtencionAlmaException(HttpStatus.CONFLICT, "NOVEDAD_YA_TOMADA",
+                            "Otra profesional ya tomó esta novedad.",
+                            Map.of("tomadaPor", atencion.getTomadaPorPsicologia().getNombre(),
+                                    "tomadaEn", atencion.getFechaTomaPsicologia() == null
+                                            ? "" : atencion.getFechaTomaPsicologia().toString()));
+        }
+        validarVersion(atencion, cuerpo.get("version"));
+
+        Instant ahora = Instant.now();
+        atencion.setTomadaPorPsicologia(actor);
+        atencion.setFechaTomaPsicologia(ahora);
+        atencion.setVersion(atencion.getVersion() + 1);
+        atencion.setFechaActualizacion(ahora);
+        atencionService.registrarEvento(atencion, actor, "TOMA_PSICOLOGIA", ahora);
+        return respuestaPsicologia(atencion, auth);
+    }
+
+    @Transactional
+    public JsonNode liberar(String idAtencion, JsonNode request, Authentication auth) {
+        atencionService.verificarRol(auth, Set.of("PROFESIONAL", "COORDINADOR", "ADMIN"));
+        ObjectNode cuerpo = atencionService.comprobarObjeto(request, "", Set.of("version"));
+        AtencionAlmaAph atencion = atencionService.buscar(idAtencion, true);
+        verificarNovedadPsicologia(atencion);
+        if (!"PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())) {
+            throw novedadCerrada();
+        }
+        Usuario actor = atencionService.usuario(auth);
+        if (atencion.getTomadaPorPsicologia() == null
+                || !atencion.getTomadaPorPsicologia().getId().equals(actor.getId())) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "NOVEDAD_NO_TOMADA",
+                            "Solo quien tomó la novedad puede liberarla.",
+                            Map.of("tomadaPor", atencion.getTomadaPorPsicologia() == null
+                                    ? "" : atencion.getTomadaPorPsicologia().getNombre()));
+        }
+        validarVersion(atencion, cuerpo.get("version"));
+
+        Instant ahora = Instant.now();
+        atencion.setTomadaPorPsicologia(null);
+        atencion.setFechaTomaPsicologia(null);
+        atencion.setVersion(atencion.getVersion() + 1);
+        atencion.setFechaActualizacion(ahora);
+        atencionService.registrarEvento(atencion, actor, "LIBERACION_PSICOLOGIA", ahora);
+        return respuestaPsicologia(atencion, auth);
+    }
+
+    private JsonNode respuestaPsicologia(AtencionAlmaAph atencion, Authentication auth) {
+        return novedadService.respuestaPsicologia(atencion, auth);
+    }
+
+    private void verificarNovedadPsicologia(AtencionAlmaAph atencion) {
+        if (atencion.getFechaDerivacion() == null) {
+            throw new AtencionAlmaException(HttpStatus.NOT_FOUND, "NOVEDAD_NO_ENCONTRADA",
+                            "No se encontró una novedad derivada a Psicología.", Map.of());
+        }
+    }
+
+    private void validarVersion(AtencionAlmaAph atencion, JsonNode version) {
+        validarVersionFormato(version);
+        if (version.intValue() != atencion.getVersion()) {
+            throw new AtencionAlmaException(HttpStatus.CONFLICT, "CONFLICTO_VERSION",
+                            "La novedad cambió. Recargue antes de continuar.",
+                            Map.of("versionActual", atencion.getVersion()));
+        }
+    }
+
+    private void validarVersionFormato(JsonNode version) {
+        if (version == null || !version.isIntegralNumber() || !version.canConvertToInt()) {
+            throw new AtencionAlmaException(HttpStatus.CONFLICT, "CONFLICTO_VERSION",
+                            "Indique la versión actual de la novedad.", Map.of());
+        }
+    }
+
+    private AtencionAlmaException novedadCerrada() {
+        return new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "NOVEDAD_CERRADA",
+                "La novedad ya no está pendiente.", Map.of());
     }
 
     private void validar(String campo, String valor, Set<String> valores) {

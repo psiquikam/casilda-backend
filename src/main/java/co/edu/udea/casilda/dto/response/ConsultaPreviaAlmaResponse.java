@@ -10,7 +10,8 @@ public record ConsultaPreviaAlmaResponse(
         boolean tieneCasoCerrado,
         CasoCerrado ultimoCasoCerrado) {
 
-    public record Persona(Long idPersona, String nombres, String apellidos) {}
+    public record Persona(Long idPersona, String primerNombre, String segundoNombre,
+                          String primerApellido, String segundoApellido) {}
     public record SeguimientoActivo(boolean activo, OffsetDateTime proximoSeguimiento, String profesional) {}
     public record CasoCerrado(String numeroCaso, Instant fechaCierre) {}
 }
