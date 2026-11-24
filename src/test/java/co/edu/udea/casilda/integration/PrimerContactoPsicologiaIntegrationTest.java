@@ -2,6 +2,7 @@ package co.edu.udea.casilda.integration;
 
 import javax.sql.DataSource;
 import jakarta.persistence.EntityManager;
+import co.edu.udea.casilda.service.CasosActivosPsicologiaService;
 import co.edu.udea.casilda.service.ConsultaPreviaAlmaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ class PrimerContactoPsicologiaIntegrationTest extends IntegrationTestBase {
     @Autowired private DataSource dataSource;
     @Autowired private EntityManager entityManager;
     @Autowired private ConsultaPreviaAlmaService consultaPrevia;
+    @Autowired private CasosActivosPsicologiaService casosActivos;
     private static final String REQUEST = """
             {"version":4,"consentimiento":{"otorgado":true,"medio":"VERBAL",
              "fechaRegistro":"2026-01-01T10:00:00Z","versionTexto":"contacto-test"},
@@ -204,6 +206,38 @@ class PrimerContactoPsicologiaIntegrationTest extends IntegrationTestBase {
         registrar("ALMA-2090-000009", admin, REQUEST)
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.detalles.proximoControl").isNotEmpty());
+    }
+
+    @Test
+    void buscaCasosActivosYCerradosDeAmbosModelosSinCambiarLaBusquedaDeActivos() {
+        jdbc.update("INSERT INTO estadocaso (id,nombre) VALUES (9863,'Cerrado')");
+        jdbc.update("INSERT INTO estadocita (id,nombre) VALUES (9863,'Prueba')");
+        jdbc.update("INSERT INTO regimen (id,nombre) VALUES (9863,'Prueba')");
+        jdbc.update("INSERT INTO eps (id,nombre) VALUES (9863,'Prueba')");
+        jdbc.update("INSERT INTO cita (id,idsolicitudatencion,fecha,idestadocita) VALUES (9863,100,now(),9863)");
+        jdbc.update("""
+                INSERT INTO caso (id,codigo,idcita,ididentidadgenero,idregimen,ideps,idestadocaso)
+                VALUES (9863,'CAS-LEGACY-CERRADO',9863,1,9863,9863,9863)
+                """);
+        jdbc.update("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,
+                    numerodocumento,idpersona,idprofesional,fechaapertura,fechaactualizacion)
+                VALUES ('CAS-2090-000001',1,'ABIERTO','MEDIA',1,'100000002',NULL,1,now(),now()),
+                       ('CAS-2090-000002',1,'CERRADO','MEDIA',1,'100000002',NULL,1,now(),now()),
+                       ('CAS-2090-000003',1,'CERRADO','MEDIA',1,'OTRA-PERSONA',NULL,1,now(),now())
+                """);
+
+        var activos = casosActivos.buscar("CC", "100000002");
+        assertEquals(java.util.Set.of("CAS-2090-000001"),
+                activos.stream().map(CasosActivosPsicologiaService.CasoActivo::numeroCaso)
+                        .collect(java.util.stream.Collectors.toSet()));
+
+        var elegibles = casosActivos.buscarParaRecontacto("CC", "100000002");
+        assertEquals(java.util.Set.of("CAS-2090-000001", "CAS-2090-000002", "CAS-LEGACY-CERRADO"),
+                elegibles.stream().map(CasosActivosPsicologiaService.CasoActivo::numeroCaso)
+                        .collect(java.util.stream.Collectors.toSet()));
+        assertEquals(2, elegibles.stream().filter(c -> "CERRADO".equals(c.estado())).count());
+        assertEquals(0, casosActivos.buscarParaRecontacto("TI", "100000002").size());
     }
 
     @Test

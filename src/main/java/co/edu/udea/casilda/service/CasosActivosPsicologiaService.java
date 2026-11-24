@@ -39,6 +39,16 @@ public class CasosActivosPsicologiaService {
 
     @Transactional(readOnly = true)
     public List<CasoActivo> buscar(String tipoIdentificacion, String numeroIdentificacion) {
+        return buscar(tipoIdentificacion, numeroIdentificacion, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CasoActivo> buscarParaRecontacto(String tipoIdentificacion, String numeroIdentificacion) {
+        return buscar(tipoIdentificacion, numeroIdentificacion, true);
+    }
+
+    private List<CasoActivo> buscar(String tipoIdentificacion, String numeroIdentificacion,
+                                    boolean incluirCerrados) {
         return jdbc.query("""
                 SELECT resultado.codigo, resultado.estado, resultado.apertura,
                        resultado.profesional, resultado.seguimientos, resultado.proximocontrol
@@ -49,9 +59,11 @@ public class CasosActivosPsicologiaService {
                     JOIN tipoidentificacion ti ON ti.id = c.idtipoidentificacion
                     JOIN usuario u ON u.id = c.idprofesional
                     WHERE ti.codigo = ? AND upper(c.numerodocumento) = upper(?)
-                      AND c.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
+                      AND (c.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
+                           OR (? AND c.estado = 'CERRADO'))
                     UNION ALL
-                    SELECT c.codigo, 'ACTIVO' AS estado,
+                    SELECT c.codigo, CASE WHEN ec.nombre = 'Cerrado' THEN 'CERRADO'
+                                          ELSE 'ACTIVO' END AS estado,
                            c.fechacreacion AT TIME ZONE 'America/Bogota' AS apertura,
                            gp.nombre AS profesional,
                            (SELECT count(*) FROM seguimientoatencion seg
@@ -87,7 +99,8 @@ public class CasosActivosPsicologiaService {
                         ORDER BY pc.fecharegistro DESC, pc.id DESC LIMIT 1
                     ) ultimo_contacto ON true
                     WHERE ti.codigo = ? AND upper(p.numerodocumento) = upper(?)
-                      AND ec.nombre IN ('Abierto activo', 'Abierto en transición')
+                      AND (ec.nombre IN ('Abierto activo', 'Abierto en transición')
+                           OR (? AND ec.nombre = 'Cerrado'))
                 ) resultado
                 ORDER BY resultado.apertura DESC NULLS LAST, resultado.codigo
                 """, (rs, row) -> new CasoActivo(
@@ -95,6 +108,7 @@ public class CasosActivosPsicologiaService {
                 rs.getTimestamp("apertura") == null ? null : rs.getTimestamp("apertura").toInstant(),
                 rs.getString("profesional"), rs.getLong("seguimientos"),
                 rs.getTimestamp("proximocontrol") == null ? null : rs.getTimestamp("proximocontrol").toInstant()),
-                tipoIdentificacion, numeroIdentificacion, tipoIdentificacion, numeroIdentificacion);
+                tipoIdentificacion, numeroIdentificacion, incluirCerrados,
+                tipoIdentificacion, numeroIdentificacion, incluirCerrados);
     }
 }
