@@ -501,6 +501,7 @@ public class AtencionAlmaService {
             case "TOMA_PSICOLOGIA" -> "Novedad tomada por Psicología.";
             case "LIBERACION_PSICOLOGIA" -> "Novedad liberada en la bandeja de Psicología.";
             case "INTENTO_PSICOLOGIA" -> "Se registró un intento de contacto en Psicología.";
+            case "RESOLUCION_PSICOLOGIA" -> "Psicología gestionó la atención.";
             case "ACTUALIZACION" -> "Se actualizaron datos de la atención APH.";
             case "NOTA" -> "Se registró una nota de contención post-cierre.";
             default -> "Se registró una acción en la atención APH.";
@@ -554,12 +555,20 @@ public class AtencionAlmaService {
         }
         if (Set.of("ABIERTO_ACTIVO", "EN_SEGUIMIENTO").contains(atencion.getEstado())) {
             var numeros = jdbc.query("""
-                    SELECT COALESCE(cp.codigo, c.codigo) AS codigo
+                    SELECT codigo FROM (
+                    SELECT COALESCE(cp.codigo, c.codigo) AS codigo, 1 AS prioridad
                     FROM primercontactopsicologia pc
                     LEFT JOIN casopsicologia cp ON cp.id=pc.idcasopsicologia
                     LEFT JOIN caso c ON c.id=pc.idcaso
                     WHERE pc.idatencion=?
-                    """, (rs, row) -> rs.getString("codigo"), atencion.getId());
+                    UNION ALL
+                    SELECT COALESCE(cp.codigo, c.codigo) AS codigo, 2 AS prioridad
+                    FROM resolucionrecontactopsicologia r
+                    LEFT JOIN casopsicologia cp ON cp.id=r.idcasopsicologia
+                    LEFT JOIN caso c ON c.id=r.idcaso
+                    WHERE r.idatencion=? AND r.decision <> 'CASO_NUEVO'
+                    ) vinculaciones ORDER BY prioridad
+                    """, (rs, row) -> rs.getString("codigo"), atencion.getId(), atencion.getId());
             if (numeros.isEmpty()) salida.putNull("numeroCaso");
             else salida.put("numeroCaso", numeros.getFirst());
         } else {

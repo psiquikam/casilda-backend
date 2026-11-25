@@ -59,7 +59,18 @@ public class PrimerContactoPsicologiaService {
         creacion.bloquearIdentidad(tipo, documento);
 
         List<CasosActivosPsicologiaService.CasoActivo> casosActivos = activos.buscar(tipo, documento);
-        String decision = contenido.datos().path("vincularA").asText(null);
+        String decisionSolicitada = contenido.datos().path("vincularA").asText(null);
+        List<String> resoluciones = jdbc.queryForList("""
+                SELECT decision FROM resolucionrecontactopsicologia WHERE idatencion=?
+                """, String.class, atencion.getId());
+        if (!resoluciones.isEmpty()) {
+            if (!"CASO_NUEVO".equals(resoluciones.getFirst())
+                    || (decisionSolicitada != null && !"CASO_NUEVO".equals(decisionSolicitada))) {
+                throw atencionService.validacion(Map.of("vincularA",
+                        "La decisión previa del recontacto requiere crear un caso nuevo."));
+            }
+        }
+        String decision = resoluciones.isEmpty() ? decisionSolicitada : "CASO_NUEVO";
         if (decision != null && !StringUtils.hasText(decision)) {
             throw atencionService.validacion(Map.of("vincularA", "Seleccione un caso activo o CASO_NUEVO."));
         }
@@ -74,6 +85,11 @@ public class PrimerContactoPsicologiaService {
             detalle.put("proximoControl", caso.proximoControl());
             throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "CASO_ACTIVO_EXISTENTE",
                     "La persona ya tiene un caso activo. Confirme si desea vincularlo o crear uno nuevo.", detalle);
+        }
+        if (decision == null && resoluciones.isEmpty()
+                && !activos.buscarParaRecontacto(tipo, documento).isEmpty()) {
+            throw new AtencionAlmaException(HttpStatus.UNPROCESSABLE_ENTITY, "RECONTACTO_PENDIENTE",
+                    "La persona tiene casos previos. Resuelva el recontacto o confirme un caso nuevo.", Map.of());
         }
         boolean vinculado = decision != null && !"CASO_NUEVO".equals(decision);
         if (vinculado && casosActivos.stream().noneMatch(c -> c.numeroCaso().equals(decision))) {

@@ -48,6 +48,10 @@ class PrimerContactoPsicologiaConcurrenciaIntegrationTest extends IntegrationTes
     @AfterEach
     void limpiar() {
         jdbc.update("""
+                DELETE FROM resolucionrecontactopsicologia WHERE idatencion IN
+                    (SELECT id FROM atencionalmaaph WHERE codigo IN ('ALMA-2091-000001','ALMA-2091-000002'))
+                """);
+        jdbc.update("""
                 DELETE FROM eventocasopsicologia WHERE idcasopsicologia IN
                     (SELECT id FROM casopsicologia WHERE numerodocumento='1234567898')
                 """);
@@ -62,6 +66,79 @@ class PrimerContactoPsicologiaConcurrenciaIntegrationTest extends IntegrationTes
                 """);
         jdbc.update("DELETE FROM atencionalmaaph WHERE codigo IN ('ALMA-2091-000001','ALMA-2091-000002')");
         jdbc.update("DELETE FROM catalogoalmaitem WHERE catalogo='textos-consentimiento' AND codigo='concurrencia-contacto'");
+    }
+
+    @Test
+    void dosResolucionesSimultaneasDeLaMismaAtencionSoloPersistenUna() throws Exception {
+        jdbc.update("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,numerodocumento,
+                    idprofesional,fechaapertura,fechaactualizacion)
+                VALUES ('CAS-2091-000001',1,'ABIERTO','MEDIA',1,'1234567898',1,now(),now())
+                """);
+        String auth = bearer("admin@udea.edu.co");
+        String body = """
+                {"version":4,"decision":"CASO_NUEVO","nota":"Hechos distintos"}
+                """;
+        var executor = Executors.newFixedThreadPool(2);
+        CountDownLatch listos = new CountDownLatch(2);
+        CountDownLatch inicio = new CountDownLatch(1);
+        try {
+            var tareas = java.util.stream.IntStream.range(0, 2).mapToObj(i -> executor.submit(() -> {
+                listos.countDown();
+                if (!inicio.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Inicio agotado");
+                return mockMvc.perform(post("/alma/psicologia/recontactos/ALMA-2091-000001/resolucion")
+                        .header("Authorization", auth).contentType(APPLICATION_JSON).content(body))
+                        .andReturn().getResponse();
+            })).toList();
+            assertTrue(listos.await(10, TimeUnit.SECONDS));
+            inicio.countDown();
+            var respuestas = List.of(tareas.get(0).get(25, TimeUnit.SECONDS), tareas.get(1).get(25, TimeUnit.SECONDS));
+            assertEquals(List.of(200, 422), respuestas.stream().map(r -> r.getStatus()).sorted().toList());
+            assertEquals("RECONTACTO_YA_RESUELTO", objectMapper.readTree(respuestas.stream()
+                    .filter(r -> r.getStatus() == 422).findFirst().orElseThrow().getContentAsString())
+                    .path("codigo").asText());
+            assertEquals(1, jdbc.queryForObject("""
+                    SELECT count(*) FROM resolucionrecontactopsicologia r
+                    JOIN atencionalmaaph a ON a.id=r.idatencion WHERE a.codigo='ALMA-2091-000001'
+                    """, Integer.class));
+            assertEquals(5, jdbc.queryForObject("""
+                    SELECT version FROM atencionalmaaph WHERE codigo='ALMA-2091-000001'
+                    """, Integer.class));
+        } finally {
+            inicio.countDown();
+            executor.shutdown();
+            assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void revierteResolucionSiFallaLaAuditoriaDelCaso() throws Exception {
+        jdbc.update("""
+                INSERT INTO casopsicologia (codigo,version,estado,prioridad,idtipoidentificacion,numerodocumento,
+                    idprofesional,fechaapertura,fechaactualizacion)
+                VALUES ('CAS-2091-000001',1,'ABIERTO','MEDIA',1,'1234567898',1,now(),now())
+                """);
+        jdbc.execute("""
+                ALTER TABLE eventocasopsicologia ADD CONSTRAINT ck_test_error_recontacto
+                CHECK (accion <> 'VINCULACION')
+                """);
+        try {
+            mockMvc.perform(post("/alma/psicologia/recontactos/ALMA-2091-000001/resolucion")
+                    .header("Authorization", bearer("admin@udea.edu.co")).contentType(APPLICATION_JSON)
+                    .content("""
+                            {"version":4,"decision":"VINCULAR_A_CASO","numeroCaso":"CAS-2091-000001",
+                             "nota":"La misma situación"}
+                            """)).andExpect(status().isInternalServerError());
+            assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM resolucionrecontactopsicologia", Integer.class));
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT version FROM casopsicologia WHERE codigo='CAS-2091-000001'", Integer.class));
+            assertEquals("PENDIENTE_PSICOLOGIA", jdbc.queryForObject(
+                    "SELECT estado FROM atencionalmaaph WHERE codigo='ALMA-2091-000001'", String.class));
+            assertEquals(4, jdbc.queryForObject(
+                    "SELECT version FROM atencionalmaaph WHERE codigo='ALMA-2091-000001'", Integer.class));
+        } finally {
+            jdbc.execute("ALTER TABLE eventocasopsicologia DROP CONSTRAINT ck_test_error_recontacto");
+        }
     }
 
     @Test
