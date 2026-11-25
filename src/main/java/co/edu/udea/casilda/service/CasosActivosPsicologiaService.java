@@ -14,10 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CasosActivosPsicologiaService {
     static final String EXISTE_PARA_ATENCION = """
-            (EXISTS (
+            (NOT EXISTS (SELECT 1 FROM resolucionrecontactopsicologia r WHERE r.idatencion=a.id)
+            AND NOT EXISTS (SELECT 1 FROM primercontactopsicologia pc WHERE pc.idatencion=a.id)
+            AND (EXISTS (
                 SELECT 1 FROM casopsicologia cp
                 JOIN tipoidentificacion ti ON ti.id=cp.idtipoidentificacion
-                WHERE cp.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE')
+                WHERE cp.estado IN ('ABIERTO', 'ACTIVO', 'EN_CIERRE', 'CERRADO')
                   AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
                   AND upper(cp.numerodocumento)=upper(a.datos->'persona'->>'numeroIdentificacion')
             ) OR EXISTS (
@@ -27,10 +29,10 @@ public class CasosActivosPsicologiaService {
                 LEFT JOIN remision rem ON rem.id=s.idremision
                 JOIN persona p ON p.id=COALESCE(rem.idremitente, s.idsolicitante)
                 JOIN tipoidentificacion ti ON ti.id=p.idtipoidentificacion
-                WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición')
+                WHERE ec.nombre IN ('Abierto activo', 'Abierto en transición', 'Cerrado')
                   AND ti.codigo=a.datos->'persona'->>'tipoIdentificacion'
                   AND upper(p.numerodocumento)=upper(a.datos->'persona'->>'numeroIdentificacion')
-            ))
+            )))
             """;
     private final JdbcTemplate jdbc;
 

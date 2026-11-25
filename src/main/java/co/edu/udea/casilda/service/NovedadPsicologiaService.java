@@ -144,9 +144,31 @@ public class NovedadPsicologiaService {
         respuesta.set("consentimientoAph", respuesta.remove("consentimiento"));
         respuesta.set("notasAph", respuesta.remove("notas"));
         var persona = atencion.getDatos().path("persona");
-        var activos = casosActivos.buscar(persona.path("tipoIdentificacion").asText(),
+        var activos = casosActivos.buscarParaRecontacto(persona.path("tipoIdentificacion").asText(),
                 persona.path("numeroIdentificacion").asText());
-        boolean recontacto = "PENDIENTE_PSICOLOGIA".equals(atencion.getEstado()) && !activos.isEmpty();
+        Boolean resuelto = jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM resolucionrecontactopsicologia WHERE idatencion=:id)
+                """, new MapSqlParameterSource("id", atencion.getId()), Boolean.class);
+        boolean recontacto = "PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())
+                && !Boolean.TRUE.equals(resuelto) && !activos.isEmpty();
+        if ("CERRADO".equals(atencion.getEstado()) && Boolean.TRUE.equals(resuelto)) {
+            jdbc.query("""
+                    SELECT r.fecha,COALESCE(cp.codigo,c.codigo) AS codigo
+                    FROM resolucionrecontactopsicologia r
+                    LEFT JOIN casopsicologia cp ON cp.id=r.idcasopsicologia
+                    LEFT JOIN caso c ON c.id=r.idcaso
+                    WHERE r.idatencion=:id AND r.decision='CONTENCION_PUNTUAL'
+                    """, new MapSqlParameterSource("id", atencion.getId()), rs -> {
+                if (rs.next()) {
+                    ObjectNode cierre = respuesta.putObject("cierre");
+                    cierre.put("motivo", "CONTENCION_PUNTUAL");
+                    cierre.putNull("observacion");
+                    cierre.put("fecha", rs.getTimestamp("fecha").toInstant().toString());
+                    respuesta.put("numeroCaso", rs.getString("codigo"));
+                }
+                return null;
+            });
+        }
         respuesta.set("casoActivo", recontacto ? objectMapper.valueToTree(activos.getFirst())
                 : objectMapper.nullNode());
         respuesta.put("recontacto", recontacto);

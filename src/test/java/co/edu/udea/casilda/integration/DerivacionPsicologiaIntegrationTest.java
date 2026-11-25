@@ -180,7 +180,7 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
 
     @Test
     @Transactional
-    void detectaRecontactoConPersonaAtendidaYEstadosAbiertos() throws Exception {
+    void detectaRecontactoConPersonaAtendidaYCasosAbiertosOCerrados() throws Exception {
         jdbc.update("""
                 INSERT INTO catalogoalmaitem (catalogo,codigo,etiqueta,activo)
                 VALUES ('textos-consentimiento','prueba-v1','Texto ficticio exclusivo de prueba',true)
@@ -213,7 +213,7 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(true));
         jdbc.update("UPDATE caso SET idestadocaso=8003 WHERE id=8001");
         mockMvc.perform(get("/alma/bandeja/psicologia").header("Authorization", psicologia))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(false));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].recontacto").value(true));
         jdbc.update("""
                 UPDATE atencionalmaaph SET fechaderivacion=CURRENT_TIMESTAMP - interval '15 hours'
                 WHERE codigo=?
@@ -265,10 +265,10 @@ class DerivacionPsicologiaIntegrationTest extends IntegrationTestBase {
 
         jdbc.update("UPDATE casopsicologia SET estado='CERRADO' WHERE codigo='CAS-2026-123456'");
         mockMvc.perform(get("/alma/psicologia/novedades/{id}", id).header("Authorization", profesional))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(false))
-                .andExpect(jsonPath("$.casoActivo").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontacto").value(true))
+                .andExpect(jsonPath("$.casoActivo.estado").value("CERRADO"));
         mockMvc.perform(get("/alma/psicologia/notificaciones").header("Authorization", profesional))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.recontactosPendientes").value(0));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recontactosPendientes").value(1));
 
         jdbc.update("UPDATE casopsicologia SET estado='ABIERTO' WHERE codigo='CAS-2026-123456'");
         jdbc.update("""
