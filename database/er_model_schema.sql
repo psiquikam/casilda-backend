@@ -806,7 +806,7 @@ CREATE TABLE medidaproteccion (
 -- 1. Catálogos específicos de Línea ALMA
 -- ---------------------------------------------------------------------------
 
--- Tipo de reporte: Directa | Por remisión
+-- Tipo de reporte: Directa | Indirecta
 CREATE TABLE tiporeportealma (
     id integer NOT NULL,
     nombre character varying COLLATE pg_catalog."default" NOT NULL,
@@ -819,7 +819,7 @@ CREATE TABLE actorremitente (
     CONSTRAINT actorremitente_pkey PRIMARY KEY (id)
 );
 
--- Canal de contacto general: WhatsApp, Llamada, Remisión
+-- Canal de contacto general: WhatsApp, Telefónico
 CREATE TABLE canalcontacto (
     id integer NOT NULL,
     nombre character varying COLLATE pg_catalog."default" NOT NULL,
@@ -861,7 +861,7 @@ CREATE TABLE registrolinealma (
     idpersona bigint NOT NULL,
     -- Datos del tab "Registro de atención de caso"
     idtiporeporte integer NOT NULL,          -- directa / por remisión
-    idcanalcontacto integer NOT NULL,        -- WhatsApp, Llamada, Remisión
+    idcanalcontacto integer NOT NULL,        -- WhatsApp, Telefónico
     idquienremite integer,                   -- FK actorremitente (solo cuando indirecta)
     fechahoraatencion timestamp without time zone NOT NULL,
     idpersonaatiende integer NOT NULL,       -- grupo profesional que atiende

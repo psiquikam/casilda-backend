@@ -1,10 +1,12 @@
 package co.edu.udea.casilda.service.uad;
 
-import co.edu.udea.casilda.model.enums.VinculoUdeAEnum;
+import co.edu.udea.casilda.model.entity.VinculoUdeA;
 import co.edu.udea.casilda.model.enums.uad.VinculacionInvestigado;
 
+import java.util.Locale;
+
 /**
- * Homologación <strong>PROVISIONAL</strong> (D-UAD-05) del catálogo {@code vinculoudea} (14 valores) a
+ * Homologación <strong>PROVISIONAL</strong> (D-UAD-05) del catálogo {@code vinculoudea} a
  * la lista de la bitácora UAD-FOR-10 (10 valores), para las NDI que nacen de {@code POST /reportes}.
  *
  * <ul>
@@ -24,25 +26,21 @@ public final class UadMapeoVinculacion {
     private UadMapeoVinculacion() {
     }
 
-    public static VinculacionInvestigado desdeVinculoUdeA(final Integer idVinculoUdeA) {
-        if (idVinculoUdeA == null) return VinculacionInvestigado.NO_SE;
-        final VinculoUdeAEnum vinculo;
-        try {
-            vinculo = VinculoUdeAEnum.fromId(idVinculoUdeA);
-        } catch (IllegalArgumentException ex) {
-            return VinculacionInvestigado.NO_SE;
-        }
-        if (vinculo == null) return VinculacionInvestigado.NO_SE;
-        return switch (vinculo) {
-            case ESTUDIANTE_PREGRADO -> VinculacionInvestigado.ESTUDIANTE_PREGRADO;
-            case ESTUDIANTE_DE_POSGRADO -> VinculacionInvestigado.ESTUDIANTE_POSGRADO;
-            case DOCENTE_VINCULADO -> VinculacionInvestigado.DOCENTE_VINCULADO;
-            case DOCENTE_OCASIONAL -> VinculacionInvestigado.DOCENTE_OCASIONAL;
-            case DOCENTE_DE_CATEDRA, DOCENTE_CATEDRA_50 -> VinculacionInvestigado.DOCENTE_CATEDRA;
-            case PERSONAL_ADMINISTRATIVO -> VinculacionInvestigado.ADMINISTRATIVO;
-            case EGRESADO_PREGRADO, EGRESADO_POSGRADO, JUBILADO_PENSIONADO, CONTRATISTA, PRESTADOR_DE_SERVICIOS, EXTERNO ->
+    public static VinculacionInvestigado desdeVinculoUdeA(final VinculoUdeA vinculo) {
+        if (vinculo == null || vinculo.getNombre() == null) return VinculacionInvestigado.NO_SE;
+        return switch (vinculo.getNombre().trim().toLowerCase(Locale.ROOT)) {
+            case "estudiante de pregrado" -> VinculacionInvestigado.ESTUDIANTE_PREGRADO;
+            case "estudiante de posgrado" -> VinculacionInvestigado.ESTUDIANTE_POSGRADO;
+            case "docente vinculado" -> VinculacionInvestigado.DOCENTE_VINCULADO;
+            case "docente ocasional" -> VinculacionInvestigado.DOCENTE_OCASIONAL;
+            case "docente de cátedra", "docente cátedra", "docente cátedra 50" ->
+                    VinculacionInvestigado.DOCENTE_CATEDRA;
+            case "personal administrativo", "empleado administrativo" -> VinculacionInvestigado.ADMINISTRATIVO;
+            case "egresado pregrado", "egresado posgrado", "egresado", "jubilado / pensionado",
+                    "jubilado", "pensionado", "contratista", "contratista cis", "prestador de servicios",
+                    "externo", "no tiene vínculo con la universidad" ->
                     VinculacionInvestigado.NO_TIENE_VINCULO;
-            case OTRO_TIPO_DE_VINCULO -> VinculacionInvestigado.NO_SE;
+            default -> VinculacionInvestigado.NO_SE;
         };
     }
 }

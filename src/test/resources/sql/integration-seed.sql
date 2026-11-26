@@ -129,8 +129,8 @@ INSERT INTO estadosolicitud (id, nombre) VALUES (2, 'Asignada') ON CONFLICT (id)
 INSERT INTO tiposervicio (id, nombre, activo) VALUES (1, 'Jurídico', true), (2, 'Dupla Psicojurídica', true), (5, 'Trabajo Social', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO grupoprofesional (id, nombre, activo, idtiposervicio) VALUES (1, 'Dupla N° 1', true, 2), (2, 'Dupla N° 2', true, 2), (3, 'Inactivo', false, 1), (8, 'Trabajadora social', true, 5) ON CONFLICT (id) DO NOTHING;
 INSERT INTO tipoasignacion (id, nombre, activo) VALUES (1, 'Nueva', true), (2, 'Reasignación', true) ON CONFLICT (id) DO NOTHING;
-INSERT INTO tiporeportealma (id, nombre) VALUES (1, 'Directa') ON CONFLICT (id) DO NOTHING;
-INSERT INTO canalcontacto (id, nombre) VALUES (1, 'Llamada') ON CONFLICT (id) DO NOTHING;
+INSERT INTO tiporeportealma (id, nombre) VALUES (1, 'Directa'), (2, 'Indirecta') ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
+INSERT INTO canalcontacto (id, nombre) VALUES (1, 'WhatsApp'), (2, 'Telefónico') ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
 INSERT INTO mediosolicitud (id, nombre) VALUES (1, 'Web') ON CONFLICT (id) DO NOTHING;
 INSERT INTO cargo (id, nombre) VALUES (1, 'Docente') ON CONFLICT (id) DO NOTHING;
 INSERT INTO campus (id, nombre, activo) VALUES (1, 'Medellín', true) ON CONFLICT (id) DO NOTHING;
