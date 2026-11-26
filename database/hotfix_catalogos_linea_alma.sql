@@ -1,4 +1,5 @@
 -- Hotfix de catálogos de Línea Alma según la revisión de flujos.
+-- EN PROGRESO: no ejecutar en QA. Falta resolver sexo y opciones históricas.
 -- Ejecutar después de que existan las tablas del módulo y catalogoalmaitem.
 -- Conserva los códigos históricos, desactiva solo opciones reemplazadas
 -- y no elimina registros ni datos de atenciones existentes.
@@ -39,99 +40,121 @@ ON CONFLICT (id) DO UPDATE
 SET codigo = EXCLUDED.codigo,
     nombre = EXCLUDED.nombre;
 
-INSERT INTO orientacionsexual (id, nombre) VALUES
-    (1, 'Asexual'),
-    (2, 'Bisexual'),
-    (3, 'Heterosexual'),
-    (4, 'Homosexual'),
-    (5, 'Lesbiana'),
-    (6, 'Pansexual'),
-    (7, 'Otra'),
-    (8, 'Prefiere no responder'),
-    (9, 'Sin dato')
-ON CONFLICT (id) DO UPDATE
-SET nombre = EXCLUDED.nombre;
+DO $$
+DECLARE
+    tabla text;
+    opcion text;
+    coincidencias integer;
+    nuevo_id integer;
+    registro record;
+BEGIN
+    FOR tabla IN SELECT unnest(ARRAY['orientacionsexual', 'identidadgenero', 'campus', 'regimen'])
+    LOOP
+        EXECUTE format('LOCK TABLE %I IN SHARE ROW EXCLUSIVE MODE', tabla);
+    END LOOP;
+    FOR registro IN SELECT * FROM (VALUES
+        ('orientacionsexual', 'Asexual'), ('orientacionsexual', 'Bisexual'),
+        ('orientacionsexual', 'Heterosexual'), ('orientacionsexual', 'Homosexual'),
+        ('orientacionsexual', 'Lesbiana'), ('orientacionsexual', 'Pansexual'),
+        ('orientacionsexual', 'Otra'), ('orientacionsexual', 'Prefiere no responder'),
+        ('orientacionsexual', 'Sin dato'),
+        ('identidadgenero', 'Mujer cisgénero'), ('identidadgenero', 'Hombre cisgénero'),
+        ('identidadgenero', 'Mujer trans'), ('identidadgenero', 'Hombre trans'),
+        ('identidadgenero', 'No binaria'), ('identidadgenero', 'Prefiere no responder'),
+        ('identidadgenero', 'Otra'), ('identidadgenero', 'Sin dato'),
+        ('campus', 'Campus Amalfi'), ('campus', 'Campus Andes'), ('campus', 'Campus Apartadó'),
+        ('campus', 'Campus Carepa'), ('campus', 'Campus Caucasia'),
+        ('campus', 'Campus El Carmen de Viboral'), ('campus', 'Campus en Urabá'),
+        ('campus', 'Campus Medellín - Antigua Escuela de Derecho'),
+        ('campus', 'Campus Medellín - Casas Patrimoniales'),
+        ('campus', 'Campus Medellín - Ciudad Universitaria'),
+        ('campus', 'Campus Medellín - Ciudadela Robledo'),
+        ('campus', 'Campus Medellín - Edificio Antioquia'),
+        ('campus', 'Campus Medellín - Edificio de Extensión'),
+        ('campus', 'Campus Medellín - Edificio San Ignacio'),
+        ('campus', 'Campus Medellín - en el Área de la salud'),
+        ('campus', 'Campus Medellín - Sede de Posgrado'),
+        ('campus', 'Campus Puerto Berrío'), ('campus', 'Campus Santa Fe de Antioquia'),
+        ('campus', 'Campus Segovia'), ('campus', 'Campus Sonsón'), ('campus', 'Campus Turbo'),
+        ('campus', 'Campus Yarumal'), ('campus', 'No aplica'), ('campus', 'Desconocido'),
+        ('campus', 'Otro-a'), ('regimen', 'Contributivo'), ('regimen', 'Subsidiado'),
+        ('regimen', 'Especial o de Excepción')
+    ) AS opciones(tabla, nombre)
+    LOOP
+        tabla := registro.tabla;
+        opcion := registro.nombre;
+        EXECUTE format('SELECT count(*) FROM %I WHERE lower(trim(nombre)) = lower(trim($1))', tabla)
+            INTO coincidencias USING opcion;
+        IF coincidencias > 1 THEN
+            RAISE EXCEPTION 'Hay más de un registro en % llamado %', tabla, opcion;
+        END IF;
+        IF coincidencias = 0 THEN
+            EXECUTE format('SELECT COALESCE(max(id), 0) + 1 FROM %I', tabla) INTO nuevo_id;
+            EXECUTE format('INSERT INTO %I (id, nombre) VALUES ($1, $2)', tabla) USING nuevo_id, opcion;
+        END IF;
+    END LOOP;
+END $$;
 
-INSERT INTO identidadgenero (id, nombre) VALUES
-    (1, 'Mujer cisgénero'),
-    (2, 'Hombre cisgénero'),
-    (3, 'Mujer trans'),
-    (4, 'Hombre trans'),
-    (5, 'No binaria'),
-    (6, 'Prefiere no responder'),
-    (7, 'Otra'),
-    (8, 'Sin dato')
-ON CONFLICT (id) DO UPDATE
-SET nombre = EXCLUDED.nombre;
+LOCK TABLE eps IN SHARE ROW EXCLUSIVE MODE;
+CREATE TEMPORARY TABLE eps_linea_alma (
+    nombre text PRIMARY KEY,
+    especial boolean NOT NULL
+) ON COMMIT DROP;
+INSERT INTO eps_linea_alma (nombre, especial) VALUES
+    ('Nueva EPS', false),
+    ('EPS Sanitas', false),
+    ('EPS Sura', false),
+    ('Salud Total EPS', false),
+    ('Compensar EPS', false),
+    ('Famisanar', false),
+    ('Coosalud EPS', false),
+    ('Mutual Ser', false),
+    ('Savia Salud', false),
+    ('Capital Salud', false),
+    ('Aliansalud', false),
+    ('Comfenalco Valle', false),
+    ('Servicio Occidental de Salud (SOS)', false),
+    ('Emssanar', false),
+    ('Asmet Salud', false),
+    ('Cajacopi EPS', false),
+    ('Capresoca', false),
+    ('Salud Mía', false),
+    ('EPS Familiar de Colombia', false),
+    ('Anas Wayuu', false),
+    ('Asociación Indígena del Cauca - AIC', false),
+    ('Dusakawi', false),
+    ('Mallamas', false),
+    ('Pijaos Salud', false),
+    ('Dirección General de Sanidad Militar (DGSM)', true),
+    ('Dirección de Sanidad de la Policía Nacional (DISAN)', true),
+    ('Fondo Nacional de Prestaciones Sociales del Magisterio (FOMAG)', true),
+    ('Departamento de Salud de Ecopetrol', true),
+    ('Unidades de Salud de Universidades Públicas', true);
 
-INSERT INTO campus (id, nombre) VALUES
-    (1, 'Campus Amalfi'),
-    (2, 'Campus Andes'),
-    (3, 'Campus Apartadó'),
-    (4, 'Campus Carepa'),
-    (5, 'Campus Caucasia'),
-    (6, 'Campus El Carmen de Viboral'),
-    (7, 'Campus en Urabá'),
-    (8, 'Campus Medellín - Antigua Escuela de Derecho'),
-    (9, 'Campus Medellín - Casas Patrimoniales'),
-    (10, 'Campus Medellín - Ciudad Universitaria'),
-    (11, 'Campus Medellín - Ciudadela Robledo'),
-    (12, 'Campus Medellín - Edificio Antioquia'),
-    (13, 'Campus Medellín - Edificio de Extensión'),
-    (14, 'Campus Medellín - Edificio San Ignacio'),
-    (15, 'Campus Medellín - en el Área de la salud'),
-    (16, 'Campus Medellín - Sede de Posgrado'),
-    (17, 'Campus Puerto Berrío'),
-    (18, 'Campus Santa Fe de Antioquia'),
-    (19, 'Campus Segovia'),
-    (20, 'Campus Sonsón'),
-    (21, 'Campus Turbo'),
-    (22, 'Campus Yarumal'),
-    (23, 'No aplica'),
-    (24, 'Desconocido'),
-    (25, 'Otro-a')
-ON CONFLICT (id) DO UPDATE
-SET nombre = EXCLUDED.nombre;
+DO $$
+DECLARE
+    nombre_duplicado text;
+BEGIN
+    SELECT objetivo.nombre INTO nombre_duplicado
+    FROM eps_linea_alma objetivo
+    JOIN eps existente ON lower(trim(existente.nombre)) = lower(trim(objetivo.nombre))
+    GROUP BY objetivo.nombre HAVING count(*) > 1 LIMIT 1;
+    IF nombre_duplicado IS NOT NULL THEN
+        RAISE EXCEPTION 'Hay más de una EPS llamada %', nombre_duplicado;
+    END IF;
+END $$;
 
-INSERT INTO regimen (id, nombre) VALUES
-    (1, 'Contributivo'),
-    (2, 'Subsidiado'),
-    (3, 'Especial o de Excepción')
-ON CONFLICT (id) DO UPDATE
-SET nombre = EXCLUDED.nombre;
-
-INSERT INTO eps (id, nombre) VALUES
-    (1, 'Nueva EPS'),
-    (2, 'EPS Sanitas'),
-    (3, 'EPS Sura'),
-    (4, 'Salud Total EPS'),
-    (5, 'Compensar EPS'),
-    (6, 'Famisanar'),
-    (7, 'Coosalud EPS'),
-    (8, 'Mutual Ser'),
-    (9, 'Savia Salud'),
-    (10, 'Capital Salud'),
-    (11, 'Aliansalud'),
-    (12, 'Comfenalco Valle'),
-    (13, 'Servicio Occidental de Salud (SOS)'),
-    (14, 'Emssanar'),
-    (15, 'Asmet Salud'),
-    (16, 'Cajacopi EPS'),
-    (17, 'Capresoca'),
-    (18, 'Salud Mía'),
-    (19, 'EPS Familiar de Colombia'),
-    (20, 'Anas Wayuu'),
-    (21, 'Asociación Indígena del Cauca - AIC'),
-    (22, 'Dusakawi'),
-    (23, 'Mallamas'),
-    (24, 'Pijaos Salud'),
-    (25, 'Dirección General de Sanidad Militar (DGSM)'),
-    (26, 'Dirección de Sanidad de la Policía Nacional (DISAN)'),
-    (27, 'Fondo Nacional de Prestaciones Sociales del Magisterio (FOMAG)'),
-    (28, 'Departamento de Salud de Ecopetrol'),
-    (29, 'Unidades de Salud de Universidades Públicas')
-ON CONFLICT (id) DO UPDATE
-SET nombre = EXCLUDED.nombre;
+WITH base AS (SELECT COALESCE(max(id), 0) AS max_id FROM eps),
+faltantes AS (
+    SELECT objetivo.nombre FROM eps_linea_alma objetivo
+    WHERE NOT EXISTS (
+        SELECT 1 FROM eps existente
+        WHERE lower(trim(existente.nombre)) = lower(trim(objetivo.nombre))
+    )
+)
+INSERT INTO eps (id, nombre)
+SELECT base.max_id + row_number() OVER (ORDER BY faltantes.nombre), faltantes.nombre
+FROM base CROSS JOIN faltantes;
 
 DO $$
 DECLARE
@@ -149,13 +172,17 @@ CREATE TABLE IF NOT EXISTS epsregimen (
     PRIMARY KEY (idregimen, ideps)
 );
 
-DELETE FROM epsregimen;
 INSERT INTO epsregimen (idregimen, ideps)
-SELECT 1, id FROM eps WHERE id BETWEEN 1 AND 24
+SELECT r.id, e.id FROM eps_linea_alma objetivo
+JOIN eps e ON lower(trim(e.nombre)) = lower(trim(objetivo.nombre))
+JOIN regimen r ON lower(trim(r.nombre)) IN ('contributivo', 'subsidiado')
+WHERE NOT objetivo.especial
 UNION ALL
-SELECT 2, id FROM eps WHERE id BETWEEN 1 AND 24
-UNION ALL
-SELECT 3, id FROM eps WHERE id BETWEEN 25 AND 29;
+SELECT r.id, e.id FROM eps_linea_alma objetivo
+JOIN eps e ON lower(trim(e.nombre)) = lower(trim(objetivo.nombre))
+JOIN regimen r ON lower(trim(r.nombre)) = lower('Especial o de Excepción')
+WHERE objetivo.especial
+ON CONFLICT (idregimen, ideps) DO NOTHING;
 
 WITH base AS (
     SELECT COALESCE(MAX(id), 0) AS max_id FROM programa

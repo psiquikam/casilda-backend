@@ -9,7 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,13 +26,7 @@ class CatalogosAlmaHotfixMigrationTest {
     @Test
     void rechazaReasignacionDeIdsYRevierteLaTransaccion() throws Exception {
         String hotfix = Files.readString(Path.of("database/hotfix_catalogos_linea_alma.sql"));
-        Map<String, String> valoresQa = Map.of(
-                "sexo", "INSERT INTO sexo VALUES (1, 'X', 'Mujer')",
-                "orientacionsexual", "INSERT INTO orientacionsexual VALUES (6, 'Prefiere no responder')",
-                "identidadgenero", "INSERT INTO identidadgenero VALUES (1, 'Identidad distinta')",
-                "campus", "INSERT INTO campus VALUES (1, 'Campus Apartadó')",
-                "regimen", "INSERT INTO regimen VALUES (3, 'Especial')",
-                "eps", "INSERT INTO eps VALUES (1, 'Sura EPS')");
+        Map<String, String> valoresQa = Map.of("sexo", "INSERT INTO sexo VALUES (1, 'X', 'Mujer')");
         for (var entrada : valoresQa.entrySet()) {
             try (var connection = DriverManager.getConnection(
                     POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -42,7 +38,7 @@ class CatalogosAlmaHotfixMigrationTest {
                         CREATE TABLE sexo (id integer PRIMARY KEY, codigo text UNIQUE NOT NULL, nombre text UNIQUE NOT NULL);
                         CREATE TABLE orientacionsexual (id integer PRIMARY KEY, nombre text NOT NULL);
                         CREATE TABLE identidadgenero (id integer PRIMARY KEY, nombre text NOT NULL);
-                        CREATE TABLE campus (id integer PRIMARY KEY, nombre text NOT NULL);
+                        CREATE TABLE campus (id integer PRIMARY KEY, nombre text NOT NULL, activo boolean NOT NULL DEFAULT true);
                         CREATE TABLE regimen (id integer PRIMARY KEY, nombre text NOT NULL);
                         CREATE TABLE eps (id integer PRIMARY KEY, nombre text NOT NULL);
                         """);
@@ -80,6 +76,30 @@ class CatalogosAlmaHotfixMigrationTest {
                     CREATE TABLE campus (id integer PRIMARY KEY, nombre text NOT NULL);
                     CREATE TABLE regimen (id integer PRIMARY KEY, nombre text NOT NULL);
                     CREATE TABLE eps (id integer PRIMARY KEY, nombre text NOT NULL);
+                    INSERT INTO orientacionsexual VALUES
+                        (1, 'Asexual'), (2, 'Bisexual'), (3, 'Heterosexual'),
+                        (4, 'Homosexual'), (5, 'Lesbiana'), (6, 'Prefiere no responder'), (7, 'Otra');
+                    INSERT INTO identidadgenero VALUES
+                        (1, 'Mujer cisgénero'), (2, 'Hombre cisgénero'), (3, 'Mujer trans'),
+                        (4, 'Hombre trans'), (5, 'No binaria'), (6, 'Prefiere no responder'),
+                        (7, 'Otra'), (8, 'Sin dato');
+                    INSERT INTO campus (id, nombre) VALUES
+                        (1, 'Campus Apartadó'), (2, 'Campus Carepa'), (3, 'Campus Turbo'),
+                        (4, 'Campus Caucasia'), (5, 'Campus Santa Fe de Antioquia'),
+                        (6, 'Campus Yarumal'), (7, 'Campus Amalfi'), (8, 'Campus Segovia'),
+                        (9, 'Campus Andes'), (10, 'Campus La Pintada'),
+                        (11, 'Campus El Carmen de Viboral'), (12, 'Campus Sonsón'),
+                        (13, 'Campus Puerto Berrío'), (14, 'Campus Medellín');
+                    INSERT INTO regimen VALUES
+                        (1, 'Contributivo'), (2, 'Subsidiado'), (3, 'Especial'), (4, 'No afiliado');
+                    INSERT INTO eps VALUES
+                        (1, 'Sura EPS'), (2, 'Salud Total'), (3, 'Sanitas'),
+                        (4, 'Compensar'), (5, 'Nueva EPS'), (6, 'Coomeva EPS'),
+                        (7, 'Famisanar'), (8, 'Cafesalud'), (9, 'SOS EPS'),
+                        (10, 'Capital Salud'), (11, 'Aliansalud'), (12, 'EPS SAVIA SALUD'),
+                        (13, 'Mutual SER'), (14, 'Otra'), (15, 'No tiene');
+                    CREATE TABLE persona_prueba (id integer PRIMARY KEY, ideps integer REFERENCES eps(id));
+                    INSERT INTO persona_prueba VALUES (1, 1);
                     CREATE TABLE unidadacademica (id integer PRIMARY KEY, nombre text NOT NULL);
                     CREATE TABLE programa (
                         id integer PRIMARY KEY,
@@ -108,6 +128,50 @@ class CatalogosAlmaHotfixMigrationTest {
             statement.execute(hotfix);
             statement.execute(hotfix);
             statement.execute(seed);
+            try (var result = statement.executeQuery("""
+                    SELECT (SELECT nombre FROM campus WHERE id = 1),
+                           (SELECT nombre FROM orientacionsexual WHERE id = 6),
+                           (SELECT nombre FROM regimen WHERE id = 3)
+                    """)) {
+                result.next();
+                assertEquals("Campus Apartadó", result.getString(1));
+                assertEquals("Prefiere no responder", result.getString(2));
+                assertEquals("Especial", result.getString(3));
+            }
+            Map<Integer, String> epsQa = Map.ofEntries(
+                    Map.entry(1, "Sura EPS"), Map.entry(2, "Salud Total"),
+                    Map.entry(3, "Sanitas"), Map.entry(4, "Compensar"),
+                    Map.entry(5, "Nueva EPS"), Map.entry(6, "Coomeva EPS"),
+                    Map.entry(7, "Famisanar"), Map.entry(8, "Cafesalud"),
+                    Map.entry(9, "SOS EPS"), Map.entry(10, "Capital Salud"),
+                    Map.entry(11, "Aliansalud"), Map.entry(12, "EPS SAVIA SALUD"),
+                    Map.entry(13, "Mutual SER"), Map.entry(14, "Otra"),
+                    Map.entry(15, "No tiene"));
+            try (var result = statement.executeQuery("SELECT id, nombre FROM eps WHERE id <= 15")) {
+                Map<Integer, String> epsDespues = new TreeMap<>();
+                while (result.next()) {
+                    epsDespues.put(result.getInt(1), result.getString(2));
+                }
+                assertEquals(epsQa, epsDespues);
+            }
+            try (var result = statement.executeQuery("""
+                    SELECT e.id, e.nombre FROM persona_prueba p
+                    JOIN eps e ON e.id = p.ideps WHERE p.id = 1
+                    """)) {
+                result.next();
+                assertEquals(1, result.getInt(1));
+                assertEquals("Sura EPS", result.getString(2));
+            }
+            try (var result = statement.executeQuery("""
+                    SELECT count(*) FROM epsregimen er
+                    JOIN eps e ON e.id = er.ideps
+                    JOIN regimen r ON r.id = er.idregimen
+                    WHERE e.nombre = 'Nueva EPS' AND e.id = 5
+                      AND r.nombre IN ('Contributivo', 'Subsidiado')
+                    """)) {
+                result.next();
+                assertEquals(2, result.getInt(1));
+            }
             try (var result = statement.executeQuery("SELECT count(*) FROM vinculoudea")) {
                 result.next();
                 assertEquals(20, result.getInt(1));
@@ -127,10 +191,31 @@ class CatalogosAlmaHotfixMigrationTest {
             statement.execute("INSERT INTO vinculoudea VALUES (999, 'Contratista CIS')");
             assertThrows(SQLException.class, () -> statement.execute(hotfix));
             statement.execute("ROLLBACK");
+            statement.execute("DELETE FROM vinculoudea WHERE id = 999");
+            statement.execute("INSERT INTO eps VALUES (999, 'NUEVA EPS')");
+            SQLException epsDuplicada = assertThrows(SQLException.class, () -> statement.execute(hotfix));
+            assertTrue(epsDuplicada.getMessage().contains("Hay más de una EPS llamada Nueva EPS"));
+            statement.execute("ROLLBACK");
             try (var result = statement.executeQuery("SELECT count(*) FROM epsregimen")) {
                 result.next();
                 assertEquals(53, result.getInt(1));
             }
+            Set<String> contributivo = new HashSet<>();
+            try (var result = statement.executeQuery("""
+                    SELECT lower(e.nombre) FROM epsregimen er
+                    JOIN eps e ON e.id = er.ideps JOIN regimen r ON r.id = er.idregimen
+                    WHERE r.nombre = 'Contributivo'
+                    """)) {
+                while (result.next()) {
+                    contributivo.add(result.getString(1));
+                }
+            }
+            assertEquals(Set.of("nueva eps", "eps sanitas", "eps sura", "salud total eps",
+                    "compensar eps", "famisanar", "coosalud eps", "mutual ser", "savia salud",
+                    "capital salud", "aliansalud", "comfenalco valle", "servicio occidental de salud (sos)",
+                    "emssanar", "asmet salud", "cajacopi eps", "capresoca", "salud mía",
+                    "eps familiar de colombia", "anas wayuu", "asociación indígena del cauca - aic",
+                    "dusakawi", "mallamas", "pijaos salud"), contributivo);
             try (var result = statement.executeQuery("""
                     SELECT count(*) FROM programa
                     WHERE nombre = 'No aplica' AND idunidadacademica = 1
