@@ -26,7 +26,7 @@ class CatalogosAlmaHotfixMigrationTest {
     @Test
     void rechazaReasignacionDeIdsYRevierteLaTransaccion() throws Exception {
         String hotfix = Files.readString(Path.of("database/hotfix_catalogos_linea_alma.sql"));
-        Map<String, String> valoresQa = Map.of("sexo", "INSERT INTO sexo VALUES (1, 'X', 'Mujer')");
+        Map<String, String> valoresQa = Map.of("sexo", "INSERT INTO sexo VALUES (1, 'F', 'Valor distinto')");
         for (var entrada : valoresQa.entrySet()) {
             try (var connection = DriverManager.getConnection(
                     POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -49,8 +49,7 @@ class CatalogosAlmaHotfixMigrationTest {
                     nombreOriginal = result.getString(1);
                 }
                 SQLException error = assertThrows(SQLException.class, () -> statement.execute(hotfix));
-                assertTrue(error.getMessage().contains("No se puede reasignar el ID"));
-                assertTrue(error.getMessage().contains(entrada.getKey()));
+                assertTrue(error.getMessage().contains("El código de sexo F ya pertenece a otro valor"));
                 statement.execute("ROLLBACK");
                 try (var result = statement.executeQuery("SELECT nombre FROM " + entrada.getKey())) {
                     result.next();
@@ -70,7 +69,10 @@ class CatalogosAlmaHotfixMigrationTest {
             statement.execute("""
                     CREATE TABLE tiporeportealma (id integer PRIMARY KEY, nombre text NOT NULL);
                     CREATE TABLE canalcontacto (id integer PRIMARY KEY, nombre text NOT NULL);
-                    CREATE TABLE sexo (id integer PRIMARY KEY, codigo text NOT NULL, nombre text NOT NULL);
+                    CREATE TABLE sexo (id integer PRIMARY KEY, codigo text UNIQUE NOT NULL, nombre text UNIQUE NOT NULL);
+                    INSERT INTO sexo VALUES
+                        (1, 'M', 'Mujer'), (2, 'H', 'Hombre'),
+                        (3, 'NB', 'No binario'), (4, 'PR', 'Prefiere no responder');
                     CREATE TABLE orientacionsexual (id integer PRIMARY KEY, nombre text NOT NULL);
                     CREATE TABLE identidadgenero (id integer PRIMARY KEY, nombre text NOT NULL);
                     CREATE TABLE campus (id integer PRIMARY KEY, nombre text NOT NULL);
@@ -128,6 +130,16 @@ class CatalogosAlmaHotfixMigrationTest {
             statement.execute(hotfix);
             statement.execute(hotfix);
             statement.execute(seed);
+            try (var result = statement.executeQuery("SELECT id, codigo, nombre FROM sexo WHERE id IN (1, 2) ORDER BY id")) {
+                result.next();
+                assertEquals(1, result.getInt(1));
+                assertEquals("M", result.getString(2));
+                assertEquals("Femenino", result.getString(3));
+                result.next();
+                assertEquals(2, result.getInt(1));
+                assertEquals("H", result.getString(2));
+                assertEquals("Masculino", result.getString(3));
+            }
             try (var result = statement.executeQuery("""
                     SELECT (SELECT nombre FROM campus WHERE id = 1),
                            (SELECT nombre FROM orientacionsexual WHERE id = 6),
