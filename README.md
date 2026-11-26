@@ -360,9 +360,8 @@ para cargar los catálogos y establecer la restricción `NOT NULL`.
 
 ### Catálogos de Equipo de Atención
 
-Para desplegar los cambios de Equipo de Atención, coordinar con el equipo de BD
-la ejecución de estos scripts sobre la base del entorno, después de que exista
-la tabla `rutaequipoatencion` creada por Hibernate:
+Antes de desplegar los cambios de Equipo de Atención, coordinar con el equipo de
+BD la ejecución de estos scripts sobre la base del entorno:
 
 1. `database/insert_catalogos_equipo_atencion.sql`
 2. `database/insert_discapacidades_equipo_atencion.sql`
@@ -371,11 +370,9 @@ la tabla `rutaequipoatencion` creada por Hibernate:
 5. `database/insert_modalidades_matriz_equipo_atencion.sql`
 
 Los scripts agregan opciones y conservan los identificadores existentes; se
-pueden volver a ejecutar. El primero clasifica rutas internas y externas y añade
-la columna para describir «Otra». El cuarto añade las columnas del ámbito de
-ocurrencia. Si el entorno no permite que Hibernate actualice el esquema, el
-equipo de BD debe crear primero `rutaequipoatencion` según su entidad y aplicar
-los scripts como migración autorizada.
+pueden volver a ejecutar. El primero crea la tabla de clasificación de rutas si
+no existe, clasifica rutas internas y externas y añade la columna para describir
+«Otra». El cuarto añade las columnas del ámbito de ocurrencia.
 
 `GET /maestros/rutas-internas` y `/maestros/rutas-externas` consultan las rutas
 clasificadas; para los servicios se reutiliza `GET /maestros/tipos-servicio`.
