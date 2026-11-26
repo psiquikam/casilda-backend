@@ -45,7 +45,8 @@ public class AtencionAlmaService {
     private static final Set<String> CAMPOS = Set.of(
             "canalIngreso", "persona", "solicitante", "motivoConsulta", "notaAph", "aceptaPsicologia");
     private static final Set<String> CAMPOS_PERSONA = Set.of("tipoIdentificacion", "numeroIdentificacion",
-            "nombres", "apellidos", "telefonoPrincipal", "correoPersonal", "ciudad", "estrato");
+            "primerNombre", "segundoNombre", "primerApellido", "segundoApellido",
+            "telefonoPrincipal", "correoPersonal", "ciudad", "estrato");
     private static final Set<String> CAMPOS_SOLICITANTE = Set.of(
             "esTercero", "nombres", "apellidos", "telefono", "parentesco");
     private static final Set<String> EDITABLES = Set.of("BORRADOR", "EN_GESTION_APH");
@@ -487,13 +488,19 @@ public class AtencionAlmaService {
                 }
                 yield "Se creó la atención APH en estado borrador.";
             }
-            case "CAMBIO_ESTADO" -> "La atención cambió al estado " + atencion.getEstado() + ".";
+            case "CAMBIO_ESTADO" -> "CERRADO".equals(atencion.getEstado())
+                    && "NO_CONTACTO".equals(atencion.getDatos().path("cierre").path("motivo").asText())
+                    ? "La atención se cerró por agotamiento del protocolo de contacto."
+                    : "La atención cambió al estado " + atencion.getEstado() + ".";
             case "DERIVACION" -> {
                 if ("PENDIENTE_PSICOLOGIA".equals(atencion.getEstado())) {
                     yield "La atención fue derivada a Psicología; triaje: " + atencion.getTriaje() + ".";
                 }
                 yield "Se registró una derivación relacionada con la atención APH.";
             }
+            case "TOMA_PSICOLOGIA" -> "Novedad tomada por Psicología.";
+            case "LIBERACION_PSICOLOGIA" -> "Novedad liberada en la bandeja de Psicología.";
+            case "INTENTO_PSICOLOGIA" -> "Se registró un intento de contacto en Psicología.";
             case "ACTUALIZACION" -> "Se actualizaron datos de la atención APH.";
             case "NOTA" -> "Se registró una nota de contención post-cierre.";
             default -> "Se registró una acción en la atención APH.";
@@ -545,7 +552,19 @@ public class AtencionAlmaService {
         if (!salida.has("cierre")) {
             salida.putNull("cierre");
         }
-        salida.putNull("numeroCaso");
+        if (Set.of("ABIERTO_ACTIVO", "EN_SEGUIMIENTO").contains(atencion.getEstado())) {
+            var numeros = jdbc.query("""
+                    SELECT COALESCE(cp.codigo, c.codigo) AS codigo
+                    FROM primercontactopsicologia pc
+                    LEFT JOIN casopsicologia cp ON cp.id=pc.idcasopsicologia
+                    LEFT JOIN caso c ON c.id=pc.idcaso
+                    WHERE pc.idatencion=?
+                    """, (rs, row) -> rs.getString("codigo"), atencion.getId());
+            if (numeros.isEmpty()) salida.putNull("numeroCaso");
+            else salida.put("numeroCaso", numeros.getFirst());
+        } else {
+            salida.putNull("numeroCaso");
+        }
         salida.putNull("gestionSimultanea");
         salida.put("fechaCreacion", atencion.getFechaCreacion().toString());
         salida.put("fechaActualizacion", atencion.getFechaActualizacion().toString());

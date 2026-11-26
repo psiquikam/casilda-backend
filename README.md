@@ -123,11 +123,27 @@ diferentes; no modifica ni elimina otras instancias.
 
 ### Migración consolidada del feature APH
 
-Para desplegar el feature APH actual en una base existente, ejecutar únicamente
+Para desplegar el feature APH actual en una base existente, ejecutar
 `database/migration_alma_aph.sql`, después de iniciar la versión que crea las tablas
 JPA del módulo. El archivo reúne las migraciones de esquema y permisos del feature.
 No incluye los hotfixes HF1/HF2 ya desplegados, la carga de catálogos ni cuentas o
 datos sintéticos; esos recursos permanecen separados.
+
+Para esta versión que integra la detección de casos de Psicología, ejecutar además
+`database/migration_primer_contacto_psicologia.sql` antes de habilitar el tráfico
+al backend. Las consultas de bandeja, novedades, notificaciones, auditoría de caso
+y consulta previa APH dependen de sus tablas. El script es idempotente y también
+registra los permisos de primer contacto; volver a ejecutarlo si se crean después
+los roles requeridos. Para el formulario de primer contacto, cargar además los
+catálogos provisionales con `database/insert_catalogos_primer_contacto_psicologia.sql`.
+La versión de consentimiento debe estar activa en `textos-consentimiento`.
+
+El primer contacto permite crear un caso propio o vincular explícitamente un caso
+activo existente. Se conservan la valoración y la nota de Psicología separadas de
+los datos visibles para APH. Si no existen nombres suficientes, la persona central
+puede quedar sin vincular; en ese caso la consulta previa devuelve `idPersona: null`.
+La reserva de códigos y el bloqueo por identidad cubren las solicitudes de primer
+contacto; los demás módulos que creen o modifiquen casos no comparten ese bloqueo.
 
 Los scripts granulares `update_*_aph.sql` se conservan como fixtures para las pruebas
 de integración que validan cada permiso o cambio por separado. No ejecutarlos uno a

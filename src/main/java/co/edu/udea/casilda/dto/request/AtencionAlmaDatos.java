@@ -39,10 +39,16 @@ public class AtencionAlmaDatos {
         private String numeroIdentificacion;
 
         @Size(max = 100, message = "Ingrese máximo 100 caracteres.")
-        private String nombres;
+        private String primerNombre;
 
         @Size(max = 100, message = "Ingrese máximo 100 caracteres.")
-        private String apellidos;
+        private String segundoNombre;
+
+        @Size(max = 100, message = "Ingrese máximo 100 caracteres.")
+        private String primerApellido;
+
+        @Size(max = 100, message = "Ingrese máximo 100 caracteres.")
+        private String segundoApellido;
 
         @Pattern(regexp = "^\\+?\\d{7,15}$", message = "Ingrese un teléfono válido.")
         private String telefonoPrincipal;

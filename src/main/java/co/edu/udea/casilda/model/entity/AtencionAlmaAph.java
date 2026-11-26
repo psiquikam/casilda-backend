@@ -54,6 +54,13 @@ public class AtencionAlmaAph {
     @JoinColumn(name = "idusuariotomador")
     private Usuario tomadaPor;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "idusuariotomadorpsicologia")
+    private Usuario tomadaPorPsicologia;
+
+    @Column(name = "fechatomapsicologia")
+    private Instant fechaTomaPsicologia;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private JsonNode datos;

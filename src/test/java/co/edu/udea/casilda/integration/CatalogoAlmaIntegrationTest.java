@@ -30,6 +30,36 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
 
     @Test
     @Transactional
+    void catalogosDePrimerContactoSonIdempotentesYRespetanCambiosAdministrativos() throws Exception {
+        ResourceDatabasePopulator seed = new ResourceDatabasePopulator(
+                new FileSystemResource("database/insert_catalogos_primer_contacto_psicologia.sql"));
+        seed.execute(dataSource);
+        seed.execute(dataSource);
+        String auth = bearer("profesional@udea.edu.co");
+        mockMvc.perform(get("/alma/catalogos/dimensiones-salud-mental"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/alma/catalogos/dimensiones-salud-mental").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(15)))
+                .andExpect(jsonPath("$[*].codigo", hasItem("DIM_01")))
+                .andExpect(jsonPath("$[*].codigo", hasItem("DIM_15")));
+        mockMvc.perform(get("/alma/catalogos/vinculos-agresor").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(8)))
+                .andExpect(jsonPath("$[*].codigo", hasItem("EXPAREJA")));
+
+        jdbcTemplate.update("UPDATE catalogoalmaitem SET activo = false, etiqueta = 'Etiqueta configurada' "
+                + "WHERE catalogo = 'dimensiones-salud-mental' AND codigo = 'DIM_01'");
+        seed.execute(dataSource);
+        entityManager.clear();
+        mockMvc.perform(get("/alma/catalogos/dimensiones-salud-mental").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.codigo == 'DIM_01')].activo", hasItem(false)))
+                .andExpect(jsonPath("$[?(@.codigo == 'DIM_01')].etiqueta", hasItem("Etiqueta configurada")));
+    }
+
+    @Test
+    @Transactional
     void informaItemsInactivosYPermiteRestaurarlosConElSeed() throws Exception {
         ResourceDatabasePopulator seed = new ResourceDatabasePopulator(
                 new FileSystemResource("database/insert_catalogos_aph.sql"));

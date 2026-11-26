@@ -197,8 +197,10 @@ public class BandejaAphService {
                     JsonNode origenPersona = salida.path("persona");
                     persona.set("tipoIdentificacion", origenPersona.path("tipoIdentificacion"));
                     persona.set("numeroIdentificacion", origenPersona.path("numeroIdentificacion"));
-                    persona.put("nombreCompleto", (origenPersona.path("nombres").asText("") + " "
-                            + origenPersona.path("apellidos").asText("")).trim());
+                    persona.put("nombreCompleto", java.util.stream.Stream.of("primerNombre", "segundoNombre",
+                                    "primerApellido", "segundoApellido")
+                            .map(campo -> origenPersona.path(campo).asText(""))
+                            .filter(StringUtils::hasText).collect(java.util.stream.Collectors.joining(" ")));
                     item.set("resumen", salida.path("motivoConsulta"));
                     if (atencion.getDatosRemision() == null) {
                         item.putNull("fechaRemision");

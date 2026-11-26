@@ -58,6 +58,12 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
     ('/alma/atenciones-aph/{idAtencion}/triaje', 'PUT', true, false),
     ('/alma/atenciones-aph/{idAtencion}/derivaciones/psicologia', 'POST', true, false),
     ('/alma/bandeja/psicologia', 'GET', true, false),
+    ('/alma/bandeja/psicologia/{idAtencion}/tomar', 'POST', true, false),
+    ('/alma/bandeja/psicologia/{idAtencion}/liberar', 'POST', true, false),
+    ('/alma/psicologia/novedades/{idAtencion}', 'GET', true, false),
+    ('/alma/psicologia/novedades/{idAtencion}/intentos', 'GET', true, false),
+    ('/alma/psicologia/novedades/{idAtencion}/intentos', 'POST', true, false),
+    ('/alma/psicologia/notificaciones', 'GET', true, false),
     ('/alma/contenciones-post-cierre', 'POST', true, false),
     ('/alma/remisiones-aph', 'POST', true, false),
     ('/alma/bandeja/aph', 'GET', true, false),
@@ -98,6 +104,18 @@ INSERT INTO endpoint (path, http_method, activo, publico) VALUES
 ON CONFLICT (path, http_method) DO UPDATE
 SET activo = EXCLUDED.activo,
     publico = EXCLUDED.publico;
+
+INSERT INTO catalogoalmaitem (catalogo, codigo, etiqueta, activo) VALUES
+    ('resultados-intento', 'NO_CONTESTA', 'No contesta', true),
+    ('resultados-intento', 'BUZON_DE_VOZ', 'Buzón de voz', true),
+    ('resultados-intento', 'OCUPADO', 'Línea ocupada', true),
+    ('resultados-intento', 'APAGADO', 'Teléfono apagado o fuera de servicio', true),
+    ('resultados-intento', 'NUMERO_ERRADO', 'Número equivocado', true),
+    ('resultados-intento', 'CONTESTA_OTRA_PERSONA', 'Contesta otra persona', true),
+    ('resultados-intento', 'PIDE_OTRO_HORARIO', 'Contesta y pide que se le llame en otro momento', true)
+ON CONFLICT (catalogo, codigo) DO UPDATE
+SET etiqueta = EXCLUDED.etiqueta,
+    activo = true;
 
 INSERT INTO endpointrole (idendpoint, idrol)
 SELECT e.id, r.id
@@ -152,6 +170,31 @@ JOIN rol r ON (e.path = '/alma/atenciones-aph/{idAtencion}/derivaciones/psicolog
                    AND e.http_method = 'POST' AND r.codigo = 'TECNICO_APH')
     OR (e.path = '/alma/bandeja/psicologia' AND e.http_method = 'GET'
                    AND r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL', 'REVISOR'))
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL')
+WHERE e.path IN ('/alma/bandeja/psicologia/{idAtencion}/tomar',
+                 '/alma/bandeja/psicologia/{idAtencion}/liberar')
+  AND e.http_method = 'POST'
+ON CONFLICT (idendpoint, idrol) DO NOTHING;
+
+INSERT INTO endpointrole (idendpoint, idrol)
+SELECT e.id, r.id
+FROM endpoint e
+JOIN rol r ON (
+    e.path IN ('/alma/psicologia/novedades/{idAtencion}',
+               '/alma/psicologia/novedades/{idAtencion}/intentos',
+               '/alma/psicologia/notificaciones')
+    AND e.http_method = 'GET'
+    AND r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL', 'REVISOR')
+) OR (
+    e.path = '/alma/psicologia/novedades/{idAtencion}/intentos'
+    AND e.http_method = 'POST'
+    AND r.codigo IN ('ADMIN', 'COORDINADOR', 'PROFESIONAL')
+)
 ON CONFLICT (idendpoint, idrol) DO NOTHING;
 
 INSERT INTO endpointrole (idendpoint, idrol)
