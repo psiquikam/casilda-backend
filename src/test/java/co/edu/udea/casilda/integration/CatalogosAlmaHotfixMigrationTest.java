@@ -14,11 +14,55 @@ import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
 class CatalogosAlmaHotfixMigrationTest {
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    @Test
+    void rechazaReasignacionDeIdsYRevierteLaTransaccion() throws Exception {
+        String hotfix = Files.readString(Path.of("database/hotfix_catalogos_linea_alma.sql"));
+        Map<String, String> valoresQa = Map.of(
+                "sexo", "INSERT INTO sexo VALUES (1, 'X', 'Mujer')",
+                "orientacionsexual", "INSERT INTO orientacionsexual VALUES (6, 'Prefiere no responder')",
+                "identidadgenero", "INSERT INTO identidadgenero VALUES (1, 'Identidad distinta')",
+                "campus", "INSERT INTO campus VALUES (1, 'Campus Apartadó')",
+                "regimen", "INSERT INTO regimen VALUES (3, 'Especial')",
+                "eps", "INSERT INTO eps VALUES (1, 'Sura EPS')");
+        for (var entrada : valoresQa.entrySet()) {
+            try (var connection = DriverManager.getConnection(
+                    POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+                 var statement = connection.createStatement()) {
+                String schema = "guardia_" + entrada.getKey();
+                statement.execute("CREATE SCHEMA " + schema);
+                statement.execute("SET search_path TO " + schema);
+                statement.execute("""
+                        CREATE TABLE sexo (id integer PRIMARY KEY, codigo text UNIQUE NOT NULL, nombre text UNIQUE NOT NULL);
+                        CREATE TABLE orientacionsexual (id integer PRIMARY KEY, nombre text NOT NULL);
+                        CREATE TABLE identidadgenero (id integer PRIMARY KEY, nombre text NOT NULL);
+                        CREATE TABLE campus (id integer PRIMARY KEY, nombre text NOT NULL);
+                        CREATE TABLE regimen (id integer PRIMARY KEY, nombre text NOT NULL);
+                        CREATE TABLE eps (id integer PRIMARY KEY, nombre text NOT NULL);
+                        """);
+                statement.execute(entrada.getValue());
+                String nombreOriginal;
+                try (var result = statement.executeQuery("SELECT nombre FROM " + entrada.getKey())) {
+                    result.next();
+                    nombreOriginal = result.getString(1);
+                }
+                SQLException error = assertThrows(SQLException.class, () -> statement.execute(hotfix));
+                assertTrue(error.getMessage().contains("No se puede reasignar el ID"));
+                assertTrue(error.getMessage().contains(entrada.getKey()));
+                statement.execute("ROLLBACK");
+                try (var result = statement.executeQuery("SELECT nombre FROM " + entrada.getKey())) {
+                    result.next();
+                    assertEquals(nombreOriginal, result.getString(1));
+                }
+            }
+        }
+    }
 
     @Test
     void actualizaVinculosYConservaHistoricoAlRepetirHotfixYCargaInicial() throws Exception {

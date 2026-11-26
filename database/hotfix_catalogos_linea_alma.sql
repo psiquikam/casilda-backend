@@ -6,6 +6,28 @@
 
 BEGIN;
 
+-- Detener la migración si un ID ya identifica un valor diferente.
+-- Esta protección no sustituye la revisión de referencias ni autoriza el despliegue.
+CREATE OR REPLACE FUNCTION pg_temp.proteger_catalogo_historico() RETURNS trigger AS $$
+BEGIN
+    IF OLD.nombre IS DISTINCT FROM NEW.nombre
+       OR (TG_TABLE_NAME = 'sexo' AND (to_jsonb(OLD)->>'codigo') IS DISTINCT FROM (to_jsonb(NEW)->>'codigo')) THEN
+        RAISE EXCEPTION 'No se puede reasignar el ID % de %: ya corresponde a %', OLD.id, TG_TABLE_NAME, OLD.nombre;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE
+    tabla text;
+BEGIN
+    FOREACH tabla IN ARRAY ARRAY['sexo', 'orientacionsexual', 'identidadgenero', 'campus', 'regimen', 'eps']
+    LOOP
+        EXECUTE format('CREATE TRIGGER proteger_catalogo_historico BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION pg_temp.proteger_catalogo_historico()', tabla);
+    END LOOP;
+END $$;
+
 INSERT INTO sexo (id, codigo, nombre) VALUES
     (1, 'F', 'Femenino'),
     (2, 'M', 'Masculino'),
@@ -110,6 +132,16 @@ INSERT INTO eps (id, nombre) VALUES
     (29, 'Unidades de Salud de Universidades Públicas')
 ON CONFLICT (id) DO UPDATE
 SET nombre = EXCLUDED.nombre;
+
+DO $$
+DECLARE
+    tabla text;
+BEGIN
+    FOREACH tabla IN ARRAY ARRAY['sexo', 'orientacionsexual', 'identidadgenero', 'campus', 'regimen', 'eps']
+    LOOP
+        EXECUTE format('DROP TRIGGER proteger_catalogo_historico ON %I', tabla);
+    END LOOP;
+END $$;
 
 CREATE TABLE IF NOT EXISTS epsregimen (
     idregimen integer NOT NULL REFERENCES regimen(id),
