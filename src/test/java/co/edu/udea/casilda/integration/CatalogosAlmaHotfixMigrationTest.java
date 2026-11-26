@@ -134,11 +134,11 @@ class CatalogosAlmaHotfixMigrationTest {
                 result.next();
                 assertEquals(1, result.getInt(1));
                 assertEquals("M", result.getString(2));
-                assertEquals("Femenino", result.getString(3));
+                assertEquals("Mujer", result.getString(3));
                 result.next();
                 assertEquals(2, result.getInt(1));
                 assertEquals("H", result.getString(2));
-                assertEquals("Masculino", result.getString(3));
+                assertEquals("Hombre", result.getString(3));
             }
             try (var result = statement.executeQuery("""
                     SELECT (SELECT nombre FROM campus WHERE id = 1),

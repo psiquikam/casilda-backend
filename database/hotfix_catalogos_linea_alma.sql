@@ -11,11 +11,7 @@ BEGIN;
 -- Esta protección no sustituye la revisión de referencias ni autoriza el despliegue.
 CREATE OR REPLACE FUNCTION pg_temp.proteger_catalogo_historico() RETURNS trigger AS $$
 BEGIN
-    IF (OLD.nombre IS DISTINCT FROM NEW.nombre
-        AND NOT (TG_TABLE_NAME = 'sexo' AND (
-            (lower(trim(OLD.nombre)) = 'mujer' AND NEW.nombre = 'Femenino')
-            OR (lower(trim(OLD.nombre)) = 'hombre' AND NEW.nombre = 'Masculino')
-        )))
+    IF OLD.nombre IS DISTINCT FROM NEW.nombre
        OR (TG_TABLE_NAME = 'sexo' AND (to_jsonb(OLD)->>'codigo') IS DISTINCT FROM (to_jsonb(NEW)->>'codigo')) THEN
         RAISE EXCEPTION 'No se puede reasignar el ID % de %: ya corresponde a %', OLD.id, TG_TABLE_NAME, OLD.nombre;
     END IF;
@@ -37,7 +33,6 @@ DO $$
 DECLARE
     opcion record;
     coincidencias integer;
-    id_alias integer;
     nuevo_id integer;
 BEGIN
     LOCK TABLE sexo IN SHARE ROW EXCLUSIVE MODE;
@@ -56,13 +51,10 @@ BEGIN
             RAISE EXCEPTION 'Hay más de un sexo llamado %', opcion.nombre;
         END IF;
         IF coincidencias = 0 AND opcion.alias_nombre IS NOT NULL THEN
-            SELECT count(*), min(id) INTO coincidencias, id_alias FROM sexo
+            SELECT count(*) INTO coincidencias FROM sexo
             WHERE lower(trim(nombre)) = lower(trim(opcion.alias_nombre));
             IF coincidencias > 1 THEN
                 RAISE EXCEPTION 'Hay más de un sexo llamado %', opcion.alias_nombre;
-            END IF;
-            IF coincidencias = 1 THEN
-                UPDATE sexo SET nombre = opcion.nombre WHERE id = id_alias;
             END IF;
         END IF;
         IF coincidencias = 0 THEN
