@@ -40,10 +40,24 @@ public class CasoController {
         return ResponseEntity.ok(casoService.listarCasosPaginados(page, size));
     }
 
+    @GetMapping("/{id}")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Consultar un caso por ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Caso obtenido exitosamente"),
+            @ApiResponse(responseCode = "404", description = "Caso no encontrado")
+    })
+    public ResponseEntity<CasoListResponse> obtenerCasoPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(casoService.obtenerCasoPorId(id));
+    }
+
     @PostMapping("/pestana/0")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<CasoResponse> registrarPestanaDatosPersona(
             @Valid @RequestBody PestanaDatosPersonaRequest request) {
+        if (request.getIdCaso() == null) {
+            throw new IllegalArgumentException("El caso se crea al registrar la primera atención con consentimiento.");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(casoService.registrarPestanaDatosPersona(request));
     }
 

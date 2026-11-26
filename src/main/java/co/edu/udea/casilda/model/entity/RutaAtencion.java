@@ -23,4 +23,7 @@ public class RutaAtencion extends Auditable {
     @Id
     @Column(name = "idrutaactivacion")
     private Integer idRutaActivacion;
+
+    @Column(name = "cual")
+    private String cual;
 }

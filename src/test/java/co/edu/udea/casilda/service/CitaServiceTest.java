@@ -121,7 +121,7 @@ class CitaServiceTest {
     @Test
     void solicitaAlRepositorioElOrdenDeBandejaDeCitas() {
         when(citaRepository.findParaTabla(
-                isNull(), isNull(), anyList(), eq(EstadoCitaEnum.ATENDIDA.getId()), any(Pageable.class)))
+                isNull(), isNull(), anyList(), any(Pageable.class)))
                 .thenReturn(Page.empty());
 
         service.listarCitasPaginadas(0, 10, null, null);
@@ -130,7 +130,6 @@ class CitaServiceTest {
                 isNull(),
                 isNull(),
                 eq(List.of(EstadoCitaEnum.PROGRAMADA.getId(), EstadoCitaEnum.REPROGRAMADA.getId())),
-                eq(EstadoCitaEnum.ATENDIDA.getId()),
                 any(Pageable.class));
     }
 

@@ -44,6 +44,29 @@ Si `mvn` no está en `PATH`, usa la ruta instalada localmente (ejemplo en Window
 & "C:\Users\William Ortiz\.maven\maven-3.9.12(1)\bin\mvn.cmd" spring-boot:run
 ```
 
+### Correos de prueba al repartir
+
+El envío está desactivado por defecto y utiliza dos destinatarios de prueba,
+sin incluir información de la solicitud. Una opción es [Brevo SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP):
+crea una cuenta, verifica un remitente y obtiene el login y la clave SMTP.
+
+En la carpeta raíz del backend crea `correo-reparto-local.properties`:
+
+```properties
+app.correo-reparto.habilitado=true
+spring.mail.host=smtp-relay.brevo.com
+spring.mail.port=587
+spring.mail.username=LOGIN_SMTP
+spring.mail.password=CLAVE_SMTP
+app.correo-reparto.remitente=REMITENTE_VERIFICADO
+app.correo-reparto.destinatarios=PRIMER_CORREO,SEGUNDO_CORREO
+```
+
+Inicia el backend desde su carpeta raíz y reinícialo después de editar el
+archivo. El archivo está excluido de Git; no compartas las credenciales. El
+reparto se guarda aunque falle el correo y la pantalla muestra el resultado.
+Que el servidor SMTP acepte el mensaje no garantiza su entrega final.
+
 ## Autenticación JWT
 
 ### Login
@@ -318,6 +341,34 @@ si existen referencias, falla y revierte la transacción sin borrar registros. E
 mantener la ventana de mantenimiento y resolver las referencias antes de reintentarlo.
 En una base nueva, ejecutar también el script después del primer inicio de Hibernate
 para cargar los catálogos y establecer la restricción `NOT NULL`.
+
+### Catálogos de Equipo de Atención
+
+Para desplegar los cambios de Equipo de Atención, coordinar con el equipo de BD
+la ejecución de estos scripts sobre la base del entorno, después de que exista
+la tabla `rutaequipoatencion` creada por Hibernate:
+
+1. `database/insert_catalogos_equipo_atencion.sql`
+2. `database/insert_discapacidades_equipo_atencion.sql`
+3. `database/insert_lugares_entrevista_equipo_atencion.sql`
+4. `database/insert_relaciones_misionales_equipo_atencion.sql`
+5. `database/insert_modalidades_matriz_equipo_atencion.sql`
+
+Los scripts agregan opciones y conservan los identificadores existentes; se
+pueden volver a ejecutar. El primero clasifica rutas internas y externas y añade
+la columna para describir «Otra». El cuarto añade las columnas del ámbito de
+ocurrencia. Si el entorno no permite que Hibernate actualice el esquema, el
+equipo de BD debe crear primero `rutaequipoatencion` según su entidad y aplicar
+los scripts como migración autorizada.
+
+`GET /maestros/rutas-internas` y `/maestros/rutas-externas` consultan las rutas
+clasificadas; para los servicios se reutiliza `GET /maestros/tipos-servicio`.
+
+El detalle `GET /solicitudes/acompanamiento/{id}` incluye las discapacidades
+del solicitante para el equipo de atención. Al guardar la pestaña de persona,
+omitir `discapacidades` conserva las existentes; enviar una lista las reemplaza.
+Las opciones de discapacidad y lugares de entrevista se incorporan mediante
+los scripts anteriores sin eliminar los valores históricos.
 
 ### Formularios
 

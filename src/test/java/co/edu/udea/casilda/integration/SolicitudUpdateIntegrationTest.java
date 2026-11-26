@@ -2,6 +2,7 @@ package co.edu.udea.casilda.integration;
 
 import co.edu.udea.casilda.model.entity.SolicitudAtencion;
 import co.edu.udea.casilda.repository.SolicitudAtencionRepository;
+import co.edu.udea.casilda.repository.CitaRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,33 @@ class SolicitudUpdateIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private CitaRepository citas;
+
+    @Test
+    @Transactional
+    void ordenaCitasPendientesYHistorialAntesDePaginar() {
+        jdbc.update("""
+                INSERT INTO estadocita (id, nombre) VALUES
+                (1, 'Programada'), (2, 'Cancelada'), (3, 'Reprogramada'),
+                (4, 'Atendida'), (5, 'Inasistencia') ON CONFLICT (id) DO NOTHING
+                """);
+        jdbc.update("""
+                INSERT INTO cita (id, idsolicitudatencion, idestadocita, fecha)
+                VALUES (501, 100, 1, '2026-03-01'), (502, 100, 3, '2026-02-01'),
+                       (503, 100, 2, '2026-01-01'), (504, 100, 5, '2026-04-01'),
+                       (505, 100, 4, '2026-01-01'), (506, 100, 4, '2026-05-01')
+                """);
+        assertEquals(List.of(502L, 501L), idsCitas(0));
+        assertEquals(List.of(506L, 504L), idsCitas(1));
+        assertEquals(List.of(505L, 503L), idsCitas(2));
+    }
+
+    private List<Long> idsCitas(int page) {
+        return citas.findParaTabla(null, null, List.of(1, 3), PageRequest.of(page, 2))
+                .map(cita -> cita.getId()).getContent();
+    }
 
     @Test
     @Transactional
@@ -202,6 +230,7 @@ class SolicitudUpdateIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.tipoAsignacionId").value(1))
                 .andExpect(jsonPath("$.tipoServicioId").value(1))
                 .andExpect(jsonPath("$.fechaReparto").value("2026-11-03"))
+                .andExpect(jsonPath("$.fechaHoraReparto").isNotEmpty())
                 .andExpect(jsonPath("$.observacionesReparto").value("Primero"));
 
         mockMvc.perform(post("/solicitudes/acompanamiento/100/asignar")

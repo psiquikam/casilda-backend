@@ -2,6 +2,7 @@ package co.edu.udea.casilda.service;
 
 import co.edu.udea.casilda.dto.request.*;
 import co.edu.udea.casilda.dto.response.AtencionResponse;
+import co.edu.udea.casilda.dto.response.CasoResponse;
 import co.edu.udea.casilda.exception.ResourceNotFoundException;
 import co.edu.udea.casilda.model.entity.*;
 import co.edu.udea.casilda.model.enums.EstadoCitaEnum;
@@ -30,6 +31,8 @@ public class AtencionService {
     private final CompromisoService compromisoService;
     private final AuditoriaCasoService auditoriaCasoService;
     private final CitaRepository citaRepository;
+    private final CasoService casoService;
+    private final CitaService citaService;
 
     // Repositories de entidades relacionadas
     private final PersonaRepository personaRepository;
@@ -47,6 +50,7 @@ public class AtencionService {
     private final ArchivoConsentimientoRepository archivoConsentimientoRepository;
     private final EstadoAtencionRepository estadoAtencionRepository;
     private final LugarEntrevistaRepository lugarEntrevistaRepository;
+    private final FormaOcurrenciaRepository formaOcurrenciaRepository;
     private final RutaAtencionRepository rutaAtencionRepository;
     private final RemisionAtencionRepository remisionAtencionRepository;
     private final MedidaProteccionRepository medidaProteccionRepository;
@@ -66,6 +70,40 @@ public class AtencionService {
      */
     @Transactional
     public AtencionResponse registrarPestanaAtencion(PestanaRegistroAtencionRequest request) {
+        CasoResponse casoCreado = null;
+        if (request.getCasoId() == null) {
+            if (request.getCitaId() == null || request.getDatosPersona() == null
+                    || request.getDatosComplementarios() == null
+                    || request.getArchivoConsentimientoContenido() == null
+                    || request.getArchivoConsentimientoContenido().isBlank()) {
+                throw new IllegalArgumentException("La primera atención requiere cita, datos y consentimiento.");
+            }
+            byte[] consentimiento;
+            try {
+                consentimiento = java.util.Base64.getDecoder().decode(request.getArchivoConsentimientoContenido());
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("El archivo de consentimiento no es válido.", ex);
+            }
+            if (consentimiento.length == 0) {
+                throw new IllegalArgumentException("El archivo de consentimiento está vacío.");
+            }
+            Cita citaInicial = citaRepository.findById(request.getCitaId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con ID: " + request.getCitaId()));
+            if (citaInicial.getEstadoCita() == null) {
+                throw new IllegalArgumentException("La cita no tiene un estado válido.");
+            }
+            if (!EstadoCitaEnum.ATENDIDA.getId().equals(citaInicial.getEstadoCita().getId())) {
+                RegistrarResultadoCitaRequest resultado = new RegistrarResultadoCitaRequest();
+                resultado.setResultado("ATENDIDA");
+                citaService.registrarResultado(request.getCitaId(), resultado);
+            }
+            request.getDatosPersona().setCitaId(request.getCitaId());
+            request.getDatosPersona().setIdCaso(null);
+            casoCreado = casoService.registrarPestanaDatosPersona(request.getDatosPersona());
+            request.setCasoId(casoCreado.getId());
+            request.getDatosComplementarios().setIdCaso(casoCreado.getId());
+            casoService.registrarPestanaDatosComplementarios(request.getDatosComplementarios());
+        }
         log.info("Pestaña 5: Registrando atención para caso ID: {}", request.getCasoId());
 
         Usuario usuario = obtenerUsuarioAutenticadoRequerido();
@@ -122,11 +160,18 @@ public class AtencionService {
         }
 
         atencion.setCita(cita);
+        if (request.getIdFormaOcurrencia() != null) {
+            caso.setFormaOcurrencia(formaOcurrenciaRepository.findById(request.getIdFormaOcurrencia())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Forma de ocurrencia no encontrada con ID: " + request.getIdFormaOcurrencia())));
+        }
+        casoService.actualizarAmbitoOcurrencia(caso, request.getAmbitoOcurrencia(), request.getAmbitoOcurrenciaOtro());
         atencion.setUsuarioActualizacion(usuario);
         atencion.setFechaActualizacion(LocalDateTime.now());
 
         if (request.getIdTipoServicio() != null) {
-            atencion.setTipoServicio(tipoServicioRepository.findById(request.getIdTipoServicio()).orElse(null));
+            atencion.setTipoServicio(tipoServicioRepository.findById(request.getIdTipoServicio())
+                    .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con ID: " + request.getIdTipoServicio())));
         }
         if (request.getIdLugarEntrevista() != null) {
             atencion.setLugarEntrevista(
@@ -143,7 +188,12 @@ public class AtencionService {
 
         log.info("Pestaña 5: Atención guardada con ID: {}", atencion.getId());
 
-        return mapToResponse(atencion);
+        AtencionResponse response = mapToResponse(atencion);
+        if (casoCreado != null) {
+            response.setCasoId(casoCreado.getId());
+            response.setCodigoCaso(casoCreado.getCodigo());
+        }
+        return response;
 
     }
 
@@ -207,7 +257,7 @@ public class AtencionService {
             for (RutaAtencionRequest r : request.getRutas()) {
                 if (r.getIdTipoRutaActivacion() != null && r.getIdRutaActivacion() != null) {
                     RutaAtencion ra = new RutaAtencion(atencion.getId(), r.getIdTipoRutaActivacion(),
-                            r.getIdRutaActivacion());
+                            r.getIdRutaActivacion(), r.getCual());
                     rutaAtencionRepository.save(ra);
                 }
             }
@@ -505,7 +555,7 @@ public class AtencionService {
 
             archivoConsentimientoRepository.save(archivo);
         } catch (IllegalArgumentException e) {
-            log.warn("Base64 inválido para archivo de consentimiento: {}", e.getMessage());
+            throw new IllegalArgumentException("El archivo de consentimiento no es válido.", e);
         }
     }
 

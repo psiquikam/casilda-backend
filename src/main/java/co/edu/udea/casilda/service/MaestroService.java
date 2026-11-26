@@ -71,6 +71,7 @@ public class MaestroService {
     private final TipoApreciacionRepository tipoApreciacionRepository;
     private final TipoRutaActivacionRepository tipoRutaActivacionRepository;
     private final RutaActivacionRepository rutaActivacionRepository;
+    private final RutaEquipoAtencionRepository rutaEquipoAtencionRepository;
     private final TipoRemisionRepository tipoRemisionRepository;
     private final InstanciaRemisionRepository instanciaRemisionRepository;
     private final TipoCompromisoRepository tipoCompromisoRepository;
@@ -852,6 +853,14 @@ public class MaestroService {
         return rutaActivacionRepository.findAll().stream()
             .filter(r -> Boolean.TRUE.equals(r.getActivo()))
             .map(r -> new MaestroDTO(r.getId().longValue(), r.getCodigo(), r.getNombre()))
+            .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<MaestroDTO> obtenerRutasEquipoAtencion(String tipo) {
+        return rutaEquipoAtencionRepository.findByTipoAndRutaActivoTrueOrderByRutaIdAsc(tipo).stream()
+            .map(item -> item.getRuta())
+            .map(ruta -> new MaestroDTO(ruta.getId().longValue(), ruta.getCodigo(), ruta.getNombre()))
             .collect(Collectors.toList());
     }
 

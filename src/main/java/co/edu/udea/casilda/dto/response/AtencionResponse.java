@@ -15,4 +15,6 @@ import lombok.NoArgsConstructor;
 public class AtencionResponse {
 
     private Long id;
+    private Long casoId;
+    private String codigoCaso;
 }

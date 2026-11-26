@@ -353,6 +353,18 @@ public class MaestroController {
         return ResponseEntity.ok(catalogoService.obtenerRutasActivacion());
     }
 
+    @GetMapping("/rutas-internas")
+    @Operation(summary = "Obtener rutas internas para Equipo de Atención")
+    public ResponseEntity<List<MaestroDTO>> obtenerRutasInternas() {
+        return ResponseEntity.ok(catalogoService.obtenerRutasEquipoAtencion("INTERNA"));
+    }
+
+    @GetMapping("/rutas-externas")
+    @Operation(summary = "Obtener rutas externas para Equipo de Atención")
+    public ResponseEntity<List<MaestroDTO>> obtenerRutasExternas() {
+        return ResponseEntity.ok(catalogoService.obtenerRutasEquipoAtencion("EXTERNA"));
+    }
+
     @GetMapping("/tipos-remision")
     @Operation(summary = "Obtener lista de tipos de remisión")
     public ResponseEntity<List<MaestroDTO>> obtenerTiposRemision() {

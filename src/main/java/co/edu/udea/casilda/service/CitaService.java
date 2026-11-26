@@ -70,7 +70,6 @@ public class CitaService {
                 idEstadoCita,
                 estadoExcluido,
                 List.of(EstadoCitaEnum.PROGRAMADA.getId(), EstadoCitaEnum.REPROGRAMADA.getId()),
-                EstadoCitaEnum.ATENDIDA.getId(),
                 pageable);
 
         return citas.map(this::mapToResponse);

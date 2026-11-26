@@ -1,6 +1,8 @@
 spring:
   application:
     name: casilda-backend
+  config:
+    import: optional:file:./correo-reparto-local.properties
   
   datasource:
     url: jdbc:postgresql://localhost:5432/casilda
@@ -22,6 +24,18 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 25MB
+  mail:
+    host: ${CASILDA_SMTP_HOST:smtp-relay.brevo.com}
+    port: ${CASILDA_SMTP_PORT:587}
+    username: ${CASILDA_SMTP_USUARIO:}
+    password: ${CASILDA_SMTP_CLAVE:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 server:
   port: 8080
@@ -29,6 +43,10 @@ server:
     context-path: /api/v1
 
 app:
+  correo-reparto:
+    habilitado: ${CASILDA_CORREO_REPARTO_HABILITADO:false}
+    remitente: ${CASILDA_CORREO_REPARTO_REMITENTE:}
+    destinatarios: ${CASILDA_CORREO_REPARTO_DESTINATARIOS:}
   reportes:
     evidencias:
       directorio: uploads/reportes

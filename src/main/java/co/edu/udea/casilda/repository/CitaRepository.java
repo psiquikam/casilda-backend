@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repositorio para gestionar entidades Cita
@@ -21,21 +22,26 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
      */
     List<Cita> findBySolicitudAtencionIdOrderByFechaDesc(Long solicitudId);
 
+    Optional<Cita> findFirstBySolicitudAtencionIdOrderByFechaDescIdDesc(Long solicitudId);
+
+    boolean existsBySolicitudAtencionIdAndEstadoCitaIdIn(Long solicitudId, List<Integer> estadoIds);
+
     @Query("""
             SELECT c FROM Cita c
             WHERE (:estadoId IS NULL OR c.estadoCita.id = :estadoId)
               AND (:estadoExcluidoId IS NULL OR c.estadoCita.id <> :estadoExcluidoId)
             ORDER BY CASE
                 WHEN c.estadoCita.id IN :estadosPrioritarios THEN 0
-                WHEN c.estadoCita.id = :estadoAtendida THEN 2
                 ELSE 1
-            END, c.fecha ASC, c.id ASC
+            END,
+            CASE WHEN c.estadoCita.id IN :estadosPrioritarios THEN c.fecha END ASC,
+            CASE WHEN c.estadoCita.id NOT IN :estadosPrioritarios THEN c.fecha END DESC,
+            c.id DESC
             """)
     Page<Cita> findParaTabla(
             @Param("estadoId") Integer estadoId,
             @Param("estadoExcluidoId") Integer estadoExcluidoId,
             @Param("estadosPrioritarios") List<Integer> estadosPrioritarios,
-            @Param("estadoAtendida") Integer estadoAtendida,
             Pageable pageable);
 
     @Query("""

@@ -54,6 +54,22 @@ public class DynamicEndpointAuthorizationManager
         return checkPath(authenticationSupplier, "POST", "/solicitudes/acompanamiento/" + solicitudId + "/asignar");
     }
 
+    public AuthorizationDecision checkUltimaCita(
+            final Supplier<Authentication> authenticationSupplier,
+            final RequestAuthorizationContext context
+    ) {
+        Authentication authentication = authenticationSupplier.get();
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return new AuthorizationDecision(false);
+        }
+        String solicitudId = context.getVariables().get("solicitudId");
+        if (solicitudId == null || !solicitudId.matches("[0-9]+")) {
+            return new AuthorizationDecision(false);
+        }
+        return checkPath(authenticationSupplier, "GET", "/solicitudes/acompanamiento/" + solicitudId + "/contactos");
+    }
+
     private AuthorizationDecision checkPath(
             final Supplier<Authentication> authenticationSupplier, final String method, final String path
     ) {

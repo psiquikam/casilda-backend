@@ -10,6 +10,8 @@ public class PestanaDocumentacionRequest {
     private Integer hacecuantooccurrio;
     private Integer idtiempoocurridounidad;
     private Integer idformaocurrencia;
+    private String ambitoOcurrencia;
+    private String ambitoOcurrenciaOtro;
     private Integer idciudadhechos;
     private Integer idlugarocurrencia;
     private Boolean violenciabasadagenero;

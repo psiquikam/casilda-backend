@@ -61,6 +61,20 @@ class MaestroControllerTest {
                 .andExpect(jsonPath("$[2].nombre").value("Telefonica"));
     }
 
+    @Test
+    void debeConsultarCatalogosDeEquipoDeAtencion() throws Exception {
+        when(catalogoService.obtenerRutasEquipoAtencion("INTERNA"))
+                .thenReturn(List.of(new MaestroDTO(5L, "SEGURIDAD", "Seguridad")));
+        when(catalogoService.obtenerRutasEquipoAtencion("EXTERNA")).thenReturn(List.of());
+
+        mockMvc.perform(get("/maestros/rutas-internas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(5));
+        mockMvc.perform(get("/maestros/rutas-externas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
     private MockMvc mvc(Object controller) {
         Validator noValidation = new Validator() {
             public boolean supports(Class<?> type) { return true; }

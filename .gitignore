@@ -1,6 +1,7 @@
 target/
 !.mvn/wrapper/maven-wrapper.jar
 uploads/
+/correo-reparto-local.properties
 !**/src/main/**/target/
 !**/src/test/**/target/
 
