@@ -19,6 +19,8 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -60,11 +62,45 @@ class MigracionesModulosIntegrationTest {
         ResourceDatabasePopulator aph =
                 new ResourceDatabasePopulator(new FileSystemResource("database/migration_alma_aph.sql"));
 
+        List<Map<String, Object>> rolesAlma = null;
+        List<Map<String, Object>> endpointsAlma = null;
+        List<Map<String, Object>> permisosAlma = null;
         for (int i = 0; i < 2; i++) {
             uad.execute(dataSource);
             jdbc.execute(Files.readString(Path.of("database/update_schema_atencion_cita.sql")));
             equipo.execute(dataSource);
             aph.execute(dataSource);
+
+            assertEquals(1, contar("SELECT COUNT(*) FROM rol WHERE codigo = 'TECNICO_APH' AND activo"));
+            assertEquals(1, contar("SELECT COUNT(*) FROM rol WHERE codigo = 'ALMA_COORDINACION' AND activo"));
+            assertEquals(1, contar("SELECT COUNT(*) FROM endpoint WHERE path = '/alma/auditoria' "
+                    + "AND http_method = 'GET' AND activo AND NOT publico"));
+            assertEquals(1, permisos("/alma/auditoria", "GET", "ADMIN"));
+            assertEquals(1, permisos("/alma/auditoria", "GET", "ALMA_COORDINACION"));
+
+            List<Map<String, Object>> rolesActuales = jdbc.queryForList("""
+                    SELECT id, codigo, nombre, activo FROM rol
+                    WHERE codigo IN ('TECNICO_APH', 'ALMA_COORDINACION') ORDER BY codigo
+                    """);
+            List<Map<String, Object>> endpointsActuales = jdbc.queryForList("""
+                    SELECT id, path, http_method, activo, publico FROM endpoint
+                    WHERE path LIKE '/alma/%' ORDER BY path, http_method
+                    """);
+            List<Map<String, Object>> permisosActuales = jdbc.queryForList("""
+                    SELECT e.path, e.http_method, r.codigo FROM endpointrole er
+                    JOIN endpoint e ON e.id = er.idendpoint
+                    JOIN rol r ON r.id = er.idrol
+                    WHERE e.path LIKE '/alma/%' ORDER BY e.path, e.http_method, r.codigo
+                    """);
+            if (i == 0) {
+                rolesAlma = rolesActuales;
+                endpointsAlma = endpointsActuales;
+                permisosAlma = permisosActuales;
+            } else {
+                assertEquals(rolesAlma, rolesActuales);
+                assertEquals(endpointsAlma, endpointsActuales);
+                assertEquals(permisosAlma, permisosActuales);
+            }
         }
 
         assertEquals(1, permisos("/uad/noticias", "GET", "UAD_EQUIPO_3"));
@@ -73,7 +109,6 @@ class MigracionesModulosIntegrationTest {
         assertEquals(1, permisos("/alma/remisiones-aph", "POST", "UAD_EQUIPO_3"));
         assertEquals(1, permisos("/citas/caso/{casoId}/seguimientos", "POST", "PROFESIONAL"));
         assertEquals(0, permisos("/solicitudes/**", "POST", "PROFESIONAL"));
-        assertEquals(1, permisos("/alma/auditoria", "GET", "ALMA_COORDINACION"));
         assertEquals(1, contar("SELECT COUNT(*) FROM information_schema.tables "
                 + "WHERE table_schema=current_schema() AND table_name='limitebandejaaph'"));
         assertEquals(1, contar("SELECT COUNT(*) FROM pg_indexes WHERE indexname = 'atencion_cita_unique_idx'"));
