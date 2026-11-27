@@ -45,7 +45,7 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$[*].codigo", hasItem("DIM_15")));
         mockMvc.perform(get("/alma/catalogos/vinculos-agresor").header("Authorization", auth))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(8)))
+                .andExpect(jsonPath("$", hasSize(15)))
                 .andExpect(jsonPath("$[*].codigo", hasItem("EXPAREJA")));
 
         jdbcTemplate.update("UPDATE catalogoalmaitem SET activo = false, etiqueta = 'Etiqueta configurada' "
@@ -86,8 +86,8 @@ class CatalogoAlmaIntegrationTest extends IntegrationTestBase {
         seed.execute(dataSource);
         seed.execute(dataSource);
 
-        assertEquals(31, jdbcTemplate.queryForObject("SELECT count(*) FROM catalogoalmaitem", Integer.class));
-        assertEquals(31, jdbcTemplate.queryForObject(
+        assertEquals(51, jdbcTemplate.queryForObject("SELECT count(*) FROM catalogoalmaitem", Integer.class));
+        assertEquals(51, jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM catalogoalmaitem WHERE activo = true", Integer.class));
 
         mockMvc.perform(get("/alma/catalogos/estratos")).andExpect(status().isForbidden());

@@ -1,197 +1,240 @@
 -- Hotfix de catálogos de Línea Alma según la revisión de flujos.
--- EN PROGRESO: no ejecutar en QA. Falta resolver las opciones históricas.
 -- Ejecutar después de que existan las tablas del módulo y catalogoalmaitem.
--- Conserva los códigos históricos, desactiva solo opciones reemplazadas
--- y no elimina registros ni datos de atenciones existentes.
+-- Reemplaza el contenido de sexo, orientacionsexual, identidadgenero, campus,
+-- regimen y eps por las opciones de los formularios. Esos catálogos son
+-- compartidos, así que el cambio aplica a todos los formularios que los usan.
+-- No modifica las rutas de Línea 123.
 -- Requiere desplegar primero el backend que homologa vinculoudea por nombre.
 
 BEGIN;
 
--- Detener la migración si un ID ya identifica un valor diferente.
--- Esta protección no sustituye la revisión de referencias ni autoriza el despliegue.
-CREATE OR REPLACE FUNCTION pg_temp.proteger_catalogo_historico() RETURNS trigger AS $$
+-- Catálogos compartidos: quedan exactamente con las opciones de los formularios,
+-- numeradas en el orden del documento. Los registros que usaban una opción que
+-- continúa (aunque cambie de nombre) la conservan; los que usaban una opción
+-- retirada pasan a la opción de respaldo indicada al invocar la función.
+CREATE TEMPORARY TABLE catalogo_objetivo (
+    tabla text NOT NULL,
+    posicion integer NOT NULL,
+    nombre text NOT NULL,
+    codigo text,
+    PRIMARY KEY (tabla, posicion)
+) ON COMMIT DROP;
+
+CREATE TEMPORARY TABLE catalogo_equivalencia (
+    tabla text NOT NULL,
+    nombre_anterior text NOT NULL,
+    nombre text NOT NULL,
+    PRIMARY KEY (tabla, nombre_anterior)
+) ON COMMIT DROP;
+
+CREATE TEMPORARY TABLE catalogo_mapa (
+    tabla text NOT NULL,
+    id_anterior integer NOT NULL,
+    id_nuevo integer NOT NULL,
+    PRIMARY KEY (tabla, id_anterior)
+) ON COMMIT DROP;
+
+INSERT INTO catalogo_objetivo (tabla, posicion, nombre, codigo) VALUES
+    ('sexo', 1, 'Femenino', 'F'),
+    ('sexo', 2, 'Masculino', 'M'),
+    ('sexo', 3, 'Intersexual', 'I'),
+    ('sexo', 4, 'Tránsgenero', 'T'),
+    ('sexo', 5, 'Prefiere no responder', 'PR'),
+    ('sexo', 6, 'Sin dato', 'SD');
+
+INSERT INTO catalogo_objetivo (tabla, posicion, nombre)
+SELECT 'orientacionsexual', posicion, nombre FROM unnest(ARRAY[
+    'Asexual',
+    'Bisexual',
+    'Heterosexual',
+    'Homosexual',
+    'Lesbiana',
+    'Pansexual',
+    'Otra',
+    'Prefiere no responder',
+    'Sin dato'
+]) WITH ORDINALITY AS opciones(nombre, posicion);
+
+INSERT INTO catalogo_objetivo (tabla, posicion, nombre)
+SELECT 'identidadgenero', posicion, nombre FROM unnest(ARRAY[
+    'Mujer cisgénero',
+    'Hombre cisgénero',
+    'Mujer trans',
+    'Hombre trans',
+    'No binaria',
+    'Prefiere no responder',
+    'Otra',
+    'Sin dato'
+]) WITH ORDINALITY AS opciones(nombre, posicion);
+
+INSERT INTO catalogo_objetivo (tabla, posicion, nombre)
+SELECT 'campus', posicion, nombre FROM unnest(ARRAY[
+    'Campus Amalfi',
+    'Campus Andes',
+    'Campus Apartadó',
+    'Campus Carepa',
+    'Campus Caucasia',
+    'Campus El Carmen de Viboral',
+    'Campus en Urabá',
+    'Campus Medellín - Antigua Escuela de Derecho',
+    'Campus Medellín - Casas Patrimoniales',
+    'Campus Medellín - Ciudad Universitaria',
+    'Campus Medellín - Ciudadela Robledo',
+    'Campus Medellín - Edificio Antioquia',
+    'Campus Medellín - Edificio de Extensión',
+    'Campus Medellín - Edificio San Ignacio',
+    'Campus Medellín - en el Área de la salud',
+    'Campus Medellín - Sede de Posgrado',
+    'Campus Puerto Berrío',
+    'Campus Santa Fe de Antioquia',
+    'Campus Segovia',
+    'Campus Sonsón',
+    'Campus Turbo',
+    'Campus Yarumal',
+    'No aplica',
+    'Desconocido',
+    'Otro-a'
+]) WITH ORDINALITY AS opciones(nombre, posicion);
+
+INSERT INTO catalogo_objetivo (tabla, posicion, nombre)
+SELECT 'regimen', posicion, nombre FROM unnest(ARRAY[
+    'Contributivo',
+    'Subsidiado',
+    'Especial o de Excepción'
+]) WITH ORDINALITY AS opciones(nombre, posicion);
+
+-- Las EPS 25 a 29 pertenecen al régimen especial o de excepción.
+INSERT INTO catalogo_objetivo (tabla, posicion, nombre)
+SELECT 'eps', posicion, nombre FROM unnest(ARRAY[
+    'Nueva EPS',
+    'EPS Sanitas',
+    'EPS Sura',
+    'Salud Total EPS',
+    'Compensar EPS',
+    'Famisanar',
+    'Coosalud EPS',
+    'Mutual Ser',
+    'Savia Salud',
+    'Capital Salud',
+    'Aliansalud',
+    'Comfenalco Valle',
+    'Servicio Occidental de Salud (SOS)',
+    'Emssanar',
+    'Asmet Salud',
+    'Cajacopi EPS',
+    'Capresoca',
+    'Salud Mía',
+    'EPS Familiar de Colombia',
+    'Anas Wayuu',
+    'Asociación Indígena del Cauca - AIC',
+    'Dusakawi',
+    'Mallamas',
+    'Pijaos Salud',
+    'Dirección General de Sanidad Militar (DGSM)',
+    'Dirección de Sanidad de la Policía Nacional (DISAN)',
+    'Fondo Nacional de Prestaciones Sociales del Magisterio (FOMAG)',
+    'Departamento de Salud de Ecopetrol',
+    'Unidades de Salud de Universidades Públicas'
+]) WITH ORDINALITY AS opciones(nombre, posicion);
+
+-- Opciones que continúan con otro nombre.
+INSERT INTO catalogo_equivalencia (tabla, nombre_anterior, nombre) VALUES
+    ('sexo', 'Mujer', 'Femenino'),
+    ('sexo', 'Hombre', 'Masculino'),
+    ('regimen', 'Especial', 'Especial o de Excepción'),
+    ('eps', 'Sura EPS', 'EPS Sura'),
+    ('eps', 'Sanitas', 'EPS Sanitas'),
+    ('eps', 'Salud Total', 'Salud Total EPS'),
+    ('eps', 'Compensar', 'Compensar EPS'),
+    ('eps', 'SOS EPS', 'Servicio Occidental de Salud (SOS)'),
+    ('eps', 'EPS SAVIA SALUD', 'Savia Salud');
+
+CREATE OR REPLACE FUNCTION pg_temp.reemplazar_catalogo(p_tabla text, p_respaldo text) RETURNS void AS $$
+DECLARE
+    con_codigo boolean;
+    id_respaldo integer;
+    secuencia text;
+    fk record;
 BEGIN
-    IF OLD.nombre IS DISTINCT FROM NEW.nombre
-       OR (TG_TABLE_NAME = 'sexo' AND (to_jsonb(OLD)->>'codigo') IS DISTINCT FROM (to_jsonb(NEW)->>'codigo')) THEN
-        RAISE EXCEPTION 'No se puede reasignar el ID % de %: ya corresponde a %', OLD.id, TG_TABLE_NAME, OLD.nombre;
+    EXECUTE format('LOCK TABLE %I IN SHARE ROW EXCLUSIVE MODE', p_tabla);
+    SELECT posicion INTO STRICT id_respaldo FROM catalogo_objetivo
+    WHERE tabla = p_tabla AND nombre = p_respaldo;
+    SELECT bool_or(codigo IS NOT NULL) INTO con_codigo FROM catalogo_objetivo WHERE tabla = p_tabla;
+
+    EXECUTE format($sql$
+        INSERT INTO catalogo_mapa (tabla, id_anterior, id_nuevo)
+        SELECT %1$L, actual.id, COALESCE(objetivo.posicion, %2$s)
+        FROM %1$I actual
+        LEFT JOIN catalogo_equivalencia equivalencia
+            ON equivalencia.tabla = %1$L
+           AND lower(btrim(equivalencia.nombre_anterior)) = lower(btrim(actual.nombre))
+        LEFT JOIN catalogo_objetivo objetivo
+            ON objetivo.tabla = %1$L
+           AND lower(btrim(objetivo.nombre)) = lower(btrim(COALESCE(equivalencia.nombre, actual.nombre)))
+        $sql$, p_tabla, id_respaldo);
+
+    -- Nombres provisionales para no chocar con las restricciones de unicidad.
+    EXECUTE format($sql$UPDATE %I SET nombre = '~' || id$sql$, p_tabla);
+    IF con_codigo THEN
+        EXECUTE format($sql$UPDATE %I SET codigo = '~' || id$sql$, p_tabla);
     END IF;
-    RETURN NEW;
+
+    -- Crear los ID definitivos que falten copiando las demás columnas de una fila existente.
+    EXECUTE format($sql$
+        INSERT INTO %1$I
+        SELECT (jsonb_populate_record(NULL::%1$I,
+                    COALESCE(plantilla.fila, '{}'::jsonb) || jsonb_build_object(
+                        'id', objetivo.posicion,
+                        'nombre', '~' || objetivo.posicion,
+                        'codigo', '~' || objetivo.posicion))).*
+        FROM catalogo_objetivo objetivo
+        LEFT JOIN (SELECT to_jsonb(fila) AS fila FROM %1$I fila LIMIT 1) plantilla ON true
+        WHERE objetivo.tabla = %1$L
+          AND objetivo.posicion NOT IN (SELECT id FROM %1$I)
+        $sql$, p_tabla);
+
+    FOR fk IN
+        SELECT restriccion.conrelid::regclass AS tabla_origen, columna.attname AS columna
+        FROM pg_constraint restriccion
+        JOIN pg_attribute columna
+            ON columna.attrelid = restriccion.conrelid
+           AND columna.attnum = restriccion.conkey[1]
+        WHERE restriccion.contype = 'f'
+          AND restriccion.confrelid = p_tabla::regclass
+          AND cardinality(restriccion.conkey) = 1
+    LOOP
+        EXECUTE format($sql$
+            UPDATE %1$s origen SET %2$I = mapa.id_nuevo
+            FROM catalogo_mapa mapa
+            WHERE mapa.tabla = %3$L
+              AND origen.%2$I = mapa.id_anterior
+              AND mapa.id_anterior <> mapa.id_nuevo
+            $sql$, fk.tabla_origen, fk.columna, p_tabla);
+    END LOOP;
+
+    EXECUTE format($sql$
+        UPDATE %1$I actual SET nombre = objetivo.nombre
+        FROM catalogo_objetivo objetivo
+        WHERE objetivo.tabla = %1$L AND objetivo.posicion = actual.id
+        $sql$, p_tabla);
+    IF con_codigo THEN
+        EXECUTE format($sql$
+            UPDATE %1$I actual SET codigo = objetivo.codigo
+            FROM catalogo_objetivo objetivo
+            WHERE objetivo.tabla = %1$L AND objetivo.posicion = actual.id
+            $sql$, p_tabla);
+    END IF;
+    EXECUTE format($sql$
+        DELETE FROM %1$I
+        WHERE id NOT IN (SELECT posicion FROM catalogo_objetivo WHERE tabla = %1$L)
+        $sql$, p_tabla);
+
+    secuencia := pg_get_serial_sequence(p_tabla, 'id');
+    IF secuencia IS NOT NULL THEN
+        EXECUTE format('SELECT setval(%L, (SELECT max(id) FROM %I))', secuencia, p_tabla);
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
-
-DO $$
-DECLARE
-    tabla text;
-BEGIN
-    FOREACH tabla IN ARRAY ARRAY['sexo', 'orientacionsexual', 'identidadgenero', 'campus', 'regimen', 'eps']
-    LOOP
-        EXECUTE format('CREATE TRIGGER proteger_catalogo_historico BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION pg_temp.proteger_catalogo_historico()', tabla);
-    END LOOP;
-END $$;
-
-DO $$
-DECLARE
-    opcion record;
-    coincidencias integer;
-    nuevo_id integer;
-BEGIN
-    LOCK TABLE sexo IN SHARE ROW EXCLUSIVE MODE;
-    FOR opcion IN SELECT * FROM (VALUES
-        ('Femenino', 'F', 'Mujer'),
-        ('Masculino', 'M', 'Hombre'),
-        ('Intersexual', 'I', NULL),
-        ('Tránsgenero', 'T', NULL),
-        ('Prefiere no responder', 'PR', NULL),
-        ('Sin dato', 'SD', NULL)
-    ) AS opciones(nombre, codigo, alias_nombre)
-    LOOP
-        SELECT count(*) INTO coincidencias FROM sexo
-        WHERE lower(trim(nombre)) = lower(trim(opcion.nombre));
-        IF coincidencias > 1 THEN
-            RAISE EXCEPTION 'Hay más de un sexo llamado %', opcion.nombre;
-        END IF;
-        IF coincidencias = 0 AND opcion.alias_nombre IS NOT NULL THEN
-            SELECT count(*) INTO coincidencias FROM sexo
-            WHERE lower(trim(nombre)) = lower(trim(opcion.alias_nombre));
-            IF coincidencias > 1 THEN
-                RAISE EXCEPTION 'Hay más de un sexo llamado %', opcion.alias_nombre;
-            END IF;
-        END IF;
-        IF coincidencias = 0 THEN
-            IF EXISTS (SELECT 1 FROM sexo WHERE lower(trim(codigo)) = lower(trim(opcion.codigo))) THEN
-                RAISE EXCEPTION 'El código de sexo % ya pertenece a otro valor; revisar antes de continuar', opcion.codigo;
-            END IF;
-            SELECT COALESCE(max(id), 0) + 1 INTO nuevo_id FROM sexo;
-            INSERT INTO sexo (id, codigo, nombre) VALUES (nuevo_id, opcion.codigo, opcion.nombre);
-        END IF;
-    END LOOP;
-END $$;
-
-DO $$
-DECLARE
-    tabla text;
-    opcion text;
-    coincidencias integer;
-    nuevo_id integer;
-    registro record;
-BEGIN
-    FOR tabla IN SELECT unnest(ARRAY['orientacionsexual', 'identidadgenero', 'campus', 'regimen'])
-    LOOP
-        EXECUTE format('LOCK TABLE %I IN SHARE ROW EXCLUSIVE MODE', tabla);
-    END LOOP;
-    FOR registro IN SELECT * FROM (VALUES
-        ('orientacionsexual', 'Asexual'), ('orientacionsexual', 'Bisexual'),
-        ('orientacionsexual', 'Heterosexual'), ('orientacionsexual', 'Homosexual'),
-        ('orientacionsexual', 'Lesbiana'), ('orientacionsexual', 'Pansexual'),
-        ('orientacionsexual', 'Otra'), ('orientacionsexual', 'Prefiere no responder'),
-        ('orientacionsexual', 'Sin dato'),
-        ('identidadgenero', 'Mujer cisgénero'), ('identidadgenero', 'Hombre cisgénero'),
-        ('identidadgenero', 'Mujer trans'), ('identidadgenero', 'Hombre trans'),
-        ('identidadgenero', 'No binaria'), ('identidadgenero', 'Prefiere no responder'),
-        ('identidadgenero', 'Otra'), ('identidadgenero', 'Sin dato'),
-        ('campus', 'Campus Amalfi'), ('campus', 'Campus Andes'), ('campus', 'Campus Apartadó'),
-        ('campus', 'Campus Carepa'), ('campus', 'Campus Caucasia'),
-        ('campus', 'Campus El Carmen de Viboral'), ('campus', 'Campus en Urabá'),
-        ('campus', 'Campus Medellín - Antigua Escuela de Derecho'),
-        ('campus', 'Campus Medellín - Casas Patrimoniales'),
-        ('campus', 'Campus Medellín - Ciudad Universitaria'),
-        ('campus', 'Campus Medellín - Ciudadela Robledo'),
-        ('campus', 'Campus Medellín - Edificio Antioquia'),
-        ('campus', 'Campus Medellín - Edificio de Extensión'),
-        ('campus', 'Campus Medellín - Edificio San Ignacio'),
-        ('campus', 'Campus Medellín - en el Área de la salud'),
-        ('campus', 'Campus Medellín - Sede de Posgrado'),
-        ('campus', 'Campus Puerto Berrío'), ('campus', 'Campus Santa Fe de Antioquia'),
-        ('campus', 'Campus Segovia'), ('campus', 'Campus Sonsón'), ('campus', 'Campus Turbo'),
-        ('campus', 'Campus Yarumal'), ('campus', 'No aplica'), ('campus', 'Desconocido'),
-        ('campus', 'Otro-a'), ('regimen', 'Contributivo'), ('regimen', 'Subsidiado'),
-        ('regimen', 'Especial o de Excepción')
-    ) AS opciones(tabla, nombre)
-    LOOP
-        tabla := registro.tabla;
-        opcion := registro.nombre;
-        EXECUTE format('SELECT count(*) FROM %I WHERE lower(trim(nombre)) = lower(trim($1))', tabla)
-            INTO coincidencias USING opcion;
-        IF coincidencias > 1 THEN
-            RAISE EXCEPTION 'Hay más de un registro en % llamado %', tabla, opcion;
-        END IF;
-        IF coincidencias = 0 THEN
-            EXECUTE format('SELECT COALESCE(max(id), 0) + 1 FROM %I', tabla) INTO nuevo_id;
-            EXECUTE format('INSERT INTO %I (id, nombre) VALUES ($1, $2)', tabla) USING nuevo_id, opcion;
-        END IF;
-    END LOOP;
-END $$;
-
-LOCK TABLE eps IN SHARE ROW EXCLUSIVE MODE;
-CREATE TEMPORARY TABLE eps_linea_alma (
-    nombre text PRIMARY KEY,
-    especial boolean NOT NULL
-) ON COMMIT DROP;
-INSERT INTO eps_linea_alma (nombre, especial) VALUES
-    ('Nueva EPS', false),
-    ('EPS Sanitas', false),
-    ('EPS Sura', false),
-    ('Salud Total EPS', false),
-    ('Compensar EPS', false),
-    ('Famisanar', false),
-    ('Coosalud EPS', false),
-    ('Mutual Ser', false),
-    ('Savia Salud', false),
-    ('Capital Salud', false),
-    ('Aliansalud', false),
-    ('Comfenalco Valle', false),
-    ('Servicio Occidental de Salud (SOS)', false),
-    ('Emssanar', false),
-    ('Asmet Salud', false),
-    ('Cajacopi EPS', false),
-    ('Capresoca', false),
-    ('Salud Mía', false),
-    ('EPS Familiar de Colombia', false),
-    ('Anas Wayuu', false),
-    ('Asociación Indígena del Cauca - AIC', false),
-    ('Dusakawi', false),
-    ('Mallamas', false),
-    ('Pijaos Salud', false),
-    ('Dirección General de Sanidad Militar (DGSM)', true),
-    ('Dirección de Sanidad de la Policía Nacional (DISAN)', true),
-    ('Fondo Nacional de Prestaciones Sociales del Magisterio (FOMAG)', true),
-    ('Departamento de Salud de Ecopetrol', true),
-    ('Unidades de Salud de Universidades Públicas', true);
-
-DO $$
-DECLARE
-    nombre_duplicado text;
-BEGIN
-    SELECT objetivo.nombre INTO nombre_duplicado
-    FROM eps_linea_alma objetivo
-    JOIN eps existente ON lower(trim(existente.nombre)) = lower(trim(objetivo.nombre))
-    GROUP BY objetivo.nombre HAVING count(*) > 1 LIMIT 1;
-    IF nombre_duplicado IS NOT NULL THEN
-        RAISE EXCEPTION 'Hay más de una EPS llamada %', nombre_duplicado;
-    END IF;
-END $$;
-
-WITH base AS (SELECT COALESCE(max(id), 0) AS max_id FROM eps),
-faltantes AS (
-    SELECT objetivo.nombre FROM eps_linea_alma objetivo
-    WHERE NOT EXISTS (
-        SELECT 1 FROM eps existente
-        WHERE lower(trim(existente.nombre)) = lower(trim(objetivo.nombre))
-    )
-)
-INSERT INTO eps (id, nombre)
-SELECT base.max_id + row_number() OVER (ORDER BY faltantes.nombre), faltantes.nombre
-FROM base CROSS JOIN faltantes;
-
-DO $$
-DECLARE
-    tabla text;
-BEGIN
-    FOREACH tabla IN ARRAY ARRAY['sexo', 'orientacionsexual', 'identidadgenero', 'campus', 'regimen', 'eps']
-    LOOP
-        EXECUTE format('DROP TRIGGER proteger_catalogo_historico ON %I', tabla);
-    END LOOP;
-END $$;
 
 CREATE TABLE IF NOT EXISTS epsregimen (
     idregimen integer NOT NULL REFERENCES regimen(id),
@@ -199,17 +242,31 @@ CREATE TABLE IF NOT EXISTS epsregimen (
     PRIMARY KEY (idregimen, ideps)
 );
 
+DELETE FROM epsregimen;
+
+-- Régimen y EPS no tienen una opción «sin dato»: se usa la misma que el backend
+-- asigna por defecto al crear un caso (ID 1).
+DO $$
+BEGIN
+    PERFORM pg_temp.reemplazar_catalogo('sexo', 'Sin dato');
+    PERFORM pg_temp.reemplazar_catalogo('orientacionsexual', 'Sin dato');
+    PERFORM pg_temp.reemplazar_catalogo('identidadgenero', 'Sin dato');
+    PERFORM pg_temp.reemplazar_catalogo('campus', 'Desconocido');
+    PERFORM pg_temp.reemplazar_catalogo('regimen', 'Contributivo');
+    PERFORM pg_temp.reemplazar_catalogo('eps', 'Nueva EPS');
+
+    IF EXISTS (SELECT 1 FROM pg_attribute
+               WHERE attrelid = 'campus'::regclass AND attname = 'activo' AND NOT attisdropped) THEN
+        UPDATE campus SET activo = true WHERE activo IS NOT TRUE;
+    END IF;
+END $$;
+
 INSERT INTO epsregimen (idregimen, ideps)
-SELECT r.id, e.id FROM eps_linea_alma objetivo
-JOIN eps e ON lower(trim(e.nombre)) = lower(trim(objetivo.nombre))
-JOIN regimen r ON lower(trim(r.nombre)) IN ('contributivo', 'subsidiado')
-WHERE NOT objetivo.especial
-UNION ALL
-SELECT r.id, e.id FROM eps_linea_alma objetivo
-JOIN eps e ON lower(trim(e.nombre)) = lower(trim(objetivo.nombre))
-JOIN regimen r ON lower(trim(r.nombre)) = lower('Especial o de Excepción')
-WHERE objetivo.especial
-ON CONFLICT (idregimen, ideps) DO NOTHING;
+SELECT regimen.posicion, eps.posicion
+FROM catalogo_objetivo regimen
+JOIN catalogo_objetivo eps ON eps.tabla = 'eps'
+WHERE regimen.tabla = 'regimen'
+  AND (regimen.nombre = 'Especial o de Excepción') = (eps.posicion >= 25);
 
 WITH base AS (
     SELECT COALESCE(MAX(id), 0) AS max_id FROM programa
