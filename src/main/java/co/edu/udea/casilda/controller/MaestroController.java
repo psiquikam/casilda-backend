@@ -245,8 +245,8 @@ public class MaestroController {
 
     @GetMapping("/eps")
     @Operation(summary = "Obtener lista de EPS")
-    public ResponseEntity<List<MaestroDTO>> obtenerEPS() {
-        return ResponseEntity.ok(catalogoService.obtenerEPS());
+    public ResponseEntity<List<MaestroDTO>> obtenerEPS(@RequestParam(required = false) Integer regimenId) {
+        return ResponseEntity.ok(catalogoService.obtenerEPS(regimenId));
     }
 
     @GetMapping("/grupos-atencion")

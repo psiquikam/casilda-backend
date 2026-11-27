@@ -91,7 +91,7 @@ public class UadRadicacionService {
         if (noticiaRepository.findByReporteCasoId(r.getId()).isPresent()) return;
 
         final VinculacionInvestigado vinculacion = UadMapeoVinculacion.desdeVinculoUdeA(
-                r.getAgresorVinculoUdeA() == null ? null : r.getAgresorVinculoUdeA().getId());
+                r.getAgresorVinculoUdeA());
         final UadNoticia n = new UadNoticia();
         n.setTipo(TipoNoticia.NDI);
         n.setConsecutivo(consecutivos.siguiente(TipoNoticia.NDI));

@@ -7,13 +7,15 @@
 
 INSERT INTO tiporeportealma (id, nombre) VALUES
     (1, 'Directa'),
-    (2, 'Por remisión')
-ON CONFLICT (id) DO NOTHING;
+    (2, 'Indirecta')
+ON CONFLICT (id) DO UPDATE
+SET nombre = EXCLUDED.nombre;
 
 INSERT INTO canalcontacto (id, nombre) VALUES
     (1, 'WhatsApp'),
-    (2, 'Llamada')
-ON CONFLICT (id) DO NOTHING;
+    (2, 'Telefónico')
+ON CONFLICT (id) DO UPDATE
+SET nombre = EXCLUDED.nombre;
 
 INSERT INTO lugarentrevista (id, nombre) VALUES
     (1, 'Presencial'),

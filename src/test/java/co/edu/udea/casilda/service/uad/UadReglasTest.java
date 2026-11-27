@@ -1,6 +1,7 @@
 package co.edu.udea.casilda.service.uad;
 
 import co.edu.udea.casilda.dto.request.uad.DecisionEvaluacionRequest;
+import co.edu.udea.casilda.model.entity.VinculoUdeA;
 import co.edu.udea.casilda.model.enums.uad.EquipoUad;
 import co.edu.udea.casilda.model.enums.uad.ModoCaso;
 import co.edu.udea.casilda.model.enums.uad.TipoDecision;
@@ -59,17 +60,27 @@ class UadReglasTest {
 
         @Test
         void homologaElCatalogoVinculoUdeA() {
-            assertEquals(VinculacionInvestigado.ESTUDIANTE_PREGRADO, UadMapeoVinculacion.desdeVinculoUdeA(1));
-            assertEquals(VinculacionInvestigado.ADMINISTRATIVO, UadMapeoVinculacion.desdeVinculoUdeA(5));
-            assertEquals(VinculacionInvestigado.DOCENTE_CATEDRA, UadMapeoVinculacion.desdeVinculoUdeA(11));
-            assertEquals(VinculacionInvestigado.NO_TIENE_VINCULO, UadMapeoVinculacion.desdeVinculoUdeA(14));
-            assertEquals(VinculacionInvestigado.NO_SE, UadMapeoVinculacion.desdeVinculoUdeA(10));
+            assertEquals(VinculacionInvestigado.ESTUDIANTE_PREGRADO, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(1, "Estudiante de Pregrado")));
+            assertEquals(VinculacionInvestigado.ADMINISTRATIVO, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(5, "Personal Administrativo")));
+            assertEquals(VinculacionInvestigado.DOCENTE_CATEDRA, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(9, "Docente Cátedra 50")));
+            assertEquals(VinculacionInvestigado.NO_TIENE_VINCULO, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(13, "Contratista")));
+            assertEquals(VinculacionInvestigado.NO_SE, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(15, "Otro tipo de vínculo")));
         }
 
         @Test
         void sinDatoODesconocidoEsNoSe() {
             assertEquals(VinculacionInvestigado.NO_SE, UadMapeoVinculacion.desdeVinculoUdeA(null));
-            assertEquals(VinculacionInvestigado.NO_SE, UadMapeoVinculacion.desdeVinculoUdeA(999));
+            assertEquals(VinculacionInvestigado.NO_SE, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(999, "Desconocido")));
+        }
+
+        @Test
+        void homologaNuevosVinculosSinAsumirCompetenciaDesconocida() {
+            for (String nombre : List.of("Contratista CIS", "Jubilado", "Pensionado", "No tiene vínculo con la universidad", "Egresado")) {
+                assertEquals(VinculacionInvestigado.NO_TIENE_VINCULO, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(99, nombre)));
+            }
+            for (String nombre : List.of("Estudiante de tecnología", "Personal no docente")) {
+                assertEquals(VinculacionInvestigado.NO_SE, UadMapeoVinculacion.desdeVinculoUdeA(new VinculoUdeA(99, nombre)));
+            }
         }
     }
 

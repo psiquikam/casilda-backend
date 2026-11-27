@@ -80,7 +80,7 @@ class UadRadicacionServiceTest {
         assertNull(evento.getValue().getEquipo());
     }
 
-    private ReporteCaso reporte(final String ruta, final Boolean remitirUad, final Integer vinculo) {
+    private ReporteCaso reporte(final String ruta, final Boolean remitirUad, final String vinculo) {
         final RutaActivacion r = new RutaActivacion();
         r.setCodigo(ruta);
         final ReporteCaso rep = new ReporteCaso();
@@ -91,7 +91,7 @@ class UadRadicacionServiceTest {
         rep.setFechaRegistro(Instant.parse("2026-11-02T15:24:00Z"));
         if (vinculo != null) {
             final VinculoUdeA v = new VinculoUdeA();
-            v.setId(vinculo);
+            v.setNombre(vinculo);
             rep.setAgresorVinculoUdeA(v);
         }
         return rep;
@@ -99,7 +99,7 @@ class UadRadicacionServiceTest {
 
     @Test
     void reporteConRutaUadCreaNdiConVinculacionHomologada() {
-        service.crearNdiSiCorresponde(reporte("UAD_3_4", null, 6));
+        service.crearNdiSiCorresponde(reporte("UAD_3_4", null, "Docente Vinculado"));
         final ArgumentCaptor<UadNoticia> noticia = ArgumentCaptor.forClass(UadNoticia.class);
         verify(noticias).save(noticia.capture());
         assertEquals(TipoNoticia.NDI, noticia.getValue().getTipo());
@@ -120,14 +120,14 @@ class UadRadicacionServiceTest {
 
     @Test
     void reporteDeOtraRutaSinRemisionNoCreaNada() {
-        service.crearNdiSiCorresponde(reporte("RUTA_PSICO", false, 1));
+        service.crearNdiSiCorresponde(reporte("RUTA_PSICO", false, "Estudiante de Pregrado"));
         verify(noticias, never()).save(any());
     }
 
     @Test
     void esIdempotente() {
         when(noticias.findByReporteCasoId(7L)).thenReturn(Optional.of(new UadNoticia()));
-        service.crearNdiSiCorresponde(reporte("UAD_3_4", null, 1));
+        service.crearNdiSiCorresponde(reporte("UAD_3_4", null, "Estudiante de Pregrado"));
         verify(noticias, never()).save(any());
     }
 

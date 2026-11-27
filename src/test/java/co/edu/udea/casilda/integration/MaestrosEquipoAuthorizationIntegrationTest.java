@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class MaestrosEquipoAuthorizationIntegrationTest extends IntegrationTestBase {
+class MaestrosEquipoAuthorizationIntegrationTest extends RolesAisladosIntegrationTestBase {
 
     private static final List<String> NUEVOS_ROLES = List.of(
             "TECNICO_APH", "EA_COORDINACION", "ALMA_COORDINACION", "UAD_COORDINACION",

@@ -467,9 +467,15 @@ public class MaestroService {
     /**
      * Obtiene lista de EPS
      */
-    public List<MaestroDTO> obtenerEPS() {
-        log.info("Obteniendo EPS desde la base de datos");
-        return epsRepository.findAll().stream()
+    public List<MaestroDTO> obtenerEPS(Integer regimenId) {
+        if (regimenId == null) {
+            log.info("Obteniendo EPS desde la base de datos");
+            return epsRepository.findAll().stream()
+                .map(e -> new MaestroDTO(e.getId().longValue(), null, e.getNombre()))
+                .collect(Collectors.toList());
+        }
+        log.info("Obteniendo EPS desde la base de datos para régimen {}", regimenId);
+        return epsRepository.findByRegimen(regimenId).stream()
             .map(e -> new MaestroDTO(e.getId().longValue(), null, e.getNombre()))
             .collect(Collectors.toList());
     }
