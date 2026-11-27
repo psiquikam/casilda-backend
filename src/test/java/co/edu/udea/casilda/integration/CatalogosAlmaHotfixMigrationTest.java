@@ -63,6 +63,7 @@ class CatalogosAlmaHotfixMigrationTest {
     void actualizaVinculosYConservaHistoricoAlRepetirHotfixYCargaInicial() throws Exception {
         String hotfix = Files.readString(Path.of("database/hotfix_catalogos_linea_alma.sql"));
         String seed = Files.readString(Path.of("database/insert_catalogos_primer_contacto_psicologia.sql"));
+        String seedAph = Files.readString(Path.of("database/insert_catalogos_aph.sql"));
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              var statement = connection.createStatement()) {
@@ -125,11 +126,42 @@ class CatalogosAlmaHotfixMigrationTest {
                         catalogo varchar(80) NOT NULL, codigo varchar(80) NOT NULL,
                         etiqueta text NOT NULL, activo boolean NOT NULL, UNIQUE (catalogo, codigo));
                     INSERT INTO catalogoalmaitem (catalogo, codigo, etiqueta, activo) VALUES
-                        ('vinculos-agresor', 'FAMILIAR', 'Familiar', true);
+                        ('vinculos-agresor', 'FAMILIAR', 'Familiar', true),
+                        ('rutas-externas', 'LINEA_123', 'Línea anterior', true),
+                        ('rutas-externas', 'LINEA_123_MUJER_ANTIOQUIA', 'Variante existente', false);
                     """);
             statement.execute(hotfix);
             statement.execute(hotfix);
             statement.execute(seed);
+            statement.execute(seedAph);
+            statement.execute(seedAph);
+            try (var result = statement.executeQuery("""
+                    SELECT codigo, etiqueta, activo FROM catalogoalmaitem
+                    WHERE catalogo = 'rutas-externas'
+                      AND codigo IN ('LINEA_123', 'LINEA_123_AGENCIA_MUJER_MEDELLIN',
+                                     'LINEA_123_MUJER_ANTIOQUIA', 'MODULO_DIVERSO_LINEA_123_SOCIAL')
+                    ORDER BY codigo
+                    """)) {
+                assertTrue(result.next());
+                assertEquals("LINEA_123", result.getString(1));
+                assertEquals("Línea anterior", result.getString(2));
+                assertTrue(result.getBoolean(3));
+                assertTrue(result.next());
+                assertEquals("LINEA_123_MUJER_ANTIOQUIA", result.getString(1));
+                assertEquals("Variante existente", result.getString(2));
+                assertEquals(false, result.getBoolean(3));
+                assertEquals(false, result.next());
+            }
+            statement.execute("DELETE FROM catalogoalmaitem WHERE catalogo = 'rutas-externas' AND codigo = 'LINEA_123'");
+            statement.execute(seedAph);
+            try (var result = statement.executeQuery("""
+                    SELECT etiqueta, activo FROM catalogoalmaitem
+                    WHERE catalogo = 'rutas-externas' AND codigo = 'LINEA_123'
+                    """)) {
+                assertTrue(result.next());
+                assertEquals("Línea 123", result.getString(1));
+                assertTrue(result.getBoolean(2));
+            }
             try (var result = statement.executeQuery("SELECT id, codigo, nombre FROM sexo WHERE id IN (1, 2) ORDER BY id")) {
                 result.next();
                 assertEquals(1, result.getInt(1));

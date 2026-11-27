@@ -40,11 +40,8 @@ INSERT INTO catalogoalmaitem (catalogo, codigo, etiqueta, activo) VALUES
     ('rutas-externas', 'FISCALIA', 'Fiscalía General de la Nación - FGN', true),
     ('rutas-externas', 'GERENCIA_DIVERSIDADES_MEDELLIN', 'Gerencia de Diversidades Sexuales e Identidades de Género - Medellín', true),
     ('rutas-externas', 'INSPECCION_POLICIA', 'Inspección de Policía', true),
-    ('rutas-externas', 'LINEA_123_AGENCIA_MUJER_MEDELLIN', 'Línea 123 Agencia Mujer Medellín', true),
-    ('rutas-externas', 'LINEA_123_MUJER_ANTIOQUIA', 'Línea 123 Mujer Antioquia', true),
     ('rutas-externas', 'LINEA_122_FISCALIA', 'Línea 122 - Fiscalía', true),
     ('rutas-externas', 'LINEA_155_NACIONAL', 'Línea 155 - Nacional', true),
-    ('rutas-externas', 'MODULO_DIVERSO_LINEA_123_SOCIAL', 'Módulo Diverso Línea 123 Social', true),
     ('rutas-externas', 'PROCURADURIA', 'Procuraduría General de la Nación', true),
     ('rutas-externas', 'RUTA_SALUD', 'Ruta de salud', true),
     ('rutas-externas', 'OTRA', 'Otra (¿Cuál?)', true),
@@ -60,7 +57,11 @@ ON CONFLICT (catalogo, codigo) DO UPDATE
 SET etiqueta = EXCLUDED.etiqueta,
     activo = EXCLUDED.activo;
 
+INSERT INTO catalogoalmaitem (catalogo, codigo, etiqueta, activo)
+VALUES ('rutas-externas', 'LINEA_123', 'Línea 123', true)
+ON CONFLICT (catalogo, codigo) DO NOTHING;
+
 UPDATE catalogoalmaitem
 SET activo = false
 WHERE (catalogo = 'destinos-internos' AND codigo = 'DUPLA_PSICOJURIDICA')
-   OR (catalogo = 'rutas-externas' AND codigo IN ('LINEA_123', 'POLICIA_NACIONAL', 'ICBF', 'CAIVAS'));
+   OR (catalogo = 'rutas-externas' AND codigo IN ('POLICIA_NACIONAL', 'ICBF', 'CAIVAS'));
