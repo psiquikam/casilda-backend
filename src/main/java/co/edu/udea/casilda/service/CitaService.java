@@ -65,14 +65,12 @@ public class CitaService {
         int safeSize = Math.max(size, 1);
         Pageable pageable = PageRequest.of(safePage, safeSize);
 
-        Page<Cita> citas;
-        if (idEstadoCita != null) {
-            citas = citaRepository.findByEstadoCitaIdOrderByFechaDesc(idEstadoCita, pageable);
-        } else if (excluirEstadoCitaId != null) {
-            citas = citaRepository.findByEstadoCitaIdNotOrderByFechaDesc(excluirEstadoCitaId, pageable);
-        } else {
-            citas = citaRepository.findAllByOrderByFechaDesc(pageable);
-        }
+        Integer estadoExcluido = idEstadoCita == null ? excluirEstadoCitaId : null;
+        Page<Cita> citas = citaRepository.findParaTabla(
+                idEstadoCita,
+                estadoExcluido,
+                List.of(EstadoCitaEnum.PROGRAMADA.getId(), EstadoCitaEnum.REPROGRAMADA.getId()),
+                pageable);
 
         return citas.map(this::mapToResponse);
     }
@@ -165,10 +163,15 @@ public class CitaService {
         Cita cita = citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con ID: " + id));
         validarCitaPendiente(cita);
-        if (cita.getFecha() != null && cita.getFecha().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("No se puede reprogramar una cita cuya fecha ha caducado");
+        LocalDateTime nuevaFecha;
+        try {
+            nuevaFecha = LocalDateTime.parse(req.getFechaCita() + "T" + req.getHoraCita());
+        } catch (RuntimeException error) {
+            throw new IllegalArgumentException("La fecha u hora de la cita no tienen un formato válido.", error);
         }
-        LocalDateTime nuevaFecha = LocalDateTime.parse(req.getFechaCita() + "T" + req.getHoraCita());
+        if (!nuevaFecha.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("La nueva fecha de la cita debe ser futura.");
+        }
         cita.setFecha(nuevaFecha);
         EstadoCita estadoReprogramada = estadoCitaRepository.findById(EstadoCitaEnum.REPROGRAMADA.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Estado de cita 'Reprogramada' no encontrado"));

@@ -6,4 +6,5 @@ import lombok.Data;
 public class RutaAtencionRequest {
     private Integer idTipoRutaActivacion;
     private Integer idRutaActivacion;
+    private String cual;
 }

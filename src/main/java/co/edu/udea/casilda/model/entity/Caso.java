@@ -110,6 +110,12 @@ public class Caso extends Auditable {
     @JoinColumn(name = "idformaocurrencia")
     private FormaOcurrencia formaOcurrencia;
 
+    @Column(name = "ambitoocurrencia", length = 50)
+    private String ambitoOcurrencia;
+
+    @Column(name = "ambitoocurrenciaotro")
+    private String ambitoOcurrenciaOtro;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "idciudadhechos")
     private Municipio ciudadHechos;

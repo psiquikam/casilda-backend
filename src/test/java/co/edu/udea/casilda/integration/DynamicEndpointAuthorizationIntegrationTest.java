@@ -24,6 +24,7 @@ class DynamicEndpointAuthorizationIntegrationTest extends IntegrationTestBase {
                 Arguments.of("profesional@udea.edu.co", "/atenciones/pestana/5"),
                 Arguments.of("revisor@udea.edu.co", "/citas"),
                 Arguments.of("profesional@udea.edu.co", "/solicitudes/acompanamiento"),
+                Arguments.of("profesional@udea.edu.co", "/solicitudes/acompanamiento/1/ultima-cita"),
                 Arguments.of("revisor@udea.edu.co", "/solicitudes/acompanamiento"),
                 Arguments.of("user@udea.edu.co", "/personas/documento/does-not-exist"),
                 Arguments.of("user@udea.edu.co", "/maestros/paises")
@@ -108,6 +109,6 @@ class DynamicEndpointAuthorizationIntegrationTest extends IntegrationTestBase {
         return Stream.of("/usuarios", "/casos/paginado", "/solicitudes/acompanamiento",
                 "/atenciones/pestana/5", "/citas", "/compromisos/persona/1",
                 "/linea-alma/registros", "/personas/documento/1", "/parametros/max-llamadas-contacto",
-                "/maestros/paises");
+                "/maestros/paises", "/solicitudes/acompanamiento/1/ultima-cita");
     }
 }

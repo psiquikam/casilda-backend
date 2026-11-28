@@ -1,0 +1,81 @@
+-- Incorpora las opciones de la matriz sin cambiar los registros existentes.
+BEGIN;
+LOCK TABLE modalidadviolencia IN SHARE ROW EXCLUSIVE MODE;
+
+WITH opciones(tipo, orden, nombre) AS (
+    VALUES
+    (1, 1, 'Acción que degrade a la otra persona'),
+    (1, 2, 'Omisión que degrade a la otra persona'),
+    (1, 3, 'Acción que busque controlar los comportamientos, creencias o decisiones de otra persona'),
+    (1, 4, 'Omisión que busque controlar los comportamientos, creencias o decisiones de otra persona'),
+    (1, 5, 'Intimidación'),
+    (1, 6, 'Manipulación'),
+    (1, 7, 'Amenaza directa'),
+    (1, 8, 'Amenaza indirecta'),
+    (1, 9, 'Humillación'),
+    (1, 10, 'Aislamiento'),
+    (1, 11, 'Constreñimiento ilegal'),
+    (1, 12, 'Lenguaje misógino, sexista o discursos de odio'),
+    (1, 13, 'Injuria'),
+    (1, 14, 'Calumnia'),
+    (1, 15, 'Injuria por vía de hecho'),
+    (1, 16, 'Abuso de poder y/o confianza'),
+    (1, 17, 'Violencia epistémica'),
+    (1, 18, 'Violencia psicológica facilitada por las nuevas tecnologías: Acceso, uso, control, manipulación, intercambio o publicación no autorizada de información privada y datos personales'),
+    (1, 19, 'Violencia psicológica facilitada por las nuevas tecnologías: Suplantación y robo de identidad'),
+    (1, 20, 'Violencia psicológica facilitada por las nuevas tecnologías: Actos que implican la vigilancia y el monitoreo de una persona'),
+    (1, 21, 'Violencia psicológica facilitada por las nuevas tecnologías: Ciberhostigamiento o ciberacecho'),
+    (1, 22, 'Violencia psicológica facilitada por las nuevas tecnologías: Ciberacoso'),
+    (1, 23, 'Violencia psicológica facilitada por las nuevas tecnologías: Ciberbullying'),
+    (1, 24, 'Violencia psicológica facilitada por las nuevas tecnologías: Slutshaming'),
+    (1, 25, 'Violencia psicológica facilitada por las nuevas tecnologías: Ataques a grupos, organizaciones o comunidades de mujeres'),
+    (1, 26, 'Otra conducta que implique un perjuicio a la salud psicológica, autodeterminación o al desarrollo personal'),
+    (2, 1, 'Agresión física'),
+    (2, 2, 'Feminicidio tentado o consumado'),
+    (2, 3, 'Restricción a la libertad física'),
+    (2, 4, 'Violencia física facilitada por las nuevas tecnologías'),
+    (2, 5, 'Otra violencia física'),
+    (3, 1, 'Acceso carnal violento'),
+    (3, 2, 'Acto sexual violento'),
+    (3, 3, 'Explotación sexual: Inducción a la prostitución'),
+    (3, 4, 'Explotación sexual: Proxenetismo con menor de edad'),
+    (3, 5, 'Explotación sexual: Constreñimiento a la prostitución'),
+    (3, 6, 'Explotación sexual: Trata de personas'),
+    (3, 7, 'Explotación sexual: Estímulo a la prostitución de menores'),
+    (3, 8, 'Explotación sexual: Demanda de explotación sexual comercial de persona menor de 18 años de edad'),
+    (3, 9, 'Explotación sexual: Pornografía con personas menores de 18 años'),
+    (3, 10, 'Acoso sexual'),
+    (3, 11, 'Stealthing'),
+    (3, 12, 'Obligar a otra persona a realizar cualquier acto o interacción sexual con tercera persona'),
+    (3, 13, 'Violencia sexual correctiva'),
+    (3, 14, 'Otra violencia sexual'),
+    (4, 1, 'Omisión del deber de denuncia'),
+    (4, 2, 'Omisión al deber de debida diligencia'),
+    (4, 3, 'Revictimización'),
+    (4, 4, 'Otra violencia institucional'),
+    (5, 1, 'Pérdida, transformación, sustracción, destrucción, retención o distracción: de objetos o bienes de la persona'),
+    (5, 2, 'Pérdida, transformación, sustracción, destrucción, retención o distracción: de instrumentos de trabajo de la persona'),
+    (5, 3, 'Pérdida, transformación, sustracción, destrucción, retención o distracción: de documentos personales'),
+    (5, 4, 'Pérdida, transformación, sustracción, destrucción, retención o distracción: de valores o derechos económicos destinados a satisfacer las necesidades de la persona'),
+    (5, 5, 'Extorsión'),
+    (5, 6, 'Estafa'),
+    (5, 7, 'Inasistencia alimentaria'),
+    (5, 8, 'Control económico'),
+    (5, 9, 'Violencia económica facilitada por las nuevas tecnologías'),
+    (5, 10, 'Otra violencia patrimonial'),
+    (6, 1, 'Creación, difusión, distribución o intercambio digital de fotografías, videos o audioclips de naturaleza sexual o íntima sin consentimiento.'),
+    (6, 2, 'Amenazas directas de daño o violencia – sextorsion'),
+    (6, 3, 'Grooming'),
+    (6, 4, 'Sexting sin consentimiento'),
+    (6, 5, 'Abuso, explotación y/o trata de mujeres y niñas por medio de las tecnologías'),
+    (7, 1, 'Discriminación por género u orientación sexual o identidad de género'),
+    (7, 2, 'Hostigamiento'),
+    (7, 3, 'Otra violencia por prejuicio')
+), pendientes AS (
+    SELECT tipo, orden, nombre FROM opciones
+    WHERE NOT EXISTS (SELECT 1 FROM modalidadviolencia existente WHERE existente.nombre = opciones.nombre)
+)
+INSERT INTO modalidadviolencia (id, idtipoviolencia, nombre)
+SELECT (SELECT COALESCE(MAX(id), 0) FROM modalidadviolencia) + ROW_NUMBER() OVER (ORDER BY tipo, orden), tipo, nombre
+FROM pendientes;
+COMMIT;

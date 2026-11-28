@@ -2,6 +2,7 @@ package co.edu.udea.casilda.service;
 
 import co.edu.udea.casilda.dto.request.*;
 import co.edu.udea.casilda.dto.response.ContactoTelefonicoResponse;
+import co.edu.udea.casilda.dto.response.UltimaCitaResponse;
 import co.edu.udea.casilda.dto.response.CorreoBusquedaResponse;
 import co.edu.udea.casilda.dto.response.PersonaSearchResponse;
 import co.edu.udea.casilda.dto.response.DiscapacidadPersonaResponse;
@@ -122,7 +123,15 @@ public class SolicitudAcompanamientoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada con ID: " + id));
         exigirAccesoLectura(solicitud);
 
-        return buildResponse(solicitud, solicitud.getRemision());
+        SolicitudAcompanamientoResponse response = buildResponse(solicitud, solicitud.getRemision());
+        Persona persona = solicitud.getSolicitante();
+        if (persona == null) {
+            throw new ResourceNotFoundException("No se encontró el solicitante de la solicitud ID: " + id);
+        }
+        if (!SolicitudAcceso.soloPropias()) {
+            response.setDiscapacidades(mapearDiscapacidades(persona));
+        }
+        return response;
     }
 
     /**
@@ -191,17 +200,21 @@ public class SolicitudAcompanamientoService {
                 .ciudadNacimientoId(persona.getCiudadNacimiento() != null ? persona.getCiudadNacimiento().getId() : null)
                 .departamentoNacimientoId(persona.getCiudadNacimiento() != null && persona.getCiudadNacimiento().getDepartamento() != null
                         ? persona.getCiudadNacimiento().getDepartamento().getId() : null)
-                .discapacidades(persona.getDiscapacidades() == null ? List.of()
-                        : persona.getDiscapacidades().stream()
-                                .map(d -> DiscapacidadPersonaResponse.builder()
-                                        .idSubTipoDiscapacidad(d.getIdsubtipodiscapacidad())
-                                        .subTipo(d.getSubTipoDiscapacidad() != null ? d.getSubTipoDiscapacidad().getNombre() : null)
-                                        .tipo(d.getSubTipoDiscapacidad() != null && d.getSubTipoDiscapacidad().getTipo() != null
-                                                ? d.getSubTipoDiscapacidad().getTipo().getNombre() : null)
-                                        .descripcion(d.getDescripcion())
-                                        .build())
-                                .collect(Collectors.toList()))
+                .discapacidades(mapearDiscapacidades(persona))
                 .build();
+    }
+
+    private List<DiscapacidadPersonaResponse> mapearDiscapacidades(Persona persona) {
+        return persona.getDiscapacidades() == null ? List.of()
+                : persona.getDiscapacidades().stream()
+                        .map(d -> DiscapacidadPersonaResponse.builder()
+                                .idSubTipoDiscapacidad(d.getIdsubtipodiscapacidad())
+                                .subTipo(d.getSubTipoDiscapacidad() != null ? d.getSubTipoDiscapacidad().getNombre() : null)
+                                .tipo(d.getSubTipoDiscapacidad() != null && d.getSubTipoDiscapacidad().getTipo() != null
+                                        ? d.getSubTipoDiscapacidad().getTipo().getNombre() : null)
+                                .descripcion(d.getDescripcion())
+                                .build())
+                        .collect(Collectors.toList());
     }
 
     /**
@@ -236,7 +249,7 @@ public class SolicitudAcompanamientoService {
      * Lista solicitudes paginadas
      */
     @Transactional(readOnly = true)
-    public Page<SolicitudAcompanamientoResponse> listarPaginadas(int page, int size, Integer idEstadoSolicitud) {
+    public Page<SolicitudAcompanamientoResponse> listarPaginadas(int page, int size, Integer idEstadoSolicitud, boolean ordenReparto) {
         log.info("Listando solicitudes paginadas. page={}, size={}, idEstadoSolicitud={}", page, size,
                 idEstadoSolicitud);
 
@@ -254,6 +267,9 @@ public class SolicitudAcompanamientoService {
                     ? solicitudAtencionRepository.findByUsuarioCreacionIdOrderByFechaCreacionDesc(usuarioId, pageable)
                     : solicitudAtencionRepository.findByUsuarioCreacionIdAndEstadoSolicitudIdOrderByFechaCreacionDesc(usuarioId,
                             idEstadoSolicitud, pageable);
+        } else if (ordenReparto) {
+            solicitudes = solicitudAtencionRepository.findParaReparto(
+                    idEstadoSolicitud, EstadoSolicitud.SIN_ASIGNAR.getId(), pageable);
         } else {
             solicitudes = idEstadoSolicitud == null
                     ? solicitudAtencionRepository.findAllByOrderByFechaCreacionDesc(pageable)
@@ -715,6 +731,7 @@ public class SolicitudAcompanamientoService {
                 .tipoServicio(tipoServicioVigente != null ? tipoServicioVigente.getNombre() : null)
                 .tipoServicioId(tipoServicioVigente != null ? tipoServicioVigente.getId() : null)
                 .fechaReparto(asignacionVigente != null ? asignacionVigente.getFechaReparto() : null)
+                .fechaHoraReparto(asignacionVigente != null ? asignacionVigente.getFechaCreacion() : null)
                 .observacionesReparto(asignacionVigente != null ? asignacionVigente.getObservaciones() : null)
                 .descripcionHechos(solicitud.getDescripcionHechos())
                 .lugarOcurrencia(solicitud.getLugarOcurrencia())
@@ -1169,6 +1186,9 @@ public class SolicitudAcompanamientoService {
             log.info("Creando cita para solicitud {} (llamada {}, unilateral={})", solicitudId, numeroDeLlamada,
                     esUnilateral);
             LocalDateTime fechaHoraCita = LocalDateTime.parse(req.getFechaCita() + "T" + req.getHoraCita());
+            if (fechaHoraCita.isBefore(LocalDateTime.now().withSecond(0).withNano(0))) {
+                throw new IllegalArgumentException("La fecha y hora de la cita no pueden estar en el pasado.");
+            }
             EstadoCita estadoProgramada = estadoCitaRepository.findById(EstadoCitaEnum.PROGRAMADA.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Estado de cita 'Programada' no encontrado"));
             Cita cita = new Cita();
@@ -1209,6 +1229,18 @@ public class SolicitudAcompanamientoService {
                         .observacion(c.getObservacion() != null ? c.getObservacion() : "")
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public UltimaCitaResponse obtenerUltimaCita(Long solicitudId) {
+        SolicitudAtencion solicitud = solicitudAtencionRepository.findById(solicitudId)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada con ID: " + solicitudId));
+        exigirAccesoLectura(solicitud);
+        return citaRepository.findFirstBySolicitudAtencionIdOrderByFechaDescIdDesc(solicitudId)
+                .map(cita -> new UltimaCitaResponse(cita.getFecha(), cita.getEstadoCita().getNombre(),
+                        citaRepository.existsBySolicitudAtencionIdAndEstadoCitaIdIn(solicitudId, List.of(
+                                EstadoCitaEnum.PROGRAMADA.getId(), EstadoCitaEnum.REPROGRAMADA.getId()))))
+                .orElseGet(() -> new UltimaCitaResponse(null, null, false));
     }
 
     private void validarActivo(Boolean activo, String entidad, Integer id) {

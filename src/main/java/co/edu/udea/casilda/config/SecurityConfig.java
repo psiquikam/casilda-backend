@@ -52,6 +52,8 @@ public class SecurityConfig {
                         "/api/v1/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/alma/catalogos/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/solicitudes/acompanamiento/{solicitudId}/ultima-cita")
+                        .access(dynamicEndpointAuthorizationManager::checkUltimaCita)
                         .requestMatchers(HttpMethod.PATCH,
                                 "/solicitudes/acompanamiento/{solicitudId}/casos/{casoId}/fecha-cierre")
                         .access(dynamicEndpointAuthorizationManager::checkAsignarSolicitud)

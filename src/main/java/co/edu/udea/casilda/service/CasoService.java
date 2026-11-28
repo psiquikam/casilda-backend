@@ -156,15 +156,20 @@ public class CasoService {
         if (request.getDiscapacidades() != null) {
             SolicitudAtencion solicitud = caso.getCita().getSolicitudAtencion();
             Persona persona = resolverPersonaAtencion(solicitud);
+            List<SubTipoDiscapacidad> subTipos = request.getDiscapacidades().stream()
+                    .map(req -> {
+                        if (req.getIdSubTipoDiscapacidad() == null) {
+                            throw new IllegalArgumentException("El subtipo de discapacidad es obligatorio");
+                        }
+                        return subTipoDiscapacidadRepository.findById(req.getIdSubTipoDiscapacidad())
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                        "Subtipo de discapacidad no encontrado: " + req.getIdSubTipoDiscapacidad()));
+                    }).toList();
             persona.getDiscapacidades().clear();
             personaRepository.saveAndFlush(persona);
-            for (DiscapacidadPersonaRequest req : request.getDiscapacidades()) {
-                if (req.getIdSubTipoDiscapacidad() == null)
-                    continue;
-                SubTipoDiscapacidad subTipo = subTipoDiscapacidadRepository.findById(req.getIdSubTipoDiscapacidad())
-                        .orElse(null);
-                if (subTipo == null)
-                    continue;
+            for (int i = 0; i < request.getDiscapacidades().size(); i++) {
+                DiscapacidadPersonaRequest req = request.getDiscapacidades().get(i);
+                SubTipoDiscapacidad subTipo = subTipos.get(i);
                 DiscapacidadPersona dp = new DiscapacidadPersona();
                 dp.setIdpersona(persona.getId());
                 dp.setIdsubtipodiscapacidad(subTipo.getId());
@@ -297,6 +302,7 @@ public class CasoService {
 
         // Mapear campos planos de documentación
         caso.setHacecuantooccurrio(request.getHacecuantooccurrio());
+        actualizarAmbitoOcurrencia(caso, request.getAmbitoOcurrencia(), request.getAmbitoOcurrenciaOtro());
 
         if (request.getIdtiempoocurridounidad() != null) {
             caso.setTiempoOcurridoUnidad(
@@ -328,7 +334,9 @@ public class CasoService {
 
         if (request.getIdactivadmisional() != null) {
             caso.setActividadMisional(
-                    actividadMisionalRepository.findById(request.getIdactivadmisional()).orElse(null));
+                    actividadMisionalRepository.findById(request.getIdactivadmisional())
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Actividad misional no encontrada con ID: " + request.getIdactivadmisional())));
         } else {
             caso.setActividadMisional(null);
         }
@@ -480,23 +488,12 @@ public class CasoService {
         return minSequential - 1;
     }
 
-    /**
-     * Resuelve la persona a intervenir en la atención.
-     * Para solicitudes sin remisión, usa el solicitante como fallback.
-     */
     private Persona resolverPersonaAtencion(SolicitudAtencion solicitud) {
         if (solicitud == null) {
             throw new ResourceNotFoundException("Solicitud de atención no encontrada para la cita");
         }
 
-        if (solicitud.getRemision() != null && solicitud.getRemision().getRemitente() != null) {
-            return solicitud.getRemision().getRemitente();
-        }
-
         if (solicitud.getSolicitante() != null) {
-            log.warn(
-                    "La solicitud ID {} no tiene remisión asociada; se usará el solicitante para registrar la atención",
-                    solicitud.getId());
             return solicitud.getSolicitante();
         }
 
@@ -647,6 +644,28 @@ public class CasoService {
         return casos.map(this::mapToListResponse);
     }
 
+    void actualizarAmbitoOcurrencia(Caso caso, String ambito, String otro) {
+        if (ambito == null) {
+            return;
+        }
+        if (!ambito.isBlank() && !java.util.Set.of("Pareja/expareja", "Laboral", "Académico", "Sindical",
+                "Político", "Público", "Familiar", "Privado", "Otro", "N/A").contains(ambito)) {
+            throw new IllegalArgumentException("Ámbito de ocurrencia no válido.");
+        }
+        if (otro != null && otro.length() > 255) {
+            throw new IllegalArgumentException("La descripción del ámbito no puede superar 255 caracteres.");
+        }
+        caso.setAmbitoOcurrencia(ambito.isBlank() ? null : ambito);
+        caso.setAmbitoOcurrenciaOtro("Otro".equals(ambito) && otro != null && !otro.isBlank() ? otro.trim() : null);
+    }
+
+    @Transactional(readOnly = true)
+    public CasoListResponse obtenerCasoPorId(Long id) {
+        Caso caso = casoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Caso no encontrado con ID: " + id));
+        return mapToListResponse(caso);
+    }
+
     private CasoListResponse mapToListResponse(Caso caso) {
         Cita cita = caso.getCita();
         SolicitudAtencion sa = cita != null ? cita.getSolicitudAtencion() : null;
@@ -726,6 +745,10 @@ public class CasoService {
         return CasoListResponse.builder()
                 .id(caso.getId())
                 .codigo(caso.getCodigo())
+                .idActividadMisional(caso.getActividadMisional() != null ? caso.getActividadMisional().getId() : null)
+                .formaOcurrencia(caso.getFormaOcurrencia() != null ? caso.getFormaOcurrencia().getNombre() : null)
+                .ambitoOcurrencia(caso.getAmbitoOcurrencia())
+                .ambitoOcurrenciaOtro(caso.getAmbitoOcurrenciaOtro())
                 .solicitudId(sa != null ? sa.getId() : null)
                 .citaId(cita != null ? cita.getId() : null)
                 .cantidadAtenciones(atencionRepository.countByCasoId(caso.getId()))

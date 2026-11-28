@@ -52,6 +52,10 @@ public class CasoListResponse {
     private String unidadAcademica;
     private String campus;
     private String identidadGenero;
+    private Integer idActividadMisional;
+    private String formaOcurrencia;
+    private String ambitoOcurrencia;
+    private String ambitoOcurrenciaOtro;
 
     // Datos de contacto
     private String celular;

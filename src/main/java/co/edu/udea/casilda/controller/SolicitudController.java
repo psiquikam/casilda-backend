@@ -5,9 +5,11 @@ import co.edu.udea.casilda.dto.request.ContactoTelefonicoRequest;
 import co.edu.udea.casilda.dto.request.SolicitudAcompanamientoRequest;
 import co.edu.udea.casilda.dto.request.UpdateSolicitudRequest;
 import co.edu.udea.casilda.dto.response.ContactoTelefonicoResponse;
+import co.edu.udea.casilda.dto.response.UltimaCitaResponse;
 import co.edu.udea.casilda.dto.response.ProfesionalResponse;
 import co.edu.udea.casilda.dto.response.SolicitudAcompanamientoResponse;
 import co.edu.udea.casilda.service.SolicitudAcompanamientoService;
+import co.edu.udea.casilda.service.CorreoRepartoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -32,6 +34,7 @@ import java.util.List;
 public class SolicitudController {
 
     private final SolicitudAcompanamientoService service;
+    private final CorreoRepartoService correoRepartoService;
 
     /**
      * Crea una nueva solicitud de acompañamiento
@@ -71,6 +74,13 @@ public class SolicitudController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/acompanamiento/{id}/ultima-cita")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Consultar la última cita de una solicitud")
+    public ResponseEntity<UltimaCitaResponse> obtenerUltimaCita(@PathVariable Long id) {
+        return ResponseEntity.ok(service.obtenerUltimaCita(id));
+    }
+
     /**
      * Lista todas las solicitudes
      */
@@ -100,8 +110,9 @@ public class SolicitudController {
         public ResponseEntity<Page<SolicitudAcompanamientoResponse>> listarPaginadas(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
-                        @RequestParam(required = false) Integer idEstadoSolicitud) {
-                return ResponseEntity.ok(service.listarPaginadas(page, size, idEstadoSolicitud));
+                        @RequestParam(required = false) Integer idEstadoSolicitud,
+                        @RequestParam(defaultValue = "false") boolean ordenReparto) {
+                return ResponseEntity.ok(service.listarPaginadas(page, size, idEstadoSolicitud, ordenReparto));
         }
 
     /**
@@ -158,7 +169,9 @@ public class SolicitudController {
     public ResponseEntity<SolicitudAcompanamientoResponse> asignarSolicitud(
             @PathVariable Long id,
             @Valid @RequestBody AsignarSolicitudRequest request) {
-        return ResponseEntity.ok(service.asignarSolicitud(id, request));
+        SolicitudAcompanamientoResponse response = service.asignarSolicitud(id, request);
+        response.setEstadoCorreoReparto(correoRepartoService.notificar(id));
+        return ResponseEntity.ok(response);
     }
 
     /**

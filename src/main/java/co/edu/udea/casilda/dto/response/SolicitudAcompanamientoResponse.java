@@ -41,7 +41,9 @@ public class SolicitudAcompanamientoResponse {
     private String tipoServicio;
     private Integer grupoProfesionalId;
     private LocalDate fechaReparto;
+    private LocalDateTime fechaHoraReparto;
     private String observacionesReparto;
+    private String estadoCorreoReparto;
 
     // Hechos
     private String descripcionHechos;
@@ -68,6 +70,7 @@ public class SolicitudAcompanamientoResponse {
     private String documentoSolicitante;
 
     // Datos del solicitante (completos)
+    private List<DiscapacidadPersonaResponse> discapacidades;
     private Integer tipoDocumentoId;
     private String tipoDocumento;
     private String numeroDocumento;
